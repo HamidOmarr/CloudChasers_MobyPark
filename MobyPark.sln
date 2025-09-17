@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MobyPark", "MobyPark\MobyPark.csproj", "{EDABE650-58F5-426E-8874-D3030CC5DC2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MobyPark.Tests", "MobyPark.Tests\MobyPark.Tests.csproj", "{CE58E88F-1B08-4A81-88CE-17A61DDE3FB2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EDABE650-58F5-426E-8874-D3030CC5DC2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EDABE650-58F5-426E-8874-D3030CC5DC2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EDABE650-58F5-426E-8874-D3030CC5DC2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EDABE650-58F5-426E-8874-D3030CC5DC2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE58E88F-1B08-4A81-88CE-17A61DDE3FB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE58E88F-1B08-4A81-88CE-17A61DDE3FB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE58E88F-1B08-4A81-88CE-17A61DDE3FB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE58E88F-1B08-4A81-88CE-17A61DDE3FB2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
