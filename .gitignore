@@ -482,3 +482,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+/MobyPark/obj
+MobyPark/bin
+/MobyPark.Tests/obj
+/MobyPark.Tests/bin
