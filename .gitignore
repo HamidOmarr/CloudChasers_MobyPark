@@ -484,6 +484,12 @@ $RECYCLE.BIN/
 *.swp
 
 /MobyPark/obj
-MobyPark/bin
+/MobyPark/bin
 /MobyPark.Tests/obj
 /MobyPark.Tests/bin
+/MobyPark/obj/Debug/net8.0
+/MobyPark/bin/Debug/net8.0
+/MobyPark.Tests/obj/Debug/net8.0
+/MobyPark.Tests/bin/Debug/net8.0
+MobyPark/.DS_Store
+.DS_Store
