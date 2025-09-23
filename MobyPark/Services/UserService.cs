@@ -75,6 +75,7 @@ public partial class UserService
 
     public async Task<UserModel> UpdateUser(UserModel user)
     {
+        ArgumentNullException.ThrowIfNull(user);
         await _dataAccess.Users.Update(user);
         return user;
     }

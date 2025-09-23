@@ -166,5 +166,112 @@ public sealed class UserServiceTests
 
         _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
     }
+
+    [TestMethod]
+    [DataRow("user1", "ValidPass1@", "Alice", "USER", true)]
+    [DataRow("user2", "Another1!", "Bob", "ADMIN", false)]
+    [DataRow("user3", "Complex#Pass2", "Charlie", "MANAGER", true)]
+    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(
+        string username,
+        string password,
+        string name,
+        string role,
+        bool active)
+    {
+        // Arrange
+        var user = new UserModel
+        {
+            Username = username,
+            Password = _userService!.HashPassword(password),
+            Name = name,
+            Role = role,
+            Active = active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _mockUserAccess!
+            .Setup(access => access.Update(It.IsAny<UserModel>()))
+            .ReturnsAsync(true).Verifiable();
+
+        // Act
+        var result = await _userService.UpdateUser(user);
+
+        // Assert
+        Assert.AreEqual(user, result);
+        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task UpdateUser_NullUser_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
+            await _userService!.UpdateUser(null!));
+
+        _mockUserAccess!.Verify(access => access.Update(It.IsAny<UserModel>()), Times.Never);
+    }
+
+    [TestMethod]
+    [DataRow("userX", "FailPass1@", "Dave")]
+    [DataRow("userY", "OtherFail2#", "Eve")]
+    public async Task UpdateUser_WhenUpdateThrows_ExceptionPropagates(
+        string username,
+        string password,
+        string name)
+    {
+        // Arrange
+        var user = new UserModel
+        {
+            Username = username,
+            Password = _userService!.HashPassword(password),
+            Name = name,
+            Role = "USER",
+            Active = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _mockUserAccess!
+            .Setup(access => access.Update(It.IsAny<UserModel>()))
+            .ThrowsAsync(new InvalidOperationException("DB error"));
+
+        // Act & Assert
+        var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+            await _userService.UpdateUser(user));
+
+        Assert.AreEqual("DB error", ex.Message);
+    }
+
+    [TestMethod]
+    [DataRow("", "plain", null, "ADMIN", false)]
+    [DataRow("userWeird", "notHashed", "", "SUPERUSER", true)]
+    [DataRow("   ", "123", "   ", "GUEST", false)]
+    public async Task UpdateUser_DoesNotValidateUserFields(
+        string username,
+        string password,
+        string name,
+        string role,
+        bool active)
+    {
+        // Arrange
+        var user = new UserModel
+        {
+            Username = username,
+            Password = password,
+            Name = name!,
+            Role = role,
+            Active = active,
+            CreatedAt = DateTime.MinValue
+        };
+
+        _mockUserAccess!
+            .Setup(access => access.Update(It.IsAny<UserModel>()))
+            .ReturnsAsync(true).Verifiable();
+
+        // Act
+        var result = await _userService!.UpdateUser(user);
+
+        // Assert
+        Assert.AreEqual(user, result);
+        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
+    }
 }
 
