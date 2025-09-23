@@ -91,7 +91,6 @@ public class PaymentService
         return payment;
     }
 
-
     public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataAccess.Payments.GetByUser(username);
 
     public async Task<PaymentModel> GetPaymentByTransactionId(string id)

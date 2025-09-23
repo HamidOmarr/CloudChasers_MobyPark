@@ -66,11 +66,16 @@ public partial class UserService
         return user;
     }
 
-    public async Task<UserModel> GetUserByUsername(string username)
+    public async Task<UserModel?> GetUserByUsername(string username)
     {
         UserModel? user = await _dataAccess.Users.GetByUsername(username);
-        if (user is null) throw new KeyNotFoundException("User not found");
 
+        return user;
+    }
+
+    public async Task<UserModel> UpdateUser(UserModel user)
+    {
+        await _dataAccess.Users.Update(user);
         return user;
     }
 

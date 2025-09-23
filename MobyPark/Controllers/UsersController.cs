@@ -3,6 +3,7 @@ using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.Requests;
 using MobyPark.Services;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -10,14 +11,12 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly UserAccess _userAccess;
-    private readonly UserService _userService;
+    private readonly ServiceStack _services;
 
-    public UsersController(SessionService sessionService, UserAccess userAccess, UserService userService)
-        : base(sessionService)
+    public UsersController(ServiceStack services)
+        : base(services.Sessions)
     {
-        _userAccess = userAccess;
-        _userService = userService;
+        _services = services;
     }
 
     [HttpPost("register")]
@@ -26,21 +25,12 @@ public class UsersController : BaseController
         if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password) || string.IsNullOrEmpty(request.Name))
             return BadRequest(new { error = "Missing required fields" });
 
-        var existing = await _userAccess.GetByUsername(request.Username);
-        if (existing != null)
+        UserModel? existing = await _services.Users.GetUserByUsername(request.Username);
+
+        if (existing is not null)
             return Conflict(new { error = "Username already taken" });
 
-        var hashedPassword = _userService.HashPassword(request.Password);
-
-        var newUser = new UserModel
-        {
-            Username = request.Username,
-            Password = hashedPassword,
-            Name = request.Name,
-            Role = "USER"
-        };
-
-        await _userAccess.Create(newUser);
+        await _services.Users.CreateUserAsync(request.Username, request.Password, request.Name);
         return StatusCode(201, new { message = "User created" });
     }
 
@@ -50,8 +40,8 @@ public class UsersController : BaseController
         if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
             return BadRequest(new { error = "Missing credentials" });
 
-        var user = await _userAccess.GetByUsername(request.Username);
-        if (user == null || !_userService.VerifyPassword(request.Password, user.Password))
+        UserModel? user = await _services.Users.GetUserByUsername(request.Username);
+        if (user is null || !_services.Users.VerifyPassword(request.Password, user.Password))
             return Unauthorized(new { error = "Invalid credentials" });
 
         var token = Guid.NewGuid().ToString();
@@ -66,12 +56,12 @@ public class UsersController : BaseController
         var user = GetCurrentUser();
 
         if (!string.IsNullOrWhiteSpace(request.Password))
-            user.Password = _userService.HashPassword(request.Password);
+            user.Password = _services.Users.HashPassword(request.Password);
 
         if (!string.IsNullOrWhiteSpace(request.Username))
             user.Username = request.Username;
 
-        await _userAccess.Update(user);
+        await _services.Users.UpdateUser(user);
         return Ok(new { message = "User updated successfully" });
     }
 
