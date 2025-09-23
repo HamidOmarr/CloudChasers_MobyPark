@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Models.Access;
 using MobyPark.Models.Requests;
-using MobyPark.Services;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -10,14 +9,12 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class PaymentsController : BaseController
 {
-    private readonly PaymentAccess _paymentAccess;
-    private readonly ParkingSessionService _sessionServiceCalculator;
+    private readonly ServiceStack _services;
 
-    public PaymentsController(SessionService sessionService, PaymentAccess paymentAccess, ParkingSessionService sessionServiceCalculator)
-        : base(sessionService)
+    public PaymentsController(ServiceStack services)
+        : base(services.Sessions)
     {
-        _paymentAccess = paymentAccess;
-        _sessionServiceCalculator = sessionServiceCalculator;
+        _services = services;
     }
 
     [HttpPost]
@@ -28,18 +25,23 @@ public class PaymentsController : BaseController
         if (string.IsNullOrEmpty(request.TransactionId) || request.Amount == null)
             return BadRequest(new { error = "Required fields missing" });
 
-        var payment = new PaymentModel
+        try
         {
-            TransactionId = request.TransactionId,
-            Amount = request.Amount.Value,
-            Initiator = user.Username,
-            CreatedAt = DateTime.UtcNow,
-            Completed = DateTime.UtcNow,
-            Hash = _sessionServiceCalculator.GenerateTransactionValidationHash()
-        };
+            var payment = await _services.Payments.CreatePayment(
+                request.TransactionId,
+                request.Amount.Value,
+                user.Username,
+                request.TransactionData
+            );
 
-        await _paymentAccess.Create(payment);
-        return StatusCode(201, new { status = "Success", payment });
+            return CreatedAtAction(nameof(GetUserPayments),
+                new { id = payment.TransactionId },
+                payment);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPost("refund")]
@@ -53,34 +55,31 @@ public class PaymentsController : BaseController
         if (request.Amount == null)
             return BadRequest(new { error = "Required field missing: amount" });
 
-        var payment = new PaymentModel
+        try
         {
-            TransactionId = string.IsNullOrEmpty(request.TransactionId) ? Guid.NewGuid().ToString("N") : request.TransactionId,
-            Amount = -Math.Abs(request.Amount.Value),
-            CoupledTo = request.CoupledTo,
-            CreatedAt = DateTime.UtcNow,
-            Completed = DateTime.UtcNow,
-            Hash = _sessionServiceCalculator.GenerateTransactionValidationHash()
-        };
+            var refund = await _services.Payments.RefundPayment(
+                request.CoupledTo,
+                request.Amount.Value,
+                user.Username
+            );
 
-        await _paymentAccess.Create(payment);
-        return StatusCode(201, new { status = "Success", payment });
+            return StatusCode(201, new { status = "Success", refund });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPut("{transactionId}")]
     public async Task<IActionResult> ValidatePayment(string transactionId, [FromBody] PaymentValidationRequest request)
     {
-        var payment = await _paymentAccess.GetByTransactionId(transactionId);
-        if (payment == null)
-            return NotFound(new { error = "Payment not found" });
+        var payment = await _services.Payments.GetPaymentByTransactionId(transactionId);
 
         if (payment.Hash != request.Validation)
             return Unauthorized(new { error = "Validation failed", info = "The security hash could not be validated." });
 
-        payment.Completed = DateTime.UtcNow;
-        payment.TransactionData = request.TransactionData;
-
-        await _paymentAccess.Update(payment);
+        await _services.Payments.ValidatePayment(transactionId, payment.Hash, request.TransactionData);
         return Ok(new { status = "Success", payment });
     }
 
@@ -88,7 +87,7 @@ public class PaymentsController : BaseController
     public async Task<IActionResult> GetUserPayments()
     {
         var user = GetCurrentUser();
-        var payments = await _paymentAccess.GetByUser(user.Username);
+        var payments = await _services.Payments.GetPaymentsForUser(user.Username);
         return Ok(payments);
     }
 
@@ -99,7 +98,7 @@ public class PaymentsController : BaseController
         if (user.Role != "ADMIN")
             return Forbid();
 
-        var payments = await _paymentAccess.GetByUser(username);
+        var payments = await _services.Payments.GetPaymentsForUser(username);
         return Ok(payments);
     }
 }

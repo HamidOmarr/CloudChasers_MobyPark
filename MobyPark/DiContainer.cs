@@ -24,7 +24,7 @@ public static class DiContainer
         services.AddScoped<UserService>();
 
         // Data service
-        services.AddScoped<IDataService, DataService>();
+        services.AddScoped<IDataAccess, DataAccess>();
 
         // Database connection
         services.AddScoped<IDatabaseConnection, DatabaseConnection>();

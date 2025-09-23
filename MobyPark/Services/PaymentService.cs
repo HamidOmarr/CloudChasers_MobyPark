@@ -5,32 +5,32 @@ namespace MobyPark.Services;
 
 public class PaymentService
 {
-    private readonly IDataService _dataService;
+    private readonly IDataAccess _dataAccess;
 
-    public PaymentService(IDataService dataService)
+    public PaymentService(IDataAccess dataAccess)
     {
-        _dataService = dataService;
+        _dataAccess = dataAccess;
     }
 
     public async Task<PaymentModel> CreatePayment(string transaction, decimal amount, string initiator,
                                                        TransactionDataModel transactionData)
     {
+        if (string.IsNullOrWhiteSpace(transaction) || string.IsNullOrWhiteSpace(initiator) ||
+            transaction is null)
+            throw new ArgumentException("Required fields not filled!");
+
         PaymentModel payment = new()
         {
             TransactionId = transaction,
             Amount = amount,
             Initiator = initiator,
             CreatedAt = DateTime.UtcNow,
-            Completed = default,
+            Completed = null,
             Hash = Guid.NewGuid().ToString("N"),
             TransactionData = transactionData
         };
 
-        if (string.IsNullOrWhiteSpace(transaction) || string.IsNullOrWhiteSpace(initiator) ||
-            transaction is null)
-            throw new ArgumentException("Required fields not filled!");
-
-        await _dataService.Payments.Create(payment);
+        await _dataAccess.Payments.Create(payment);
         return payment;
     }
 
@@ -58,7 +58,7 @@ public class PaymentService
             Amount = -Math.Abs(amount),
             Initiator = adminUser,
             CreatedAt = DateTime.UtcNow,
-            Completed = default,
+            Completed = null,
             Hash = Guid.NewGuid().ToString("N"),
             TransactionData = transactionData,
             CoupledTo = originalTransaction
@@ -67,13 +67,13 @@ public class PaymentService
         if (string.IsNullOrWhiteSpace(originalTransaction) || string.IsNullOrWhiteSpace(adminUser))
             throw new ArgumentException("Required fields not filled!");
 
-        await _dataService.Payments.Create(refundPayment);
+        await _dataAccess.Payments.Create(refundPayment);
         return refundPayment;
     }
 
     public async Task<PaymentModel> ValidatePayment(string transactionId, string validationHash, TransactionDataModel transactionData)
     {
-        PaymentModel? payment = await _dataService.Payments.GetByTransactionId(transactionId);
+        PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(transactionId);
 
         if (payment == null)
             throw new KeyNotFoundException("Payment not found");
@@ -86,17 +86,24 @@ public class PaymentService
         payment.TransactionData = transactionData;
         if (payment.Completed.HasValue) return payment;
         payment.Completed = DateTime.UtcNow;
-        await _dataService.Payments.Update(payment);
+        await _dataAccess.Payments.Update(payment);
 
         return payment;
     }
 
 
-    public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataService.Payments.GetByUser(username);
+    public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataAccess.Payments.GetByUser(username);
+
+    public async Task<PaymentModel> GetPaymentByTransactionId(string id)
+    {
+        PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(id);
+        if (payment is null) throw new KeyNotFoundException("Payment not found");
+        return payment;
+    }
 
     public async Task<decimal> GetTotalAmountForTransaction(string transaction)
     {
-        var payment = await _dataService.Payments.GetByTransactionId(transaction);
+        var payment = await _dataAccess.Payments.GetByTransactionId(transaction);
         if (payment is null)
             return Decimal.MinValue; // TODO: Make a bit clearer, either here or where called.
         return payment.Amount;

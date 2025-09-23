@@ -2,7 +2,7 @@ using MobyPark.Models.Access;
 
 namespace MobyPark.Models.DataService;
 
-public interface IDataService
+public interface IDataAccess
 {
     public IParkingLotAccess ParkingLots { get; }
     public IPaymentAccess Payments { get; }

@@ -2,7 +2,7 @@ using MobyPark.Models.Access;
 
 namespace MobyPark.Models.DataService;
 
-public class DataService : IDataService
+public class DataAccess : IDataAccess
 {
     public IParkingLotAccess ParkingLots { get; }
     public IParkingSessionAccess ParkingSessions { get; }
@@ -11,7 +11,7 @@ public class DataService : IDataService
     public IUserAccess Users { get; }
     public IVehicleAccess Vehicles { get; }
 
-    public DataService(IParkingLotAccess parkingLots, IParkingSessionAccess parkingSessions, IPaymentAccess payments, IReservationAccess reservations, IUserAccess users, IVehicleAccess vehicles)
+    public DataAccess(IParkingLotAccess parkingLots, IParkingSessionAccess parkingSessions, IPaymentAccess payments, IReservationAccess reservations, IUserAccess users, IVehicleAccess vehicles)
     {
         ParkingLots = parkingLots;
         ParkingSessions = parkingSessions;

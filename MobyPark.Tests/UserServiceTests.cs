@@ -9,14 +9,14 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class UserServiceTests
 {
-    private Mock<IDataService>? _mockDataService;
+    private Mock<IDataAccess>? _mockDataService;
     private Mock<IUserAccess>? _mockUserAccess;
     private UserService? _userService;
 
     [TestInitialize]
     public void TestInitialize()
     {
-        _mockDataService = new Mock<IDataService>();
+        _mockDataService = new Mock<IDataAccess>();
         _mockUserAccess = new Mock<IUserAccess>();
 
         _mockDataService.Setup(ds => ds.Users).Returns(_mockUserAccess.Object);
