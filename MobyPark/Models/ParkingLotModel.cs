@@ -5,7 +5,7 @@ namespace MobyPark.Models;
 
 public class ParkingLotModel
 {
-    public int? Id { get; set; }
+    public int Id { get; set; }
     public string Name { get; set; }
     public string Location { get; set; }
     public string Address { get; set; }
@@ -23,7 +23,7 @@ public class ParkingLotModel
 
     public ParkingLotModel(SqliteDataReader reader) : this()
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("id")) ? (int?)null : reader.GetInt32(reader.GetOrdinal("id"));
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
         Name = reader.GetString(reader.GetOrdinal("name"));
         Location = reader.GetString(reader.GetOrdinal("location"));
         Address = reader.GetString(reader.GetOrdinal("address"));

@@ -22,6 +22,9 @@ public static class DiContainer
         services.AddScoped<ParkingSessionService>();
         services.AddScoped<PaymentService>();
         services.AddScoped<UserService>();
+        services.AddScoped<ParkingLotService>();
+        services.AddScoped<ReservationService>();
+        services.AddScoped<VehicleService>();
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();

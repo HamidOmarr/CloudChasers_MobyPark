@@ -10,7 +10,21 @@
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fcd4f371_002D9f41_002D464b_002D8ee6_002Df621d1708feb/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CreatePayment_Successful_ReturnsPaymentModel" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
-  &lt;TestAncestor&gt;
-    &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.PaymentServiceTests&lt;/TestId&gt;
-  &lt;/TestAncestor&gt;
+  &lt;Or&gt;
+    &lt;And&gt;
+      &lt;TestAncestor&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.PaymentServiceTests&lt;/TestId&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests.GenerateTransactionValidationHash_ReturnsUniqueHash&lt;/TestId&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests&lt;/TestId&gt;
+      &lt;/TestAncestor&gt;
+      &lt;Not&gt;
+        &lt;TestAncestor&gt;
+          &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests.GetParkingLotById_ValidId_ReturnsParkingLot.GetParkingLotById_ValidId_ReturnsParkingLot (1,Lot A,Downtown,123 Main St,100,10,5,20)&lt;/TestId&gt;
+        &lt;/TestAncestor&gt;
+      &lt;/Not&gt;
+    &lt;/And&gt;
+    &lt;TestAncestor&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests.GetParkingLotById_ValidId_ReturnsParkingLot&lt;/TestId&gt;
+    &lt;/TestAncestor&gt;
+  &lt;/Or&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

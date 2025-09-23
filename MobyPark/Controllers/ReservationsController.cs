@@ -3,6 +3,7 @@ using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.Requests;
 using MobyPark.Services;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -10,18 +11,12 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ReservationsController : BaseController
 {
-    private readonly ReservationAccess _reservationAccess;
-    private readonly ParkingLotAccess _parkingLotAccess;
-    private readonly VehicleAccess _vehicleAccess;
-    private readonly UserAccess _userAccess;
+    private readonly ServiceStack _services;
 
-    public ReservationsController(SessionService sessionService, ReservationAccess reservationAccess, ParkingLotAccess parkingLotAccess, VehicleAccess vehicleAccess, UserAccess userAccess)
-        : base(sessionService)
+    public ReservationsController(ServiceStack services)
+        : base(services.Sessions)
     {
-        _reservationAccess = reservationAccess;
-        _parkingLotAccess = parkingLotAccess;
-        _vehicleAccess = vehicleAccess;
-        _userAccess = userAccess;
+        _services = services;
     }
 
     [HttpPost]
@@ -32,29 +27,23 @@ public class ReservationsController : BaseController
         if (request.StartDate == default || request.EndDate == default)
             return BadRequest(new { error = "Required fields missing" });
 
-        var parkingLot = await _parkingLotAccess.GetById(request.ParkingLotId);
-        if (parkingLot == null)
-            return NotFound(new { error = "Parking lot not found" });
-
-        var vehicle = await _vehicleAccess.GetByLicensePlate(request.LicensePlate);
-        if (vehicle is null) return BadRequest(new { error = "Vehicle not found." });
+        var parkingLot = await _services.ParkingLots.GetParkingLotById(request.ParkingLotId);
+        var vehicle = await _services.Vehicles.GetVehicleByLicensePlate(request.LicensePlate);
 
         UserModel? userRequested = null;
-        if (request.User is not null)
-            userRequested = await _userAccess.GetByUsername(request.User);
 
-        var reservation = new ReservationModel
-        {
-            ParkingLotId = request.ParkingLotId,
-            VehicleId = vehicle.Id,
-            StartTime = request.StartDate,
-            EndTime = request.EndDate,
-            UserId = user.Role == "ADMIN" && userRequested is not null ? userRequested.Id : user.Id // Ensures that if an admin makes a manual reservation, the admin user is not set as the user in reservation.
-        };
+        if (request.Username is not null)
+            userRequested = await _services.Users.GetUserByUsername(request.Username);
 
-        await _reservationAccess.Create(reservation);
+        int userId = user.Role == "ADMIN" && userRequested is not null ? userRequested.Id : user.Id; // Ensures that if an admin makes a manual reservation, the admin user is not set as the user in reservation.
+
+        var reservation = await _services.Reservations.CreateReservation(request.ParkingLotId, vehicle.Id, request.StartDate,
+            request.EndDate, userId);
+
         parkingLot.Reserved += 1;
-        await _parkingLotAccess.Update(parkingLot);
+
+        reservation = await _services.Reservations.UpdateReservation(request.ParkingLotId, vehicle.Id, request.StartDate,
+            request.EndDate, userId);
 
         return StatusCode(201, new { status = "Success", reservation });
     }
@@ -63,13 +52,7 @@ public class ReservationsController : BaseController
     public async Task<IActionResult> UpdateReservation(int reservationId, [FromBody] ReservationModel request)
     {
         var user = GetCurrentUser();
-        var reservation = await _reservationAccess.GetById(reservationId);
-        if (reservation == null)
-            return NotFound(new { error = "Reservation not found" });
-
-        VehicleModel? vehicle = await _vehicleAccess.GetById(request.VehicleId);
-        if (vehicle is null)
-            return BadRequest(new { error = "Vehicle not found" });
+        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
 
         if (request.StartTime == default || request.EndTime == default || request.ParkingLotId == 0)
             return BadRequest(new { error = "Required fields missing" });
@@ -77,13 +60,7 @@ public class ReservationsController : BaseController
         if (user.Role != "ADMIN")
             request.UserId = user.Id;
 
-        reservation.VehicleId = request.VehicleId;
-        reservation.StartTime = request.StartTime;
-        reservation.EndTime = request.EndTime;
-        reservation.ParkingLotId = request.ParkingLotId;
-        reservation.UserId = request.UserId;
-
-        await _reservationAccess.Update(reservation);
+        await _services.Reservations.UpdateReservation(request.ParkingLotId, request.VehicleId, request.StartTime, request.EndTime, request.UserId);
         return Ok(new { status = "Updated", reservation });
     }
 
@@ -91,32 +68,29 @@ public class ReservationsController : BaseController
     public async Task<IActionResult> DeleteReservation(int reservationId)
     {
         var user = GetCurrentUser();
-        var reservation = await _reservationAccess.GetById(reservationId);
-        if (reservation == null)
-            return NotFound(new { error = "Reservation not found" });
+        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
 
         if (user.Role != "ADMIN" && reservation.UserId != user.Id)
             return Forbid();
 
-        var parkingLot = await _parkingLotAccess.GetById(reservation.ParkingLotId);
-        if (parkingLot != null)
-        {
-            parkingLot.Reserved = Math.Max(0, parkingLot.Reserved - 1);
-            await _parkingLotAccess.Update(parkingLot);
-        }
+        var parkingLot = await _services.ParkingLots.GetParkingLotById(reservation.ParkingLotId);
+        parkingLot.Reserved = Math.Max(0, parkingLot.Reserved - 1);
 
-        await _reservationAccess.Delete(reservationId);
-        return Ok(new { status = "Deleted" });
+        await _services.ParkingLots.UpdateParkingLot(parkingLot.Id, parkingLot.Name, parkingLot.Location,
+            parkingLot.Address, parkingLot.Capacity, parkingLot.Reserved, parkingLot.Tariff, parkingLot.DayTariff,
+            parkingLot.CreatedAt, parkingLot.Coordinates);
+
+        bool success = await _services.Reservations.DeleteReservation(reservationId);
+        return success
+            ? Ok(new { status = "Deleted" })
+            : StatusCode(500, new { status = "Error", message = "Failed to delete reservation" });
     }
 
     [HttpGet("{reservationId}")]
     public async Task<IActionResult> GetReservation(int reservationId)
     {
         var user = GetCurrentUser();
-        var reservation = await _reservationAccess.GetById(reservationId);
-
-        if (reservation == null)
-            return NotFound(new { error = "Reservation not found" });
+        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
 
         if (user.Role != "ADMIN" && reservation.UserId != user.Id)
             return Forbid();

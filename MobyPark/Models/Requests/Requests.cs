@@ -10,7 +10,7 @@ public record ParkingLotRequest(string Name, string Location, decimal Tariff, de
 public record VehicleRequest(string LicensePlate);
 public record VehicleEntryRequest(string ParkingLot);
 
-public record ReservationRequest(string LicensePlate, DateTime StartDate, DateTime EndDate, int ParkingLotId, string? User = null); // User meant only for admin override
+public record ReservationRequest(string LicensePlate, DateTime StartDate, DateTime EndDate, int ParkingLotId, string? Username = null); // User meant only for admin override
 public record PaymentValidationRequest(TransactionDataModel TransactionData, string Validation);
 
 public record PaymentRequest(string TransactionId, decimal? Amount, TransactionDataModel TransactionData);
