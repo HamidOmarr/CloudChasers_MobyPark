@@ -115,7 +115,8 @@ public class VehicleService
 
     public async Task<bool> DeleteVehicle(int id)
     {
-        VehicleModel vehicle = await GetVehicleById(id);  // to ensure the vehicle exists beforehand.
+        await GetVehicleById(id);  // to ensure the vehicle exists beforehand.
+
 
         bool success = await _dataAccess.Vehicles.Delete(id);
         return success;

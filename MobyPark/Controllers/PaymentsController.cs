@@ -11,8 +11,7 @@ public class PaymentsController : BaseController
 {
     private readonly ServiceStack _services;
 
-    public PaymentsController(ServiceStack services)
-        : base(services.Sessions)
+    public PaymentsController(ServiceStack services) : base(services.Sessions)
     {
         _services = services;
     }

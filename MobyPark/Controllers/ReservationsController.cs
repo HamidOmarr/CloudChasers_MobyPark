@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Models.Access;
 using MobyPark.Models.Requests;
-using MobyPark.Services;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
@@ -13,8 +11,7 @@ public class ReservationsController : BaseController
 {
     private readonly ServiceStack _services;
 
-    public ReservationsController(ServiceStack services)
-        : base(services.Sessions)
+    public ReservationsController(ServiceStack services) : base(services.Sessions)
     {
         _services = services;
     }

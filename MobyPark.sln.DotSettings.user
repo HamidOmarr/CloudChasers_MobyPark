@@ -27,6 +27,7 @@
       &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests.GetParkingLotById_ValidId_ReturnsParkingLot&lt;/TestId&gt;
       &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.UserServiceTests&lt;/TestId&gt;
       &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.VehicleServiceTests&lt;/TestId&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests&lt;/TestId&gt;
     &lt;/TestAncestor&gt;
   &lt;/Or&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

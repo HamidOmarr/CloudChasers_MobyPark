@@ -256,7 +256,7 @@ public sealed class UserServiceTests
         {
             Username = username,
             Password = password,
-            Name = name!,
+            Name = name,
             Role = role,
             Active = active,
             CreatedAt = DateTime.MinValue
