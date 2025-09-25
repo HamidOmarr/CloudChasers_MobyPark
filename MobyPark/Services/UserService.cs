@@ -8,14 +8,14 @@ namespace MobyPark.Services;
 
 public partial class UserService
 {
-    private readonly IDataService _dataService;
+    private readonly IDataAccess _dataAccess;
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const int UsernameLength = 25;
     private const int NameLength = 50;
 
-    public UserService(IDataService dataService)
+    public UserService(IDataAccess dataAccess)
     {
-        _dataService = dataService;
+        _dataAccess = dataAccess;
     }
 
     public string HashPassword(string password)
@@ -62,10 +62,23 @@ public partial class UserService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _dataService.Users.Create(user);
+        await _dataAccess.Users.Create(user);
         return user;
     }
 
+    public async Task<UserModel?> GetUserByUsername(string username)
+    {
+        UserModel? user = await _dataAccess.Users.GetByUsername(username);
+
+        return user;
+    }
+
+    public async Task<UserModel> UpdateUser(UserModel user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        await _dataAccess.Users.Update(user);
+        return user;
+    }
 
     [GeneratedRegex(PasswordPattern)]
     private static partial Regex PasswordRegex();

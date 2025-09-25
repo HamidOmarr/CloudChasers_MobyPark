@@ -12,6 +12,7 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
     {
         var parameters = new Dictionary<string, object>
         {
+            { "@id", parkingLot.Id },
             { "@Name", parkingLot.Name },
             { "@Location", parkingLot.Location },
             { "@Address", parkingLot.Address },
@@ -23,9 +24,6 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
             { "@Lat", parkingLot.Coordinates.Lat },
             { "@Lng", parkingLot.Coordinates.Lng }
         };
-
-        if (parkingLot.Id.HasValue)
-            parameters.Add("@id", parkingLot.Id);
 
         return parameters;
     }

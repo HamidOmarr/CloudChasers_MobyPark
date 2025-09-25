@@ -1,6 +1,6 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AAssert_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003FApplication_0020Support_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003Fdf3a5d166359f3be77c6a4c18d8b451173aecfe3a6673cbe1545fdc424a40_003FAssert_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3b401e74_002Ded23_002D4af1_002Dbd9d_002D3a76bde7024c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CalculatePrice_MultipleDays_ReturnsCorrectPrice" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3b401e74_002Ded23_002D4af1_002Dbd9d_002D3a76bde7024c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="CalculatePrice_MultipleDays_ReturnsCorrectPrice" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;Project Location="/Users/faye/Library/CloudStorage/OneDrive-HogeschoolRotterdam/Jaar2/Software Construction Process and Tools/App/MobyPark.Tests" Presentation="&amp;lt;MobyPark.Tests&amp;gt;" /&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=9080a611_002D00ad_002D41c4_002D92c3_002D45dadbb5daf7/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="CreatePayment_Successful_ReturnsPaymentModel #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
@@ -9,8 +9,25 @@
     &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fcd4f371_002D9f41_002D464b_002D8ee6_002Df621d1708feb/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="CreatePayment_Successful_ReturnsPaymentModel" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
-  &lt;TestAncestor&gt;
-    &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.PaymentServiceTests.CreatePayment_Successful_ReturnsPaymentModel&lt;/TestId&gt;
-  &lt;/TestAncestor&gt;
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fcd4f371_002D9f41_002D464b_002D8ee6_002Df621d1708feb/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CreatePayment_Successful_ReturnsPaymentModel" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;Or&gt;
+    &lt;And&gt;
+      &lt;TestAncestor&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.PaymentServiceTests&lt;/TestId&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests.GenerateTransactionValidationHash_ReturnsUniqueHash&lt;/TestId&gt;
+        &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests&lt;/TestId&gt;
+      &lt;/TestAncestor&gt;
+      &lt;Not&gt;
+        &lt;TestAncestor&gt;
+          &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests.GetParkingLotById_ValidId_ReturnsParkingLot.GetParkingLotById_ValidId_ReturnsParkingLot (1,Lot A,Downtown,123 Main St,100,10,5,20)&lt;/TestId&gt;
+        &lt;/TestAncestor&gt;
+      &lt;/Not&gt;
+    &lt;/And&gt;
+    &lt;TestAncestor&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingLotServiceTests.GetParkingLotById_ValidId_ReturnsParkingLot&lt;/TestId&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.UserServiceTests&lt;/TestId&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.VehicleServiceTests&lt;/TestId&gt;
+      &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests&lt;/TestId&gt;
+    &lt;/TestAncestor&gt;
+  &lt;/Or&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

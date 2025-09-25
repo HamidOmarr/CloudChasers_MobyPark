@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Models.Access;
-using MobyPark.Services;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -9,14 +8,11 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingLotsController : BaseController
 {
-    private readonly ParkingLotAccess _parkingLotAccess;
-    private readonly ParkingSessionAccess _parkingSessionAccess;
+    private readonly ServiceStack _services;
 
-    public ParkingLotsController(SessionService sessionService, ParkingLotAccess parkingLotAccess, ParkingSessionAccess parkingSessionAccess)
-        : base(sessionService)
+    public ParkingLotsController(ServiceStack services) : base(services.Sessions)
     {
-        _parkingLotAccess = parkingLotAccess;
-        _parkingSessionAccess = parkingSessionAccess;
+        _services = services;
     }
 
     // ADMIN ONLY
@@ -28,7 +24,7 @@ public class ParkingLotsController : BaseController
         if (user.Role != "ADMIN") return Forbid();
 
         lot.CreatedAt = DateTime.UtcNow;
-        await _parkingLotAccess.Create(lot);
+        await _services.ParkingLots.CreateParkingLot(lot);
         return StatusCode(201, new { message = "Parking lot created" });
     }
 
@@ -38,15 +34,19 @@ public class ParkingLotsController : BaseController
         var user = GetCurrentUser();
         if (user.Role != "ADMIN") return Forbid();
 
-        var existingLot = await _parkingLotAccess.GetById(lotId);
-        if (existingLot == null) return NotFound(new { error = "Parking lot not found" });
+        var existingLot = await _services.ParkingLots.GetParkingLotById(lotId);
+        if (existingLot is null) return NotFound(new { error = "Parking lot not found" });
 
         existingLot.Name = lot.Name;
         existingLot.Location = lot.Location;
         existingLot.Tariff = lot.Tariff;
         existingLot.DayTariff = lot.DayTariff;
 
-        await _parkingLotAccess.Update(existingLot);
+        await _services.ParkingLots.UpdateParkingLot(
+            existingLot.Id, existingLot.Name, existingLot.Location, existingLot.Address,
+            existingLot.Capacity, existingLot.Reserved, existingLot.Tariff, existingLot.DayTariff,
+            existingLot.CreatedAt, existingLot.Coordinates);
+
         return Ok(new { message = "Parking lot modified" });
     }
 
@@ -56,10 +56,10 @@ public class ParkingLotsController : BaseController
         var user = GetCurrentUser();
         if (user.Role != "ADMIN") return Forbid();
 
-        var lot = await _parkingLotAccess.GetById(lotId);
-        if (lot == null) return NotFound(new { error = "Parking lot not found" });
+        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
+        if (lot is null) return NotFound(new { error = "Parking lot not found" });
 
-        await _parkingLotAccess.Delete(lotId);
+        await _services.ParkingLots.DeleteParkingLot(lotId);
         return Ok(new { status = "Deleted" });
     }
 
@@ -69,22 +69,8 @@ public class ParkingLotsController : BaseController
         var user = GetCurrentUser();
         if (user.Role != "ADMIN") return Forbid();
 
-        var lots = await _parkingLotAccess.GetAll();
+        var lots = await _services.ParkingLots.GetAllParkingLots();
         return Ok(lots);
-    }
-
-    [HttpDelete("{lotId}/sessions/{sessionId}")]
-    public async Task<IActionResult> DeleteSession(int lotId, int sessionId)
-    {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var session = await _parkingSessionAccess.GetById(sessionId);
-        if (session == null || session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
-
-        await _parkingSessionAccess.Delete(sessionId);
-        return Ok(new { status = "Deleted" });
     }
 
     // ADMIN + USER
@@ -93,8 +79,8 @@ public class ParkingLotsController : BaseController
     public async Task<IActionResult> GetById(int lotId)
     {
         var user = GetCurrentUser();
-        var lot = await _parkingLotAccess.GetById(lotId);
-        if (lot == null) return NotFound(new { error = "Parking lot not found" });
+        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
+        if (lot is null) return NotFound(new { error = "Parking lot not found" });
 
         // Admins get all data, users get filtered data
         if (user.Role == "ADMIN") return Ok(lot);
@@ -110,33 +96,5 @@ public class ParkingLotsController : BaseController
             spotsAvailable
         });
 
-    }
-
-    [HttpGet("{lotId}/sessions")]
-    public async Task<IActionResult> GetSessions(int lotId)
-    {
-        var user = GetCurrentUser();
-        var sessions = await _parkingSessionAccess.GetByParkingLotId(lotId);
-
-        // Users can only view their own sessions
-        if (user.Role != "ADMIN")
-            sessions = sessions.Where(s => s.User == user.Username).ToList();
-
-        return Ok(sessions);
-    }
-
-    [HttpGet("{lotId}/sessions/{sessionId}")]
-    public async Task<IActionResult> GetSession(int lotId, int sessionId)
-    {
-        var user = GetCurrentUser();
-        var session = await _parkingSessionAccess.GetById(sessionId);
-
-        if (session == null || session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
-
-        if (user.Role != "ADMIN" && session.User != user.Username)
-            return Forbid();
-
-        return Ok(session);
     }
 }

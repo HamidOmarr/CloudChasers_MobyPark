@@ -16,7 +16,10 @@ public class UserModel
     public int BirthYear { get; set; }
     public bool Active { get; set; }
 
-    public UserModel() { }
+    public UserModel()
+    {
+        Role = "USER";
+    }
 
     public UserModel(SqliteDataReader reader)
     {
