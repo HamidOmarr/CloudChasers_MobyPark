@@ -20,18 +20,18 @@ public class PaymentModel
 
     public PaymentModel(NpgsqlDataReader reader) : this()
     {
-        TransactionId = reader.GetString(reader.GetOrdinal("Transaction"));
-        Amount = reader.GetDecimal(reader.GetOrdinal("Amount"));
-        Initiator = reader.GetString(reader.GetOrdinal("Initiator"));
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
-        Completed = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("Completed"));
-        Hash = reader.GetString(reader.GetOrdinal("Hash"));
-        TransactionData.Amount = reader.GetDecimal(reader.GetOrdinal("TransactionAmount"));
-        TransactionData.Date = reader.GetDateTime(reader.GetOrdinal("TransactionDate"));
-        TransactionData.Method = reader.GetString(reader.GetOrdinal("TransactionMethod"));
-        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("TransactionIssuer"));
-        TransactionData.Bank = reader.GetString(reader.GetOrdinal("TransactionBank"));
-        CoupledTo = reader.GetFieldValue<string?>(reader.GetOrdinal("CoupledTo"));
+        TransactionId = reader.GetString(reader.GetOrdinal("transaction_id"));
+        Amount = (decimal)reader.GetFloat(reader.GetOrdinal("amount"));
+        Initiator = reader.GetString(reader.GetOrdinal("initiator"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
+        Completed = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("completed"));
+        Hash = reader.GetString(reader.GetOrdinal("hash"));
+        TransactionData.Amount = (decimal)reader.GetFloat(reader.GetOrdinal("t_amount"));
+        TransactionData.Date = reader.GetDateTime(reader.GetOrdinal("t_date"));
+        TransactionData.Method = reader.GetString(reader.GetOrdinal("t_method"));
+        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_issuer"));
+        TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_bank"));
+        CoupledTo = reader.GetFieldValue<string?>(reader.GetOrdinal("coupled_to"));
     }
 
     public override string ToString() =>

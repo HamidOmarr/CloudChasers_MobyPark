@@ -92,15 +92,11 @@ public abstract class Repository<T> : IRepository<T> where T : class
 
     private string BuildUpdateQuery(List<string> keys)
     {
-        // Create assignments like "column = @parameter"
         var assignments = keys
             .Where(key => key != "@id") // Exclude @id from the SET clause
             .Select(key => $"{key.TrimStart('@')} = {key}");
-
-        // Join them with commas: "col1 = @col1, col2 = @col2"
         var setClause = string.Join(", ", assignments);
 
-        // Ensure the keys list passed to this method doesn't already exclude @id
         return $"UPDATE {TableName} SET {setClause} WHERE id = @id";
     }
 }

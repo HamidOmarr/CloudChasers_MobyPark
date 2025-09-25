@@ -35,7 +35,7 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
         Dictionary<string, object> parameters = new() { { "@Initiator", user } };
         List<PaymentModel> payments = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Initiator = @Initiator", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE initiator = @Initiator", parameters);
 
         while (await reader.ReadAsync())
             payments.Add(MapFromReader(reader));
@@ -47,7 +47,7 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
     {
         Dictionary<string, object> parameters = new() { { "@TransactionId", transactionId } };
 
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE TransactionId = @TransactionId", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE transaction_id = @TransactionId", parameters);
 
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }

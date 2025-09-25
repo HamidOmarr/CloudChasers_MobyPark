@@ -18,13 +18,13 @@ public class VehicleModel
     public VehicleModel(NpgsqlDataReader reader)
     {
         Id = reader.GetInt32(reader.GetOrdinal("id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("UserId"));
-        LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Make = reader.GetString(reader.GetOrdinal("Make"));
-        Model = reader.GetString(reader.GetOrdinal("Model"));
-        Color = reader.GetString(reader.GetOrdinal("Color"));
-        Year = reader.GetInt32(reader.GetOrdinal("Year"));
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
+        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
+        LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
+        Make = reader.GetString(reader.GetOrdinal("make"));
+        Model = reader.GetString(reader.GetOrdinal("model"));
+        Color = reader.GetString(reader.GetOrdinal("color"));
+        Year = reader.GetInt32(reader.GetOrdinal("year"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
     }
 
     public override string ToString() =>

@@ -19,14 +19,14 @@ public class ParkingSessionModel
     public ParkingSessionModel(NpgsqlDataReader reader)
     {
         Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
-        LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Started = reader.GetDateTime(reader.GetOrdinal("Started"));
-        Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("Stopped"));
-        User = reader.GetString(reader.GetOrdinal("User"));
-        DurationMinutes = reader.GetInt32(reader.GetOrdinal("DurationMinutes"));
-        Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
-        PaymentStatus = reader.GetString(reader.GetOrdinal("PaymentStatus"));
+        ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
+        LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
+        Started = reader.GetDateTime(reader.GetOrdinal("started"));
+        Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("stopped"));
+        User = reader.GetString(reader.GetOrdinal("user_name"));
+        DurationMinutes = reader.GetInt32(reader.GetOrdinal("duration_minutes"));
+        Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
+        PaymentStatus = reader.GetString(reader.GetOrdinal("payment_status"));
     }
 
     public override string ToString() =>

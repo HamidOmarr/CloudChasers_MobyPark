@@ -31,7 +31,7 @@ public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
     {
         var parameters = new Dictionary<string, object> { { "@UserId", userId } };
         var vehicles = new List<VehicleModel>();
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE UserId = @UserId", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_id = @UserId", parameters);
 
         while (await reader.ReadAsync())
             vehicles.Add(MapFromReader(reader));
@@ -42,7 +42,7 @@ public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
     public async Task<VehicleModel?> GetByLicensePlate(string licensePlate)
     {
         var parameters = new Dictionary<string, object> { { "@LicensePlate", licensePlate } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE LicensePlate = @LicensePlate", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE license_plate = @LicensePlate", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 
@@ -55,7 +55,7 @@ public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
         };
 
         await using var reader = await Connection.ExecuteQuery(
-            $"SELECT * FROM {TableName} WHERE UserId = @UserId AND LicensePlate = @LicensePlate", parameters);
+            $"SELECT * FROM {TableName} WHERE user_id = @UserId AND license_plate = @LicensePlate", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 }

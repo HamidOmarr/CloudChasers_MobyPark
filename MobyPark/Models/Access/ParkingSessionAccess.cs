@@ -5,7 +5,7 @@ namespace MobyPark.Models.Access;
 
 public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSessionAccess
 {
-    protected override string TableName => "ParkingSessions";
+    protected override string TableName => "sessions";
     protected override ParkingSessionModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingSessionModel session)
@@ -34,7 +34,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object> { { "@ParkingLotId", parkingLotId } };
         List<ParkingSessionModel> sessions = [];
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE ParkingLotId = @ParkingLotId", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE parking_lot_id = @ParkingLotId", parameters);
 
         while (await reader.ReadAsync())
             sessions.Add(MapFromReader(reader));
@@ -46,7 +46,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object> { { "@User", user } };
         List<ParkingSessionModel> sessions = [];
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE User = @User", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_name = @User", parameters);
 
         while (await reader.ReadAsync())
             sessions.Add(MapFromReader(reader));
@@ -58,7 +58,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object> { { "@PaymentStatus", paymentStatus } };
         List<ParkingSessionModel> sessions = [];
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE PaymentStatus = @PaymentStatus", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE payment_status = @PaymentStatus", parameters);
 
         while (await reader.ReadAsync())
             sessions.Add(MapFromReader(reader));

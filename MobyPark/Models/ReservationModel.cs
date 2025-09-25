@@ -19,14 +19,14 @@ public class ReservationModel
     public ReservationModel(NpgsqlDataReader reader)
     {
         Id = reader.GetFieldValue<int?>(reader.GetOrdinal("id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("UserId"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
-        VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"));
-        StartTime = reader.GetDateTime(reader.GetOrdinal("StartTime"));
-        EndTime = reader.GetDateTime(reader.GetOrdinal("EndTime"));
-        Status = reader.GetString(reader.GetOrdinal("Status"));
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
-        Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
+        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
+        ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
+        VehicleId = reader.GetInt32(reader.GetOrdinal("vehicle_id"));
+        StartTime = reader.GetDateTime(reader.GetOrdinal("start_time"));
+        EndTime = reader.GetDateTime(reader.GetOrdinal("end_time"));
+        Status = reader.GetString(reader.GetOrdinal("status"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
+        Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
     }
 
     public override string ToString() =>

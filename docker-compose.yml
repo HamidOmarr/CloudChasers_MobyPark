@@ -1,0 +1,41 @@
+services:
+
+  mobypark-db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: mobypark_db_local
+    restart: always
+    environment:
+      POSTGRES_USER: MobyParkAdmin
+      POSTGRES_PASSWORD: MobyParkCloudChasers
+      POSTGRES_DB: mobypark
+    ports:
+      - "5433:5432"
+    volumes:
+      - mobypark_data:/var/lib/postgresql/data
+      # Uncomment the line below if you create the setup/init.sql file
+      # - ./setup/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mobypark-net
+
+  mobypark-api:
+    build:
+      context: .
+      dockerfile: MobyPark/Dockerfile
+    container_name: mobypark_api_local
+    environment:
+      # Overrides the connection string in appsettings.json to use the Docker network name
+      ConnectionStrings__PostgresConnection: "Host=mobypark-db;Port=5432;Database=mobypark;Username=MobyParkAdmin;Password=MobyParkCloudChasers"
+    ports:
+      - "5001:8080"
+    depends_on:
+      - mobypark-db
+    networks:
+      - mobypark-net
+
+# Define the network and volume outside of services
+volumes:
+  mobypark_data:
+
+networks:
+  mobypark-net:
+    driver: bridge

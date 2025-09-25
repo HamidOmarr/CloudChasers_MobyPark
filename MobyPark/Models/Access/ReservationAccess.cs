@@ -40,7 +40,7 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
         List<ReservationModel> reservations = [];
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE UserId = @UserId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_id = @UserId", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -53,7 +53,7 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
         Dictionary<string, object> parameters = new() { { "@ParkingLotId", parkingLotId } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE ParkingLotId = @ParkingLotId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE parking_lot_id = @ParkingLotId", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -66,7 +66,7 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
         Dictionary<string, object> parameters = new() { { "@VehicleId", vehicleId } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE VehicleId = @VehicleId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE vehicle_id = @VehicleId", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -79,7 +79,7 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
         Dictionary<string, object> parameters = new() { { "@Status", status } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Status = @Status", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE status = @Status", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));

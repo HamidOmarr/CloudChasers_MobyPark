@@ -5,7 +5,7 @@ namespace MobyPark.Models.Access;
 
 public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 {
-    protected override string TableName => "ParkingLots";
+    protected override string TableName => "\"ParkingLots\"";
     protected override ParkingLotModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingLotModel parkingLot)
@@ -35,7 +35,7 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
         Dictionary<string, object> parameters = new() { { "@Model", modelName } };
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Model = @Model", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE model = @Model", parameters);
 
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
