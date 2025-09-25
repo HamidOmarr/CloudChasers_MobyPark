@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -17,28 +16,16 @@ public class ReservationModel
 
     public ReservationModel() { }
 
-    public ReservationModel(SqliteDataReader reader)
+    public ReservationModel(NpgsqlDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("Id")) ? null : reader.GetInt32(reader.GetOrdinal("Id"));
+        Id = reader.GetFieldValue<int?>(reader.GetOrdinal("id"));
         UserId = reader.GetInt32(reader.GetOrdinal("UserId"));
         ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
         VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"));
-        StartTime = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("StartTime")),
-            null,
-            DateTimeStyles.RoundtripKind // Handles ISO 8601 (e.g. 2025-12-03T11:00:00Z)
-        );
-        EndTime = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("EndTime")),
-            null,
-            DateTimeStyles.RoundtripKind
-        );
+        StartTime = reader.GetDateTime(reader.GetOrdinal("StartTime"));
+        EndTime = reader.GetDateTime(reader.GetOrdinal("EndTime"));
         Status = reader.GetString(reader.GetOrdinal("Status"));
-        CreatedAt = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("CreatedAt")),
-            null,
-            DateTimeStyles.RoundtripKind
-        );
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
         Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
     }
 

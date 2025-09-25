@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -21,19 +20,19 @@ public class ParkingLotModel
         Coordinates = new CoordinatesModel();
     }
 
-    public ParkingLotModel(SqliteDataReader reader) : this()
+    public ParkingLotModel(NpgsqlDataReader reader) : this()
     {
         Id = reader.GetInt32(reader.GetOrdinal("id"));
-        Name = reader.GetString(reader.GetOrdinal("name"));
-        Location = reader.GetString(reader.GetOrdinal("location"));
-        Address = reader.GetString(reader.GetOrdinal("address"));
-        Capacity = reader.GetInt32(reader.GetOrdinal("capacity"));
-        Reserved = reader.GetInt32(reader.GetOrdinal("reserved"));
-        Tariff = reader.GetDecimal(reader.GetOrdinal("tariff"));
-        DayTariff = reader.GetDecimal(reader.GetOrdinal("daytariff"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
-        Coordinates.Lat = reader.GetDouble(reader.GetOrdinal("lat"));
-        Coordinates.Lng = reader.GetDouble(reader.GetOrdinal("lng"));
+        Name = reader.GetString(reader.GetOrdinal("Name"));
+        Location = reader.GetString(reader.GetOrdinal("Location"));
+        Address = reader.GetString(reader.GetOrdinal("Address"));
+        Capacity = reader.GetInt32(reader.GetOrdinal("Capacity"));
+        Reserved = reader.GetInt32(reader.GetOrdinal("Reserved"));
+        Tariff = reader.GetDecimal(reader.GetOrdinal("Tariff"));
+        DayTariff = reader.GetDecimal(reader.GetOrdinal("Daytariff"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
+        Coordinates.Lat = reader.GetDouble(reader.GetOrdinal("Lat"));
+        Coordinates.Lng = reader.GetDouble(reader.GetOrdinal("Lng"));
     }
 
     public override string ToString() =>

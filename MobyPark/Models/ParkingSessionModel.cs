@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -17,15 +16,13 @@ public class ParkingSessionModel
 
     public ParkingSessionModel() { }
 
-    public ParkingSessionModel(SqliteDataReader reader)
+    public ParkingSessionModel(NpgsqlDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("Id")) ? null : reader.GetInt32(reader.GetOrdinal("Id"));
+        Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
         ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
         LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Started = DateTime.Parse(reader.GetString(reader.GetOrdinal("Started")), null, DateTimeStyles.RoundtripKind);
-
-        Stopped = reader.IsDBNull(reader.GetOrdinal("Stopped")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("Stopped")), null, DateTimeStyles.RoundtripKind);
-
+        Started = reader.GetDateTime(reader.GetOrdinal("Started"));
+        Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("Stopped"));
         User = reader.GetString(reader.GetOrdinal("User"));
         DurationMinutes = reader.GetInt32(reader.GetOrdinal("DurationMinutes"));
         Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));

@@ -1,25 +1,25 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
 {
     protected override string TableName => "Vehicles";
-    protected override VehicleModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override VehicleModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(VehicleModel vehicle)
     {
         var parameters = new Dictionary<string, object>
         {
-            { "@Id", vehicle.Id},
+            { "@id", vehicle.Id},
             { "@UserId", vehicle.UserId },
             { "@LicensePlate", vehicle.LicensePlate },
             { "@Make", vehicle.Make },
             { "@Model", vehicle.Model },
             { "@Color", vehicle.Color },
             { "@Year", vehicle.Year },
-            { "@CreatedAt", vehicle.CreatedAt.ToString("yyyy-MM-dd") }
+            { "@CreatedAt", vehicle.CreatedAt }
         };
 
         return parameters;

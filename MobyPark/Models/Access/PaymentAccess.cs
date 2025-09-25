@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
 {
     protected override string TableName => "Payments";
-    protected override PaymentModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override PaymentModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(PaymentModel payment)
     {
@@ -15,11 +15,11 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
             { "@TransactionId", payment.TransactionId },
             { "@Amount", payment.Amount },
             { "@Initiator", payment.Initiator },
-            { "@CreatedAt", payment.CreatedAt.ToString("dd-MM-yyyy HH:mm:ssfffffff") },
-            { "@Completed", payment.Completed?.ToString("dd-MM-yyyy HH:mm:ssfffffff") ?? (object)DBNull.Value },
+            { "@CreatedAt", payment.CreatedAt },
+            { "@Completed", payment.Completed ?? (object)null },
             { "@Hash", payment.Hash },
             { "@TransactionAmount", payment.TransactionData.Amount },
-            { "@TransactionDate", payment.TransactionData.Date.ToString("yyyy-MM-dd HH:mm:ss") },
+            { "@TransactionDate", payment.TransactionData.Date },
             { "@TransactionMethod", payment.TransactionData.Method },
             { "@TransactionIssuer", payment.TransactionData.Issuer },
             { "@TransactionBank", payment.TransactionData.Bank }

@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class ReservationAccess : Repository<ReservationModel>, IReservationAccess
 {
     protected override string TableName => "Reservations";
-    protected override ReservationModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override ReservationModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ReservationModel reservation)
     {
@@ -15,15 +15,15 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
             { "@UserId", reservation.UserId },
             { "@ParkingLotId", reservation.ParkingLotId },
             { "@VehicleId", reservation.VehicleId },
-            { "@StartTime", reservation.StartTime.ToString("o") }, // ISO 8601
-            { "@EndTime", reservation.EndTime.ToString("o") },
+            { "@StartTime", reservation.StartTime },
+            { "@EndTime", reservation.EndTime },
             { "@Status", reservation.Status },
-            { "@CreatedAt", reservation.CreatedAt.ToString("o") },
+            { "@CreatedAt", reservation.CreatedAt },
             { "@Cost", reservation.Cost }
         };
 
         if (reservation.Id.HasValue)
-            parameters.Add("@Id", reservation.Id);
+            parameters.Add("@id", reservation.Id.Value);
 
         return parameters;
     }

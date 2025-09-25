@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 {
     protected override string TableName => "ParkingLots";
-    protected override ParkingLotModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override ParkingLotModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingLotModel parkingLot)
     {

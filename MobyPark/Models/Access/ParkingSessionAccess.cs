@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSessionAccess
 {
     protected override string TableName => "ParkingSessions";
-    protected override ParkingSessionModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override ParkingSessionModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingSessionModel session)
     {
@@ -14,8 +14,8 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
         {
             { "@ParkingLotId", session.ParkingLotId },
             { "@LicensePlate", session.LicensePlate },
-            { "@Started", session.Started.ToString("o") }, // ISO 8601
-            { "@Stopped", session.Stopped?.ToString("o") ?? (object)DBNull.Value },
+            { "@Started", session.Started }, // ISO 8601
+            { "@Stopped", session.Stopped ?? (object)null },
             { "@User", session.User },
             { "@DurationMinutes", session.DurationMinutes },
             { "@Cost", session.Cost },
@@ -23,7 +23,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
         };
 
         if (session.Id.HasValue)
-            parameters.Add("@Id", session.Id);
+            parameters.Add("@id", session.Id);
 
         return parameters;
     }

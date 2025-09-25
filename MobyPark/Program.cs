@@ -21,7 +21,7 @@ app.UseRouting();
 
 app.UseAuthorization();
 
-// Attribute-based routing only
+// Attribute-based routing onlya
 app.MapControllers();
 
 app.Run();

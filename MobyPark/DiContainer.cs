@@ -1,7 +1,7 @@
 using MobyPark.Models.Access;
+using MobyPark.Models.Access.DatabaseConnection;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
-using MobyPark.Services.DatabaseConnection;
 
 namespace MobyPark;
 
