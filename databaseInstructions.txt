@@ -1,0 +1,7 @@
+Download and install Docker Desktop: https://www.docker.com/products/docker-desktop/
+Download the dump file (mobypark.dump) I have put in the Teams channel
+Place the dump file in the root directory of the C# solution (same directory as the YAML file)
+
+Open the terminal in the root folder of the local copy of the repository
+Enter command in terminal:
+docker compose up -d --build
