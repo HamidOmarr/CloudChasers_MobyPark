@@ -16,6 +16,10 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./MobyPark.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
+COPY init.sh /app/setup_db.sh
+RUN chmod +x /app/setup_db.sh
+COPY mobypark.dump /app/mobypark.dump
+
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
