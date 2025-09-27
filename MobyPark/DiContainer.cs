@@ -1,7 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+using MobyPark.Models;
 using MobyPark.Models.Access;
+using MobyPark.Models.DataAccess.InMemory;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
 using MobyPark.Services.DatabaseConnection;
+using MobyPark.Services.Services;
 
 namespace MobyPark;
 
@@ -10,26 +14,45 @@ public static class DiContainer
     public static void AddMobyParkServices(this IServiceCollection services)
     {
         // Access layer
-        services.AddScoped<IUserAccess, UserAccess>();
-        services.AddScoped<IVehicleAccess, VehicleAccess>();
-        services.AddScoped<IParkingLotAccess, ParkingLotAccess>();
-        services.AddScoped<IReservationAccess, ReservationAccess>();
-        services.AddScoped<IPaymentAccess, PaymentAccess>();
-        services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
+        //services.AddScoped<IUserAccess, UserAccess>();
+        //services.AddScoped<IVehicleAccess, VehicleAccess>();
+        //services.AddScoped<IParkingLotAccess, ParkingLotAccess>();
+       // services.AddScoped<IReservationAccess, ReservationAccess>();
+        //services.AddScoped<IPaymentAccess, PaymentAccess>();
+        //services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
+        
 
         // Business logic
-        services.AddSingleton<SessionService>();
+        /*services.AddSingleton<SessionService>();
         services.AddScoped<ParkingSessionService>();
         services.AddScoped<PaymentService>();
         services.AddScoped<UserService>();
         services.AddScoped<ParkingLotService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<VehicleService>();
+        services.AddScoped<ServiceStack>();
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();
+        
+        // Password Hasher
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        
+        // In memory voor tijdelijk
+        services.AddSingleton<IUserRepository, InMemoryUserRepository>();
+        
 
         // Database connection
         services.AddScoped<IDatabaseConnection, DatabaseConnection>();
+        services.AddSingleton<IDataAccess, InMemoryDataAccess>();*/
+        // ✅ In-memory repo (fully qualified to be 100% sure)
+        services.AddSingleton<
+            MobyPark.Models.DataService.IUserRepository,
+            MobyPark.Models.DataAccess.InMemory.InMemoryUserRepository>();
+
+        // ✅ Auth/services
+        services.AddSingleton<SessionService>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        services.AddScoped<UserService>();
     }
 }

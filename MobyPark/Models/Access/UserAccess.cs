@@ -14,8 +14,9 @@ public class UserAccess : Repository<UserModel>, IUserAccess
         {
             { "@Id", user.Id},
             { "@Username", user.Username },
-            { "@Password", user.Password },
-            { "@Name", user.Name },
+            { "@Password", user.PasswordHash },
+            { "@FirstName", user.FirstName },
+            { "@LastName", user.LastName },
             { "@Email", user.Email },
             { "@Phone", user.Phone },
             { "@Role", user.Role },

@@ -6,15 +6,16 @@ namespace MobyPark.Models;
 public class UserModel
 {
     public int Id { get; set; }
-    public string Username { get; set; }
-    public string Password { get; set; } // stored hashed
-    public string Name { get; set; }
-    public string Email { get; set; }
-    public string Phone { get; set; }
-    public string Role { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Role { get; set; } = "USER";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int BirthYear { get; set; }
-    public bool Active { get; set; }
+    public bool Active { get; set; } = true;
 
     public UserModel()
     {
@@ -25,16 +26,24 @@ public class UserModel
     {
         Id = reader.GetInt32(reader.GetOrdinal("Id"));
         Username = reader.GetString(reader.GetOrdinal("Username"));
-        Password = reader.GetString(reader.GetOrdinal("Password"));
-        Name = reader.GetString(reader.GetOrdinal("Name"));
+        PasswordHash = reader.GetString(reader.GetOrdinal("PasswordHash"));
+        FirstName = reader.GetString(reader.GetOrdinal("FirstName"));
+        LastName = reader.GetString(reader.GetOrdinal("LastName"));
         Email = reader.GetString(reader.GetOrdinal("Email"));
         Phone = reader.GetString(reader.GetOrdinal("Phone"));
         Role = reader.GetString(reader.GetOrdinal("Role"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("CreatedAt")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var createdStr = reader.GetString(reader.GetOrdinal("CreatedAt"));
+        if (!DateTime.TryParse(createdStr, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var created))
+            created = DateTime.UtcNow;
+        CreatedAt = created;
         BirthYear = reader.GetInt32(reader.GetOrdinal("BirthYear"));
-        Active = reader.GetBoolean(reader.GetOrdinal("Active"));
+        var activeOrdinal = reader.GetOrdinal("Active");
+        Active = reader.GetFieldType(activeOrdinal) == typeof(bool)
+            ? reader.GetBoolean(activeOrdinal)
+            : Convert.ToInt32(reader.GetValue(activeOrdinal)) != 0;
     }
-
+    
     public override string ToString() =>
-        $"User [{Id}] {Name} ({Username}), Role: {Role}, Email: {Email}, Phone: {Phone}, Birth Year: {BirthYear}, Active: {Active}, Created At: {CreatedAt}";
+        $"User [{Id}] {FirstName} {LastName} ({Username}), Role: {Role}, Email: {Email}, Phone: {Phone}, Birth Year: {BirthYear}, Active: {Active}, Created At: {CreatedAt}";
 }
