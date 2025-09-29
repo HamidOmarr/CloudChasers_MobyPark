@@ -5,7 +5,7 @@ namespace MobyPark.Models.Access;
 
 public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 {
-    protected override string TableName => "\"ParkingLots\"";
+    protected override string TableName => "parking_lots";
     protected override ParkingLotModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingLotModel parkingLot)
@@ -13,16 +13,16 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
         var parameters = new Dictionary<string, object>
         {
             { "@id", parkingLot.Id },
-            { "@Name", parkingLot.Name },
-            { "@Location", parkingLot.Location },
-            { "@Address", parkingLot.Address },
-            { "@Capacity", parkingLot.Capacity },
-            { "@Reserved", parkingLot.Reserved },
-            { "@Tariff", parkingLot.Tariff },
-            { "@DayTariff", parkingLot.DayTariff },
-            { "@CreatedAt", parkingLot.CreatedAt.ToString("yyyy-MM-dd") },
-            { "@Lat", parkingLot.Coordinates.Lat },
-            { "@Lng", parkingLot.Coordinates.Lng }
+            { "@name", parkingLot.Name },
+            { "@location", parkingLot.Location },
+            { "@address", parkingLot.Address },
+            { "@capacity", parkingLot.Capacity },
+            { "@reserved", parkingLot.Reserved },
+            { "@tariff", parkingLot.Tariff },
+            { "@daytariff", parkingLot.DayTariff },
+            { "@created_at", parkingLot.CreatedAt.ToString("yyyy-MM-dd") },
+            { "@lat", parkingLot.Coordinates.Lat },
+            { "@lng", parkingLot.Coordinates.Lng }
         };
 
         return parameters;
@@ -32,10 +32,10 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 
     public async Task<ParkingLotModel?> GetByName(string modelName)
     {
-        Dictionary<string, object> parameters = new() { { "@Model", modelName } };
+        Dictionary<string, object> parameters = new() { { "@model", modelName } };
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE model = @Model", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE model = @model", parameters);
 
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }

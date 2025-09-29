@@ -1,20 +1,18 @@
 #!/bin/bash
 set -e
 
-# Wait until Postgres is ready
-until pg_isready -U "$POSTGRES_USER"; do
-  sleep 1
-done
+DB_NAME="mobypark"
+DB_USER="MobyParkAdmin"
+DB_PASS="MobyParkCloudChasers"
+DUMP_FILE="/docker-entrypoint-initdb.d/mobypark.dump"
 
-# Drop and recreate database to reset it
-psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB;"
-psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE $POSTGRES_DB;"
+export PGPASSWORD=$DB_PASS
 
-# Create TimescaleDB extension
-psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"
+# Drop DB if exists
+psql -U $DB_USER -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;"
 
-# Restore from dump
-echo "Restoring database from dump..."
-pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --clean --exit-on-error /app/mobypark.dump
+# Create fresh DB
+psql -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
 
-echo "Database restore complete."
+# Restore dump
+pg_restore -U $DB_USER -d $DB_NAME -v $DUMP_FILE

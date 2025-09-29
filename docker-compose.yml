@@ -1,25 +1,6 @@
 services:
-
-  db-init:
-    build:
-      context: .
-      dockerfile: MobyPark/Dockerfile # Uses the same build context
-      target: publish
-    container_name: mobypark_db_init
-    # Override the default entrypoint to run your setup script
-    entrypoint: /bin/bash /app/setup_db.sh
-    environment:
-      POSTGRES_USER: MobyParkAdmin
-      POSTGRES_PASSWORD: MobyParkCloudChasers
-      POSTGRES_DB: mobypark
-    depends_on:
-      - mobypark-db
-    networks:
-      - mobypark-net
-    restart: "no" # Essential: Ensures it runs once and stops
-
   mobypark-db:
-    image: timescale/timescaledb:latest-pg17
+    image: postgres:18
     container_name: mobypark_db
     restart: always
     environment:
@@ -27,11 +8,10 @@ services:
       POSTGRES_PASSWORD: MobyParkCloudChasers
       POSTGRES_DB: mobypark
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
-      - mobypark_data:/var/lib/postgresql/data
-        # Uncomment the above line to persist data across container restarts
-
+      - ./init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ./mobypark_ready.dump:/docker-entrypoint-initdb.d/mobypark_ready.dump:ro
     networks:
       - mobypark-net
 
@@ -51,8 +31,8 @@ services:
       - mobypark-net
 
 # Define the network and volume outside of services
-volumes:
-  mobypark_data:
+#volumes:
+#  mobypark_data:
 
 networks:
   mobypark-net:

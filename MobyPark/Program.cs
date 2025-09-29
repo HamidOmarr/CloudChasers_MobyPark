@@ -12,7 +12,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    // TODO: Replace with a proper global error handler later (using React)
+    // TODO: When a frontend is attached, configure error handling here
     app.UseHsts();
 }
 
