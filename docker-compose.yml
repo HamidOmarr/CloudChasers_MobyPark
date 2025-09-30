@@ -9,9 +9,33 @@ services:
       POSTGRES_DB: mobypark
     ports:
       - "5432:5432"
+    networks:
+      - mobypark-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark" ]
+      interval: 5s
+      retries: 10
+
+  mobypark_db_restore:
+    image: postgres:18
+    depends_on:
+      - mobypark-db
     volumes:
-      - ./init.sh:/docker-entrypoint-initdb.d/init.sh:ro
-      - ./mobypark_ready.dump:/docker-entrypoint-initdb.d/mobypark_ready.dump:ro
+      - ./mobypark.dump:/mobypark.dump:ro
+    entrypoint: >
+      bash -c "
+        until pg_isready -h mobypark-db -U MobyParkAdmin; do
+          echo 'Waiting for database...';
+          sleep 2;
+        done &&
+        echo 'Dropping database...' &&
+        PGPASSWORD=MobyParkCloudChasers dropdb -h mobypark-db -U MobyParkAdmin --if-exists mobypark &&
+        echo 'Creating database...' &&
+        PGPASSWORD=MobyParkCloudChasers createdb -h mobypark-db -U MobyParkAdmin mobypark &&
+        echo 'Restoring dump...' &&
+        PGPASSWORD=MobyParkCloudChasers pg_restore -h mobypark-db -U MobyParkAdmin -d mobypark -v /mobypark.dump &&
+        echo 'Restore complete.'
+      "
     networks:
       - mobypark-net
 
@@ -21,18 +45,16 @@ services:
       dockerfile: MobyPark/Dockerfile
     container_name: mobypark_api
     environment:
-      # Overrides the connection string in appsettings.json to use the Docker network name
       ConnectionStrings__PostgresConnection: "Host=mobypark-db;Port=5432;Database=mobypark;Username=MobyParkAdmin;Password=MobyParkCloudChasers"
     ports:
       - "5001:8080"
     depends_on:
-      - mobypark-db
+      mobypark-db:
+        condition: service_healthy
+#    depends_on:
+#      - mobypark-db
     networks:
       - mobypark-net
-
-# Define the network and volume outside of services
-#volumes:
-#  mobypark_data:
 
 networks:
   mobypark-net:
