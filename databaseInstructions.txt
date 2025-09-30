@@ -8,4 +8,19 @@ Database instructies:
 Rider: docker-compose.yml heeft een run knop aan de linkerkant van de inhoud van het bestand. Hiermee wordt de Compose Deployment configuration aangemaakt en kun je t direct runnen vanuit Rider.
 	
 Console: Zorg ervoor dat de current working directory van je console CloudChasers_MobyPark is (de lokale kopie van de repo). Daarna run je dit command:
-docker compose -f docker-compose.yml -f .idea/.idea.MobyPark/Docker/docker-compose.generated.override.yml -p cloudchasers_mobypark up -d
+docker compose -f docker-compose.yml -p cloudchasers_mobypark up -d
+
+Extra:
+Voor een compleet frisse start in Docker (verwijderen van alle informatie, mocht je iets hebben gedaan dat je lokale kopie onbruikbaar hebt gemaakt, gebruik dan de volgende commands in de terminal in de working directory
+docker compose down -v
+docker volume prune -f
+
+
+
+Extra 2:
+Heb je een aanpassing gemaakt en wil je dit bewaren? Gebruik dan deze commands om een .dump en een .sql te maken:
+pg_dump -U MobyParkAdmin -d mobypark -Fc -f mobypark_new.dump -h localhost -p 5432
+pg_dump -U MobyParkAdmin -d mobypark -f mobypark.sql -h localhost -p 5432
+
+Houd er rekening mee dat je het wachtwoord van MobyParkAdmin moet invoeren om deze commands uit te voeren
+
