@@ -1,0 +1,11 @@
+Database instructies:
+
+1. Download Docker
+2. Download het .dump bestand in Teams
+3. Zet het .dump bestand in dezelfde map als de C# .sln file (een kopie maken is het slimst. Als je van branch moet wisselen, kun je de .dump stashen, maar het moet verwijderd worden als je wilt committen en pushen)
+4. Run de docker-compose.yml. Dit kan op twee manieren zoals ik heb gevonden:
+
+Rider: docker-compose.yml heeft een run knop aan de linkerkant van de inhoud van het bestand. Hiermee wordt de Compose Deployment configuration aangemaakt en kun je t direct runnen vanuit Rider.
+	
+Console: Zorg ervoor dat de current working directory van je console CloudChasers_MobyPark is (de lokale kopie van de repo). Daarna run je dit command:
+docker compose -f docker-compose.yml -f .idea/.idea.MobyPark/Docker/docker-compose.generated.override.yml -p cloudchasers_mobypark up -d
