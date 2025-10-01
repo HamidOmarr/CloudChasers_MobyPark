@@ -19,17 +19,17 @@ public class ParkingSessionModel
 
     public ParkingSessionModel(SqliteDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("Id")) ? null : reader.GetInt32(reader.GetOrdinal("Id"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
-        LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Started = DateTime.Parse(reader.GetString(reader.GetOrdinal("Started")), null, DateTimeStyles.RoundtripKind);
+    Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
+    ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
+    LicensePlate = reader.GetString(reader.GetOrdinal("licenseplate"));
+    Started = DateTime.Parse(reader.GetString(reader.GetOrdinal("started")), null, DateTimeStyles.RoundtripKind);
 
-        Stopped = reader.IsDBNull(reader.GetOrdinal("Stopped")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("Stopped")), null, DateTimeStyles.RoundtripKind);
+    Stopped = reader.IsDBNull(reader.GetOrdinal("stopped")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("stopped")), null, DateTimeStyles.RoundtripKind);
 
-        User = reader.GetString(reader.GetOrdinal("User"));
-        DurationMinutes = reader.GetInt32(reader.GetOrdinal("DurationMinutes"));
-        Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
-        PaymentStatus = reader.GetString(reader.GetOrdinal("PaymentStatus"));
+    User = reader.GetString(reader.GetOrdinal("user"));
+    DurationMinutes = reader.GetInt32(reader.GetOrdinal("duration_minutes"));
+    Cost = reader.GetDecimal(reader.GetOrdinal("cost"));
+    PaymentStatus = reader.GetString(reader.GetOrdinal("payment_status"));
     }
 
     public override string ToString() =>

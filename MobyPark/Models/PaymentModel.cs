@@ -5,12 +5,12 @@ namespace MobyPark.Models;
 
 public class PaymentModel
 {
-    public string TransactionId { get; set; }
+    public string TransactionId { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string Initiator { get; set; }
+    public string Initiator { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? Completed { get; set; }
-    public string Hash { get; set; }
+    public string Hash { get; set; } = string.Empty;
     public TransactionDataModel TransactionData { get; set; }
     public string? CoupledTo { get; set; }
 
@@ -21,16 +21,16 @@ public class PaymentModel
 
     public PaymentModel(SqliteDataReader reader) : this()
     {
-        TransactionId = reader.GetString(reader.GetOrdinal("Transaction"));
-        Amount = reader.GetDecimal(reader.GetOrdinal("Amount"));
-        Initiator = reader.GetString(reader.GetOrdinal("Initiator"));
+        TransactionId = reader.GetString(reader.GetOrdinal("transaction"));
+        Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
+        Initiator = reader.GetString(reader.GetOrdinal("initiator"));
         CreatedAt = DateTime.ParseExact(
-            reader.GetString(reader.GetOrdinal("CreatedAt")),
+            reader.GetString(reader.GetOrdinal("created_at")),
             "dd-MM-yyyy HH:mm:ssfffffff",
             CultureInfo.InvariantCulture
         );
 
-        int completedIndex = reader.GetOrdinal("Completed");
+        int completedIndex = reader.GetOrdinal("completed");
         if (!reader.IsDBNull(completedIndex))
         {
             Completed = DateTime.ParseExact(
@@ -42,19 +42,19 @@ public class PaymentModel
         else
             Completed = null;
 
-        Hash = reader.GetString(reader.GetOrdinal("Hash"));
-        TransactionData.Amount = reader.GetDecimal(reader.GetOrdinal("TransactionAmount"));
+        Hash = reader.GetString(reader.GetOrdinal("hash"));
+        TransactionData.Amount = reader.GetDecimal(reader.GetOrdinal("t_data_amount"));
         TransactionData.Date = DateTime.ParseExact(
-            reader.GetString(reader.GetOrdinal("TransactionDate")),
+            reader.GetString(reader.GetOrdinal("t_data_date")),
             "yyyy-MM-dd HH:mm:ss",
             CultureInfo.InvariantCulture
         );
-        TransactionData.Method = reader.GetString(reader.GetOrdinal("TransactionMethod"));
-        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("TransactionIssuer"));
-        TransactionData.Bank = reader.GetString(reader.GetOrdinal("TransactionBank"));
-        CoupledTo = reader.IsDBNull(reader.GetOrdinal("CoupledTo"))
+        TransactionData.Method = reader.GetString(reader.GetOrdinal("t_data_method"));
+        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_data_issuer"));
+        TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_data_bank"));
+        CoupledTo = reader.IsDBNull(reader.GetOrdinal("coupled_to"))
             ? null
-            : reader.GetString(reader.GetOrdinal("CoupledTo"));
+            : reader.GetString(reader.GetOrdinal("coupled_to"));
     }
 
     public override string ToString() =>
@@ -72,7 +72,7 @@ public class TransactionDataModel
 {
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
-    public string Method { get; set; }
-    public string Issuer { get; set; }
-    public string Bank { get; set; }
+    public string Method { get; set; } = string.Empty;
+    public string Issuer { get; set; } = string.Empty;
+    public string Bank { get; set; } = string.Empty;
 }

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Services.Services;
+using MobyPark.Models.Requests;
+using MobyPark.Services;
 
 namespace MobyPark.Controllers;
 
@@ -12,6 +14,41 @@ public class ParkingSessionController : BaseController
     public ParkingSessionController(ServiceStack services) : base(services.Sessions)
     {
         _services = services;
+    }
+
+    [HttpPost("{lotId}/sessions:start")]
+    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionRequest request)
+    {
+        // Availability check + pre auth + open gate + link session
+        try
+        {
+            var session = await _services.ParkingSessions.StartSession(
+                lotId,
+                request.LicensePlate,
+                request.CardToken,
+                request.EstimatedAmount,
+                GetCurrentUser()?.Username,
+                request.SimulateInsufficientFunds
+            );
+
+            return StatusCode(201, new { status = "Started", session });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { error = "Parking lot not found" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(402, new { error = ex.Message }); // 402 Payment Required placeholder
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("{lotId}/sessions/{sessionId}")]

@@ -19,27 +19,27 @@ public class ReservationModel
 
     public ReservationModel(SqliteDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("Id")) ? null : reader.GetInt32(reader.GetOrdinal("Id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("UserId"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
-        VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"));
+        Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
+        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
+        ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
+        VehicleId = reader.GetInt32(reader.GetOrdinal("vehicle_id"));
         StartTime = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("StartTime")),
+            reader.GetString(reader.GetOrdinal("start_time")),
             null,
             DateTimeStyles.RoundtripKind // Handles ISO 8601 (e.g. 2025-12-03T11:00:00Z)
         );
         EndTime = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("EndTime")),
+            reader.GetString(reader.GetOrdinal("end_time")),
             null,
             DateTimeStyles.RoundtripKind
         );
-        Status = reader.GetString(reader.GetOrdinal("Status"));
+        Status = reader.GetString(reader.GetOrdinal("status"));
         CreatedAt = DateTime.Parse(
-            reader.GetString(reader.GetOrdinal("CreatedAt")),
+            reader.GetString(reader.GetOrdinal("created_at")),
             null,
             DateTimeStyles.RoundtripKind
         );
-        Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
+        Cost = reader.GetDecimal(reader.GetOrdinal("cost"));
     }
 
     public override string ToString() =>

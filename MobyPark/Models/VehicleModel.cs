@@ -15,17 +15,16 @@ public class VehicleModel
     public DateTime CreatedAt { get; set; }
 
     public VehicleModel() { }
-
     public VehicleModel(SqliteDataReader reader)
     {
-        Id = reader.GetInt32(reader.GetOrdinal("Id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("UserId"));
-        LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Make = reader.GetString(reader.GetOrdinal("Make"));
-        Model = reader.GetString(reader.GetOrdinal("Model"));
-        Color = reader.GetString(reader.GetOrdinal("Color"));
-        Year = reader.GetInt32(reader.GetOrdinal("Year"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("CreatedAt")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
+        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
+        LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
+        Make = reader.GetString(reader.GetOrdinal("make"));
+        Model = reader.GetString(reader.GetOrdinal("model"));
+        Color = reader.GetString(reader.GetOrdinal("color"));
+        Year = reader.GetInt32(reader.GetOrdinal("year"));
+        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     public override string ToString() =>

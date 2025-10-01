@@ -21,18 +21,19 @@ public class UserModel
         Role = "USER";
     }
 
+
     public UserModel(SqliteDataReader reader)
     {
-        Id = reader.GetInt32(reader.GetOrdinal("Id"));
-        Username = reader.GetString(reader.GetOrdinal("Username"));
-        Password = reader.GetString(reader.GetOrdinal("Password"));
-        Name = reader.GetString(reader.GetOrdinal("Name"));
-        Email = reader.GetString(reader.GetOrdinal("Email"));
-        Phone = reader.GetString(reader.GetOrdinal("Phone"));
-        Role = reader.GetString(reader.GetOrdinal("Role"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("CreatedAt")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
-        BirthYear = reader.GetInt32(reader.GetOrdinal("BirthYear"));
-        Active = reader.GetBoolean(reader.GetOrdinal("Active"));
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
+        Username = reader.GetString(reader.GetOrdinal("username"));
+        Password = reader.GetString(reader.GetOrdinal("password"));
+        Name = reader.GetString(reader.GetOrdinal("name"));
+        Email = reader.GetString(reader.GetOrdinal("email"));
+        Phone = reader.GetString(reader.GetOrdinal("phone"));
+        Role = reader.GetString(reader.GetOrdinal("role"));
+        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        BirthYear = reader.GetInt32(reader.GetOrdinal("birth_year"));
+        Active = reader.GetBoolean(reader.GetOrdinal("active"));
     }
 
     public override string ToString() =>

@@ -8,10 +8,19 @@ namespace MobyPark.Services;
 public class ParkingSessionService
 {
     private readonly IDataAccess _dataAccess;
+    private readonly PaymentPreauthService? _preauth;
+    private readonly GateService? _gate;
 
     public ParkingSessionService(IDataAccess dataAccess)
     {
         _dataAccess = dataAccess;
+    }
+
+    public ParkingSessionService(IDataAccess dataAccess, PaymentPreauthService preauth, GateService gate)
+    {
+        _dataAccess = dataAccess;
+        _preauth = preauth;
+        _gate = gate;
     }
 
     public async Task<ParkingSessionModel> GetParkingSessionById(int id)
@@ -82,4 +91,70 @@ public class ParkingSessionService
     }
 
     public string GenerateTransactionValidationHash() => Guid.NewGuid().ToString("N");
+
+    // Contract: throws InvalidOperationException if not available; ArgumentException on invalid input; returns created session with id
+    public async Task<ParkingSessionModel> StartSession(int parkingLotId, string licensePlate, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
+    {
+        if (string.IsNullOrWhiteSpace(licensePlate)) throw new ArgumentException("License plate required", nameof(licensePlate));
+        if (string.IsNullOrWhiteSpace(cardToken)) throw new ArgumentException("Card token required", nameof(cardToken));
+        if (estimatedAmount <= 0) throw new ArgumentException("Estimated amount must be > 0", nameof(estimatedAmount));
+
+        // 1) Check lot availability
+        var lot = await _dataAccess.ParkingLots.GetById(parkingLotId) ?? throw new KeyNotFoundException("Parking lot not found");
+        var available = lot.Capacity - lot.Reserved;
+        if (available <= 0)
+            throw new InvalidOperationException("Parking lot is full");
+
+        // 2) Payment pre authorization (placeholder!)
+        if (_preauth is not null)
+        {
+            var preauth = await _preauth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
+            if (!preauth.Approved)
+                throw new UnauthorizedAccessException(preauth.Reason ?? "Card declined");
+        }
+
+        // 3) Resolve user by license plate link if present -> otherwise create a temporary user placeholder in DB
+        int? userId = null;
+        string userNameForSession = username ?? "TEMP";
+        var existingVehicle = await _dataAccess.Vehicles.GetByLicensePlate(licensePlate);
+        if (existingVehicle is not null)
+        {
+            userId = existingVehicle.UserId;
+            // try resolve username if needed
+            var existingUser = await _dataAccess.Users.GetById(userId.Value);
+            if (existingUser is not null)
+                userNameForSession = existingUser.Username;
+        }
+
+        // 4) Create session
+        var session = new ParkingSessionModel
+        {
+            ParkingLotId = parkingLotId,
+            LicensePlate = licensePlate,
+            Started = DateTime.UtcNow,
+            Stopped = null,
+            User = userNameForSession,
+            DurationMinutes = 0,
+            Cost = 0,
+            PaymentStatus = "Preauthorized"
+        };
+
+        var createResult = await _dataAccess.ParkingSessions.CreateWithId(session);
+        if (createResult.success)
+            session.Id = createResult.id;
+
+        // 5) Update lot reserved
+        lot.Reserved = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
+        await _dataAccess.ParkingLots.Update(lot);
+
+        // 6) Open gate (placeholder)
+        if (_gate is not null)
+        {
+            var opened = await _gate.OpenGateAsync(parkingLotId, licensePlate);
+            if (!opened)
+                throw new InvalidOperationException("Failed to open gate");
+        }
+
+        return session;
+    }
 }

@@ -16,3 +16,5 @@ public record PaymentValidationRequest(TransactionDataModel TransactionData, str
 
 public record PaymentRequest(string TransactionId, decimal? Amount, TransactionDataModel TransactionData);
 public record PaymentRefundRequest(string? TransactionId, decimal? Amount, string? CoupledTo);
+
+public record StartParkingSessionRequest(string LicensePlate, string CardToken, decimal EstimatedAmount, bool SimulateInsufficientFunds = false);
