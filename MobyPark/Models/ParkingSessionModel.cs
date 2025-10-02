@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -17,19 +16,17 @@ public class ParkingSessionModel
 
     public ParkingSessionModel() { }
 
-    public ParkingSessionModel(SqliteDataReader reader)
+    public ParkingSessionModel(NpgsqlDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("Id")) ? null : reader.GetInt32(reader.GetOrdinal("Id"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("ParkingLotId"));
-        LicensePlate = reader.GetString(reader.GetOrdinal("LicensePlate"));
-        Started = DateTime.Parse(reader.GetString(reader.GetOrdinal("Started")), null, DateTimeStyles.RoundtripKind);
-
-        Stopped = reader.IsDBNull(reader.GetOrdinal("Stopped")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("Stopped")), null, DateTimeStyles.RoundtripKind);
-
-        User = reader.GetString(reader.GetOrdinal("User"));
-        DurationMinutes = reader.GetInt32(reader.GetOrdinal("DurationMinutes"));
-        Cost = reader.GetDecimal(reader.GetOrdinal("Cost"));
-        PaymentStatus = reader.GetString(reader.GetOrdinal("PaymentStatus"));
+        Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
+        ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
+        LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
+        Started = reader.GetDateTime(reader.GetOrdinal("started"));
+        Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("stopped"));
+        User = reader.GetString(reader.GetOrdinal("user_name"));
+        DurationMinutes = reader.GetInt32(reader.GetOrdinal("duration_minutes"));
+        Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
+        PaymentStatus = reader.GetString(reader.GetOrdinal("payment_status"));
     }
 
     public override string ToString() =>

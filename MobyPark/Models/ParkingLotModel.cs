@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -21,7 +20,7 @@ public class ParkingLotModel
         Coordinates = new CoordinatesModel();
     }
 
-    public ParkingLotModel(SqliteDataReader reader) : this()
+    public ParkingLotModel(NpgsqlDataReader reader) : this()
     {
         Id = reader.GetInt32(reader.GetOrdinal("id"));
         Name = reader.GetString(reader.GetOrdinal("name"));
@@ -29,9 +28,9 @@ public class ParkingLotModel
         Address = reader.GetString(reader.GetOrdinal("address"));
         Capacity = reader.GetInt32(reader.GetOrdinal("capacity"));
         Reserved = reader.GetInt32(reader.GetOrdinal("reserved"));
-        Tariff = reader.GetDecimal(reader.GetOrdinal("tariff"));
-        DayTariff = reader.GetDecimal(reader.GetOrdinal("daytariff"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        Tariff = (decimal)reader.GetFloat(reader.GetOrdinal("tariff"));
+        DayTariff = (decimal)reader.GetFloat(reader.GetOrdinal("day_tariff"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
         Coordinates.Lat = reader.GetDouble(reader.GetOrdinal("lat"));
         Coordinates.Lng = reader.GetDouble(reader.GetOrdinal("lng"));
     }
