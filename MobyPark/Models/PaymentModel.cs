@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -19,42 +18,20 @@ public class PaymentModel
         TransactionData = new TransactionDataModel();
     }
 
-    public PaymentModel(SqliteDataReader reader) : this()
+    public PaymentModel(NpgsqlDataReader reader) : this()
     {
-        TransactionId = reader.GetString(reader.GetOrdinal("Transaction"));
-        Amount = reader.GetDecimal(reader.GetOrdinal("Amount"));
-        Initiator = reader.GetString(reader.GetOrdinal("Initiator"));
-        CreatedAt = DateTime.ParseExact(
-            reader.GetString(reader.GetOrdinal("CreatedAt")),
-            "dd-MM-yyyy HH:mm:ssfffffff",
-            CultureInfo.InvariantCulture
-        );
-
-        int completedIndex = reader.GetOrdinal("Completed");
-        if (!reader.IsDBNull(completedIndex))
-        {
-            Completed = DateTime.ParseExact(
-                reader.GetString(completedIndex),
-                "dd-MM-yyyy HH:mm:ssfffffff",
-                CultureInfo.InvariantCulture
-            );
-        }
-        else
-            Completed = null;
-
-        Hash = reader.GetString(reader.GetOrdinal("Hash"));
-        TransactionData.Amount = reader.GetDecimal(reader.GetOrdinal("TransactionAmount"));
-        TransactionData.Date = DateTime.ParseExact(
-            reader.GetString(reader.GetOrdinal("TransactionDate")),
-            "yyyy-MM-dd HH:mm:ss",
-            CultureInfo.InvariantCulture
-        );
-        TransactionData.Method = reader.GetString(reader.GetOrdinal("TransactionMethod"));
-        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("TransactionIssuer"));
-        TransactionData.Bank = reader.GetString(reader.GetOrdinal("TransactionBank"));
-        CoupledTo = reader.IsDBNull(reader.GetOrdinal("CoupledTo"))
-            ? null
-            : reader.GetString(reader.GetOrdinal("CoupledTo"));
+        TransactionId = reader.GetString(reader.GetOrdinal("transaction_id"));
+        Amount = (decimal)reader.GetFloat(reader.GetOrdinal("amount"));
+        Initiator = reader.GetString(reader.GetOrdinal("initiator"));
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
+        Completed = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("completed"));
+        Hash = reader.GetString(reader.GetOrdinal("hash"));
+        TransactionData.Amount = (decimal)reader.GetFloat(reader.GetOrdinal("t_amount"));
+        TransactionData.Date = reader.GetDateTime(reader.GetOrdinal("t_date"));
+        TransactionData.Method = reader.GetString(reader.GetOrdinal("t_method"));
+        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_issuer"));
+        TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_bank"));
+        CoupledTo = reader.GetFieldValue<string?>(reader.GetOrdinal("coupled_to"));
     }
 
     public override string ToString() =>

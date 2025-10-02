@@ -6,4 +6,5 @@ public interface IVehicleAccess : IRepository<VehicleModel>
 {
     Task<List<VehicleModel>> GetByUserId(int userId);
     Task<VehicleModel?> GetByLicensePlate(string licensePlate);
+    Task<VehicleModel?> GetByUserAndLicense(int userId, string licensePlate);
 }

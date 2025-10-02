@@ -9,16 +9,16 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class PaymentServiceTests
 {
-    private Mock<IDataService>? _mockDataService;
+    private Mock<IDataAccess>? _mockDataService;
     private Mock<IPaymentAccess>? _mockPaymentAccess;
 
-    private IDataService? _dataService;
+    private IDataAccess? _dataService;
     private PaymentService? _paymentService;
 
     [TestInitialize]
     public void TestInitialize()
     {
-        _mockDataService = new Mock<IDataService>();
+        _mockDataService = new Mock<IDataAccess>();
         _mockPaymentAccess = new Mock<IPaymentAccess>();
 
         _dataService = _mockDataService.Object;

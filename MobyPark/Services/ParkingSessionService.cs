@@ -1,12 +1,42 @@
 using System.Security.Cryptography;
 using System.Text;
 using MobyPark.Models;
+using MobyPark.Models.DataService;
 
 namespace MobyPark.Services;
 
 public class ParkingSessionService
 {
-    public ParkingSessionService() { }
+    private readonly IDataAccess _dataAccess;
+
+    public ParkingSessionService(IDataAccess dataAccess)
+    {
+        _dataAccess = dataAccess;
+    }
+
+    public async Task<ParkingSessionModel> GetParkingSessionById(int id)
+    {
+        ParkingSessionModel? session = await _dataAccess.ParkingSessions.GetById(id);
+        if (session is null) throw new KeyNotFoundException("Parking session not found");
+
+        return session;
+    }
+
+    public async Task<bool> DeleteParkingSession(int id)
+    {
+        await GetParkingSessionById(id);
+
+        bool success = await _dataAccess.ParkingSessions.Delete(id);
+        return success;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetParkingSessionsByParkingLotId(int lotId)
+    {
+        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByParkingLotId(lotId);
+        if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
+
+        return sessions;
+    }
 
     public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
     {
@@ -42,8 +72,6 @@ public class ParkingSessionService
 
         return (price, hours, days);
     }
-
-
 
     public string GeneratePaymentHash(string sessionId, string licensePlate)
     {

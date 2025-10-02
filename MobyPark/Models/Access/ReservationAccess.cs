@@ -1,29 +1,29 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class ReservationAccess : Repository<ReservationModel>, IReservationAccess
 {
-    protected override string TableName => "Reservations";
-    protected override ReservationModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override string TableName => "reservations";
+    protected override ReservationModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ReservationModel reservation)
     {
         var parameters = new Dictionary<string, object>
         {
-            { "@UserId", reservation.UserId },
-            { "@ParkingLotId", reservation.ParkingLotId },
-            { "@VehicleId", reservation.VehicleId },
-            { "@StartTime", reservation.StartTime.ToString("o") }, // ISO 8601
-            { "@EndTime", reservation.EndTime.ToString("o") },
-            { "@Status", reservation.Status },
-            { "@CreatedAt", reservation.CreatedAt.ToString("o") },
-            { "@Cost", reservation.Cost }
+            { "@user_id", reservation.UserId },
+            { "@parking_lot_id", reservation.ParkingLotId },
+            { "@vehicle_id", reservation.VehicleId },
+            { "@start_time", reservation.StartTime },
+            { "@end_time", reservation.EndTime },
+            { "@status", reservation.Status },
+            { "@created_at", reservation.CreatedAt },
+            { "@cost", reservation.Cost }
         };
 
         if (reservation.Id.HasValue)
-            parameters.Add("@Id", reservation.Id);
+            parameters.Add("@id", reservation.Id.Value);
 
         return parameters;
     }
@@ -34,13 +34,13 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
     {
         Dictionary<string, object> parameters = new()
         {
-            { "@UserId", userId }
+            { "@user_id", userId }
         };
 
         List<ReservationModel> reservations = [];
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE UserId = @UserId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_id = @user_id", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -50,10 +50,10 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
 
     public async Task<List<ReservationModel>> GetByParkingLotId(int parkingLotId)
     {
-        Dictionary<string, object> parameters = new() { { "@ParkingLotId", parkingLotId } };
+        Dictionary<string, object> parameters = new() { { "@parking_lot_id", parkingLotId } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE ParkingLotId = @ParkingLotId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE parking_lot_id = @parking_lot_id", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -63,10 +63,10 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
 
     public async Task<List<ReservationModel>> GetByVehicleId(int vehicleId)
     {
-        Dictionary<string, object> parameters = new() { { "@VehicleId", vehicleId } };
+        Dictionary<string, object> parameters = new() { { "@vehicle_id", vehicleId } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE VehicleId = @VehicleId", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE vehicle_id = @vehicle_id", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
@@ -76,10 +76,10 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
 
     public async Task<List<ReservationModel>> GetByStatus(string status)
     {
-        Dictionary<string, object> parameters = new() { { "@Status", status } };
+        Dictionary<string, object> parameters = new() { { "@status", status } };
         List<ReservationModel> reservations = [];
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Status = @Status", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE status = @status", parameters);
 
         while (await reader.ReadAsync())
             reservations.Add(MapFromReader(reader));
