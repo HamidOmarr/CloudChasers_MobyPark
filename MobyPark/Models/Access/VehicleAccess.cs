@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
 {
-    protected override string TableName => "vehicles";
-    protected override VehicleModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override string TableName => "Vehicles";
+    protected override VehicleModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(VehicleModel vehicle)
     {
@@ -19,7 +19,7 @@ public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
             { "@model", vehicle.Model },
             { "@color", vehicle.Color },
             { "@year", vehicle.Year },
-            { "@created_at", vehicle.CreatedAt.ToString("yyyy-MM-dd") }
+            { "@created_at", vehicle.CreatedAt }
         };
 
         return parameters;
@@ -29,9 +29,9 @@ public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
 
     public async Task<List<VehicleModel>> GetByUserId(int userId)
     {
-    var parameters = new Dictionary<string, object> { { "@user_id", userId } };
-    var vehicles = new List<VehicleModel>();
-    await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_id = @user_id", parameters);
+        var parameters = new Dictionary<string, object> { { "@user_id", userId } };
+        var vehicles = new List<VehicleModel>();
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_id = @user_id", parameters);
 
         while (await reader.ReadAsync())
             vehicles.Add(MapFromReader(reader));

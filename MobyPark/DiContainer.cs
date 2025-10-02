@@ -1,7 +1,8 @@
 using MobyPark.Models.Access;
+using MobyPark.Models.Access.DatabaseConnection;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
-using MobyPark.Services.DatabaseConnection;
+using MobyPark.Services.Services;
 
 namespace MobyPark;
 
@@ -31,6 +32,7 @@ public static class DiContainer
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();
+        services.AddScoped<ServiceStack>();
 
         // Database connection
         services.AddScoped<IDatabaseConnection, DatabaseConnection>();

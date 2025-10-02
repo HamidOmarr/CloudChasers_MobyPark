@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -21,8 +20,7 @@ public class UserModel
         Role = "USER";
     }
 
-
-    public UserModel(SqliteDataReader reader)
+    public UserModel(NpgsqlDataReader reader)
     {
         Id = reader.GetInt32(reader.GetOrdinal("id"));
         Username = reader.GetString(reader.GetOrdinal("username"));
@@ -31,7 +29,7 @@ public class UserModel
         Email = reader.GetString(reader.GetOrdinal("email"));
         Phone = reader.GetString(reader.GetOrdinal("phone"));
         Role = reader.GetString(reader.GetOrdinal("role"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
         BirthYear = reader.GetInt32(reader.GetOrdinal("birth_year"));
         Active = reader.GetBoolean(reader.GetOrdinal("active"));
     }

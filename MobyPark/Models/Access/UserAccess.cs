@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class UserAccess : Repository<UserModel>, IUserAccess
 {
     protected override string TableName => "users";
-    protected override UserModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override UserModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(UserModel user)
     {
@@ -19,7 +19,7 @@ public class UserAccess : Repository<UserModel>, IUserAccess
             { "@email", user.Email },
             { "@phone", user.Phone },
             { "@role", user.Role },
-            { "@created_at", user.CreatedAt.ToString("yyyy-MM-dd") },
+            { "@created_at", user.CreatedAt },
             { "@birth_year", user.BirthYear },
             { "@active", user.Active }
         };

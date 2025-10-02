@@ -1,5 +1,6 @@
 namespace MobyPark.Models.Requests;
 // Data Transfer Objects (DTOs). Keep these as records. They function as lighter weight classes and are still safe against malicious injection.
+// TODO: Give existing requests more parameters where needed / all encompassing for the respective model if used for creation
 
 public record UserRegisterRequest(string Username, string Password, string Name);
 public record UserLoginRequest(string Username, string Password);

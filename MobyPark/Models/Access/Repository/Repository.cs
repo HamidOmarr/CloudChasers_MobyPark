@@ -1,11 +1,11 @@
 using MobyPark.Services;
-using MobyPark.Services.DatabaseConnection;
-using Microsoft.Data.Sqlite;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 public abstract class Repository<T> : IRepository<T> where T : class
 {
     protected abstract string TableName { get; }
-    protected abstract T MapFromReader(SqliteDataReader reader);
+    protected abstract T MapFromReader(NpgsqlDataReader reader);
     protected abstract Dictionary<string, object> GetParameters(T item);
     protected readonly IDatabaseConnection Connection;
 
@@ -87,13 +87,16 @@ public abstract class Repository<T> : IRepository<T> where T : class
     {
         var columns = string.Join(", ", keys.Select(key => key.TrimStart('@')));
         var values = string.Join(", ", keys);
-        return $"INSERT INTO {TableName} ({columns}) VALUES ({values}); SELECT last_insert_rowid();";
+        return $"INSERT INTO {TableName} ({columns}) VALUES ({values}) RETURNING id;";
     }
 
     private string BuildUpdateQuery(List<string> keys)
     {
-        string columnNames = string.Join(", ", keys.Select(key => key.TrimStart('@')));
-        string parameters = string.Join(", ", keys);
-        return $"UPDATE {TableName} SET ({columnNames}) = ({parameters}) WHERE id = @id";
+        var assignments = keys
+            .Where(key => key != "@id") // Exclude @id from the SET clause
+            .Select(key => $"{key.TrimStart('@')} = {key}");
+        var setClause = string.Join(", ", assignments);
+
+        return $"UPDATE {TableName} SET {setClause} WHERE id = @id";
     }
 }

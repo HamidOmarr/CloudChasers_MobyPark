@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
 {
     protected override string TableName => "payments";
-    protected override PaymentModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override PaymentModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(PaymentModel payment)
     {
@@ -15,15 +15,14 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
             { "@transaction", payment.TransactionId },
             { "@amount", payment.Amount },
             { "@initiator", payment.Initiator },
-            { "@created_at", payment.CreatedAt.ToString("dd-MM-yyyy HH:mm:ssfffffff") },
-            { "@completed", payment.Completed?.ToString("dd-MM-yyyy HH:mm:ssfffffff") ?? (object)DBNull.Value },
+            { "@created_at", payment.CreatedAt },
+            { "@completed", payment.Completed ?? (object)null },
             { "@hash", payment.Hash },
             { "@t_data_amount", payment.TransactionData.Amount },
-            { "@t_data_date", payment.TransactionData.Date.ToString("yyyy-MM-dd HH:mm:ss") },
+            { "@t_data_date", payment.TransactionData.Date },
             { "@t_data_method", payment.TransactionData.Method },
             { "@t_data_issuer", payment.TransactionData.Issuer },
-            { "@t_data_bank", payment.TransactionData.Bank },
-            { "@coupled_to", payment.CoupledTo ?? (object)DBNull.Value }
+            { "@t_data_bank", payment.TransactionData.Bank }
         };
 
         return parameters;
@@ -46,10 +45,8 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
 
     public async Task<PaymentModel?> GetByTransactionId(string transactionId)
     {
-    Dictionary<string, object> parameters = new() { { "@transaction", transactionId } };
-
-    await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE transaction = @transaction", parameters);
-
+        Dictionary<string, object> parameters = new() { { "@transaction", transactionId } };
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE transaction_id = @transaction", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 

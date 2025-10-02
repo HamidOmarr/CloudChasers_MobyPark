@@ -1,12 +1,12 @@
-using Microsoft.Data.Sqlite;
-using MobyPark.Services.DatabaseConnection;
+using Npgsql;
+using MobyPark.Models.Access.DatabaseConnection;
 
 namespace MobyPark.Models.Access;
 
 public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 {
     protected override string TableName => "parking_lots";
-    protected override ParkingLotModel MapFromReader(SqliteDataReader reader) => new(reader);
+    protected override ParkingLotModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(ParkingLotModel parkingLot)
     {
@@ -18,8 +18,8 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
             { "@address", parkingLot.Address },
             { "@capacity", parkingLot.Capacity },
             { "@reserved", parkingLot.Reserved },
-            { "@tarrif", parkingLot.Tariff },
-            { "@daytarrif", parkingLot.DayTariff },
+            { "@tariff", parkingLot.Tariff },
+            { "@daytariff", parkingLot.DayTariff },
             { "@created_at", parkingLot.CreatedAt.ToString("yyyy-MM-dd") },
             { "@lat", parkingLot.Coordinates.Lat },
             { "@lng", parkingLot.Coordinates.Lng }
@@ -32,10 +32,10 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 
     public async Task<ParkingLotModel?> GetByName(string modelName)
     {
-        Dictionary<string, object> parameters = new() { { "@name", modelName } };
+        Dictionary<string, object> parameters = new() { { "@model", modelName } };
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE name = @name", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE model = @model", parameters);
 
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }

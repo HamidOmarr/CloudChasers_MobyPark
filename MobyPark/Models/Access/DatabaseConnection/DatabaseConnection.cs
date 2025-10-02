@@ -1,93 +1,108 @@
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
-namespace MobyPark.Services.DatabaseConnection;
+namespace MobyPark.Models.Access.DatabaseConnection;
 
-class DatabaseConnection : IDatabaseConnection, IAsyncDisposable
+internal class DatabaseConnection : IDatabaseConnection
 {
-    private SqliteConnection? _sqliteConnection;
+    private readonly string _connectionString;
 
     public DatabaseConnection(IConfiguration configuration)
     {
-        string? connectionString = configuration.GetConnectionString("DefaultConnection");
-        OpenConnection(connectionString);
+        _connectionString = configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("No connection string configured for the database.");
     }
 
-    private void OpenConnection(string? connectionString)
+    private async Task<NpgsqlConnection> OpenConnectionAsync()
     {
-        if (string.IsNullOrEmpty(connectionString))
-            throw new InvalidOperationException("No connection string configured for the database.");
-
-        var builder = new SqliteConnectionStringBuilder(connectionString);
-        string dataSource = builder.DataSource;
-
-        if (!Path.IsPathRooted(dataSource))
+        var connection = new NpgsqlConnection(_connectionString);
+        try
         {
-            string basePath = AppContext.BaseDirectory;
-            dataSource = Path.Combine(basePath, dataSource);
-            builder.DataSource = dataSource;
+            await connection.OpenAsync();
+            return connection;
         }
-
-        _sqliteConnection = new SqliteConnection(builder.ToString());
-        _sqliteConnection.Open();
+        catch (Exception ex)
+        { throw new InvalidOperationException("Could not open PostgreSQL connection", ex); }
     }
 
     public async Task<int> ExecuteQuery(string query)
     {
-        await using var command = new SqliteCommand(query, _sqliteConnection);
-        var result = await command.ExecuteScalarAsync();
-        return Convert.ToInt32(result);
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(query, connection);
+
+        try
+        {
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }
+        catch (Exception ex)
+        { throw new InvalidOperationException($"Error executing scalar query: {query}", ex); }
     }
 
-    public async Task<SqliteDataReader> ExecuteQuery(string query, Dictionary<string, object>? parameters)
+    public async Task<NpgsqlDataReader> ExecuteQuery(string query, Dictionary<string, object>? parameters)
     {
-        await using var command = new SqliteCommand(query, _sqliteConnection);
-        if (parameters != null)
+        var connection = await OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(query, connection);
+
+        if (parameters is not null)
         {
-            foreach (KeyValuePair<string, object> parameter in parameters)
-                command.Parameters.AddWithValue(parameter.Key, parameter.Value);
+            foreach (var param in parameters)
+                command.Parameters.AddWithValue(param.Key, param.Value);
         }
 
-        SqliteDataReader reader = await command.ExecuteReaderAsync();
-        return reader;
+        try
+        { return await command.ExecuteReaderAsync(System.Data.CommandBehavior.CloseConnection); }
+        catch (Exception ex)
+        {
+            await connection.DisposeAsync();
+            throw new InvalidOperationException($"Error executing reader query: {query}", ex);
+        }
     }
 
     public async Task<int> ExecuteNonQuery(string query, Dictionary<string, object> parameters)
     {
-        await using var command = new SqliteCommand(query, _sqliteConnection);
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(query, connection);
+
         foreach (var param in parameters)
             command.Parameters.AddWithValue(param.Key, param.Value);
 
-        return await command.ExecuteNonQueryAsync();
+        try
+        { return await command.ExecuteNonQueryAsync(); }
+        catch (Exception ex)
+        { throw new InvalidOperationException($"Error executing non-query: {query}", ex); }
     }
 
     public async Task<(int rowsAffected, object scalar)> ExecuteNonQueryWithScalar(string query, Dictionary<string, object> parameters)
     {
-        await using var command = new SqliteCommand(query, _sqliteConnection);
-        foreach (var param in parameters)
-            command.Parameters.AddWithValue(param.Key, param.Value);
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(query, connection);
 
-        await command.ExecuteNonQueryAsync();
-        command.CommandText = "SELECT last_insert_rowid();";
-        var scalar = await command.ExecuteScalarAsync();
-        return (1, scalar ?? 0); // Return 1 for rows affected as per original, and the scalar value
+        foreach (var param in parameters)
+        { command.Parameters.AddWithValue(param.Key, param.Value ?? DBNull.Value); }
+
+        try
+        {
+            var scalar = await command.ExecuteScalarAsync();
+            int rowsAffected = scalar != null ? 1 : 0;
+            return (rowsAffected, scalar ?? 0);
+        }
+        catch (Exception ex)
+        { throw new InvalidOperationException($"Error executing non-query with scalar: {query}", ex); }
     }
 
     public async Task<object?> ExecuteScalar(string query, Dictionary<string, object>? parameters)
     {
-        await using var command = new SqliteCommand(query, _sqliteConnection);
-        if (parameters == null) return await command.ExecuteScalarAsync();
-        foreach (var param in parameters)
-            command.Parameters.AddWithValue(param.Key, param.Value);
+        await using var connection = await OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(query, connection);
 
-        return await command.ExecuteScalarAsync();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_sqliteConnection != null)
+        if (parameters != null)
         {
-            await _sqliteConnection.DisposeAsync();
-            _sqliteConnection = null!;
+            foreach (var param in parameters)
+                command.Parameters.AddWithValue(param.Key, param.Value);
         }
+
+        try
+        { return await command.ExecuteScalarAsync(); }
+        catch (Exception ex)
+        { throw new InvalidOperationException($"Error executing scalar: {query}", ex); }
     }
 }

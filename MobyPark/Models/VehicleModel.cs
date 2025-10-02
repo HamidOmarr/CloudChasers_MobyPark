@@ -1,5 +1,4 @@
-using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -15,7 +14,8 @@ public class VehicleModel
     public DateTime CreatedAt { get; set; }
 
     public VehicleModel() { }
-    public VehicleModel(SqliteDataReader reader)
+
+    public VehicleModel(NpgsqlDataReader reader)
     {
         Id = reader.GetInt32(reader.GetOrdinal("id"));
         UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
@@ -24,7 +24,7 @@ public class VehicleModel
         Model = reader.GetString(reader.GetOrdinal("model"));
         Color = reader.GetString(reader.GetOrdinal("color"));
         Year = reader.GetInt32(reader.GetOrdinal("year"));
-        CreatedAt = DateTime.ParseExact(reader.GetString(reader.GetOrdinal("created_at")), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
     }
 
     public override string ToString() =>
