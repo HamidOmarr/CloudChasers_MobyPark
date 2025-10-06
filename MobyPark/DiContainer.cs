@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Identity;
+using MobyPark.Models;
 using MobyPark.Models.Access;
-using MobyPark.Models.Access.DatabaseConnection;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
+using MobyPark.Services.DatabaseConnection;
 using MobyPark.Services.Services;
 
 namespace MobyPark;
@@ -17,7 +19,7 @@ public static class DiContainer
         services.AddScoped<IReservationAccess, ReservationAccess>();
         services.AddScoped<IPaymentAccess, PaymentAccess>();
         services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
-
+        
         // Business logic
         services.AddSingleton<SessionService>();
         services.AddScoped<ParkingSessionService>();
@@ -26,12 +28,21 @@ public static class DiContainer
         services.AddScoped<ParkingLotService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<VehicleService>();
+        services.AddScoped<ServiceStack>();
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();
-        services.AddScoped<ServiceStack>();
+        
+        // Password Hasher
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
 
-        // Database connection
+        //Database connection
         services.AddScoped<IDatabaseConnection, DatabaseConnection>();
+
+
+        // ✅ Auth/services
+        services.AddSingleton<SessionService>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        services.AddScoped<UserService>();
     }
 }
