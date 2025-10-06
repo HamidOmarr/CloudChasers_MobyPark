@@ -157,4 +157,25 @@ public class ParkingSessionService
 
         return session;
     }
+
+    public async Task<int> StartParkingSession(int lotId, string licensePlate, string username, DateTime startTime)
+    {
+        // *** BUSINESS LOGIC HERE ***
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
+            throw new ArgumentException("License plate is required.");
+        }
+
+        // Check for existing active session (The core rule)
+        var existingActiveSession = await GetActiveSessionByLicensePlate(licensePlate);
+        if (existingActiveSession != null)
+        {
+            // Throw a custom exception indicating the business rule was violated
+            throw new ActiveSessionAlreadyExistsException(licensePlate);
+        }
+
+        // If all rules pass, proceed to data access
+        // ... logic to create and save the new session ...
+        return newSessionId;
+    }
 }

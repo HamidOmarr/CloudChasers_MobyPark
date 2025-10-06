@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MobyPark.Services.Services;
 using MobyPark.Models.Requests;
 using MobyPark.Services;
+using MobyPark.Services.Exceptions;
 
 namespace MobyPark.Controllers;
 
@@ -91,5 +92,40 @@ public class ParkingSessionController : BaseController
             return Forbid();
 
         return Ok(session);
+    }
+
+    [HttpPost("{lotId}/sessions/start")]
+    public async Task<IActionResult> StartSession(int lotId, [FromBody] SessionRequest data)
+    {
+        var user = GetCurrentUser();
+        try
+        {
+            var newSessionId = await _services.ParkingSessions.StartParkingSession(
+                lotId, data.LicensePlate, user.Username, DateTime.UtcNow);
+
+            return Ok(new { message = $"Session started for: {data.LicensePlate}", sessionId = newSessionId });
+        }
+        catch (ActiveSessionAlreadyExistsException ex)
+        { return BadRequest(new { error = "Cannot start a session when another session for this license plate is already started." }); }
+        catch (ArgumentException ex)
+        { return BadRequest(new { error = "Required field missing", field = "license plate" }); }
+    }
+
+    [HttpPost("{lotId}/sessions/stop")]
+    public async Task<IActionResult> StopSession(int lotId, [FromBody] SessionRequest data)
+    {
+        if (string.IsNullOrWhiteSpace(data.LicensePlate))
+            return BadRequest(new { error = "Required field missing", field = "licenseplate" });
+
+        var activeSession = await _services.ParkingSessions.GetActiveSessionByLicensePlate(data.LicensePlate);
+
+        if (activeSession == null)
+            return BadRequest(new { error = "Cannot stop a session when there is no session for this licenseplate." });
+
+        if (activeSession.ParkingLotId != lotId)
+            return NotFound(new { error = "Active session not found for this parking lot and license plate." });
+
+        await _services.ParkingSessions.StopParkingSession(activeSession.Id, DateTime.UtcNow);
+        return Ok(new { message = $"Session stopped for: {data.LicensePlate}" });
     }
 }
