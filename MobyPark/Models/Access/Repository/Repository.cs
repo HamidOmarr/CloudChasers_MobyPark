@@ -39,12 +39,27 @@ public abstract class Repository<T> : IRepository<T> where T : class
         return result != null ? Convert.ToInt32(result) : 0;
     }
 
-    public virtual async Task<bool> Create(T item)
+    public virtual Task<bool> Create(T item) => Create(item, true);
+    public virtual async Task<bool> Create(T item, bool returnId)
     {
         var parameters = GetParameters(item);
         parameters.Remove("@id");
 
-        var query = BuildInsertQuery(parameters.Keys.ToList());
+        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId);
+
+        if (returnId)
+        {
+            try
+            {
+                await Connection.ExecuteScalar(query, parameters);
+                return true;
+            }
+            catch (PostgresException ex) when (ex.SqlState == "42703") // Catch column "id" does not exist
+            {
+                await Connection.ExecuteNonQuery(query, parameters);
+                return true;
+            }
+        }
 
         int rowsAffected = await Connection.ExecuteNonQuery(query, parameters);
         return rowsAffected > 0;
@@ -83,11 +98,16 @@ public abstract class Repository<T> : IRepository<T> where T : class
         return rowsAffected > 0;
     }
 
-    private string BuildInsertQuery(List<string> keys)
+    private string BuildInsertQuery(List<string> keys, bool returnId = true)
     {
         var columns = string.Join(", ", keys.Select(key => key.TrimStart('@')));
         var values = string.Join(", ", keys);
-        return $"INSERT INTO {TableName} ({columns}) VALUES ({values}) RETURNING id;";
+        var query = $"INSERT INTO {TableName} ({columns}) VALUES ({values});";
+
+        if (returnId)
+            query += " RETURNING id";
+
+        return query;
     }
 
     private string BuildUpdateQuery(List<string> keys)

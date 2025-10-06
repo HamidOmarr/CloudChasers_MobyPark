@@ -1,5 +1,6 @@
 using Npgsql;
 using MobyPark.Models.Access.DatabaseConnection;
+using NpgsqlTypes;
 
 namespace MobyPark.Models.Access;
 
@@ -20,10 +21,13 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
             { "@reserved", parkingLot.Reserved },
             { "@tariff", parkingLot.Tariff },
             { "@daytariff", parkingLot.DayTariff },
-            { "@created_at", parkingLot.CreatedAt.ToString("yyyy-MM-dd") },
             { "@lat", parkingLot.Coordinates.Lat },
             { "@lng", parkingLot.Coordinates.Lng }
         };
+        parameters.Add("@created_at", new NpgsqlParameter("@created_at", NpgsqlDbType.Date)
+        {
+            Value = parkingLot.CreatedAt
+        });
 
         return parameters;
     }

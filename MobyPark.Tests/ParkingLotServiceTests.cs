@@ -46,7 +46,7 @@ public sealed class ParkingLotServiceTests
             Reserved = reserved,
             Tariff = tariff,
             DayTariff = dayTariff,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow),
             Coordinates = new CoordinatesModel { Lat = 10.5, Lng = 20.5 }
         };
 
@@ -101,7 +101,7 @@ public sealed class ParkingLotServiceTests
         decimal tariff = (decimal)tariffDouble;
         decimal dayTariff = (decimal)dayTariffDouble;
 
-        var createdAt = DateTime.UtcNow.AddDays(-1);
+        var createdAt = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
         var coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude };
 
         _mockParkingLotAccess!

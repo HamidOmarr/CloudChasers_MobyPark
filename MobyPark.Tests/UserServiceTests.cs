@@ -85,7 +85,7 @@ public sealed class UserServiceTests
     [DataRow("user8", "Complex#Password123", "Hannah")]
     [DataRow("user9", "Xy9*Zz8@", "Isaac")]
     [DataRow("user10", "GoodPass1@", "Jack")]
-    public async Task CreateUserAsync_ValidInput_CreatesUserModel(string username, string password, string name)
+    public async Task CreateUser_ValidInput_CreatesUserModel(string username, string password, string name)
     {
         // Arrange
         _mockUserAccess!
@@ -93,8 +93,20 @@ public sealed class UserServiceTests
             .Callback<UserModel>(model => _ = model)
             .ReturnsAsync(true);
 
+        var user = new UserModel
+        {
+            Username = username,
+            Password = password,
+            Name = name,
+            Email = "email@example.com",
+            Phone = "0612345678",
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
         // Act
-        var result = await _userService!.CreateUserAsync(username, password, name);
+        var result = await _userService!.CreateUser(user);
 
         // Assert
         Assert.IsNotNull(result);
@@ -118,16 +130,35 @@ public sealed class UserServiceTests
 
 
     [TestMethod]
-    [DataRow(null, "password", "Name")]
-    [DataRow("", "password", "Name")]
-    [DataRow("user", null, "Name")]
-    [DataRow("user", "", "Name")]
-    [DataRow("user", "password", null)]
-    [DataRow("user", "password", "")]
-    public async Task CreateUserAsync_InvalidInput_ThrowsArgumentException(string username, string password, string name)
+    [DataRow(null, "password", "Name", "email@example.com", "0612345678", 2000)]
+    [DataRow("", "password", "Name", "email@example.com", "0612345678", 2000)]
+    [DataRow("user", null, "Name", "email@example.com", "0612345678", 2000)]
+    [DataRow("user", "", "Name", "email@example.com", "0612345678", 2000)]
+    [DataRow("user", "password", null, "email@example.com", "0612345678", 2000)]
+    [DataRow("user", "password", "", "email@example.com", "0612345678", 2000)]
+    [DataRow("user", "password", "Name", null, "0612345678", 2000)]
+    [DataRow("user", "password", "Name", "", "0612345678", 2000)]
+    [DataRow("user", "password", "Name", "email@example.com", null, 2000)]
+    [DataRow("user", "password", "Name", "email@example.com", "", 2000)]
+    [DataRow("user", "password", "Name", "email@example.com", "0612345678", 1899)]
+    [DataRow("user", "password", "Name", "email@example.com", "0612345678", Int32.MaxValue)]
+    [DataRow("user", "password", "Name", "email@example.com", "0612345678", 1900)]
+    public async Task CreateUser_InvalidInput_ThrowsArgumentException(string username, string password, string name, string email, string phone, int birthYear)
     {
+        var user = new UserModel
+        {
+            Username = username,
+            Password = password,
+            Name = name,
+            Email = email,
+            Phone = phone,
+            BirthYear = birthYear,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
         await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
-            await _userService!.CreateUserAsync(username, password, name));
+            await _userService!.CreateUser(user));
 
         _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
     }
@@ -142,10 +173,22 @@ public sealed class UserServiceTests
     [DataRow("user7", "Password!", "Name7")]
     [DataRow("user8", "PASS1234", "Name8")]
     [DataRow("user9", "pass1234", "Name9")]
-    public async Task CreateUserAsync_WeakOrWhitespacePassword_ThrowsArgumentException(string username, string password, string name)
+    public async Task CreateUser_WeakOrWhitespacePassword_ThrowsArgumentException(string username, string password, string name)
     {
+        var user = new UserModel
+        {
+            Username = username,
+            Password = password,
+            Name = name,
+            Email = "email@example.com",
+            Phone = "0612345678",
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
         await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
-            await _userService!.CreateUserAsync(username, password, name));
+            await _userService!.CreateUser(user));
 
         _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
     }
@@ -159,11 +202,183 @@ public sealed class UserServiceTests
     [DataRow("user3", "Password1", "   ")]
     [DataRow("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu", "Password1", "LongName")]  // very long username
     [DataRow("user4", "Password1", "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN")]     // very long name
-    public async Task CreateUserAsync_InvalidUsernameOrName_ThrowsArgumentException(string username, string password, string name)
+    public async Task CreateUser_InvalidUsernameOrName_ThrowsArgumentException(string username, string password, string name)
     {
-        await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
-            await _userService!.CreateUserAsync(username, password, name));
+        var user = new UserModel
+        {
+            Username = username,
+            Password = password,
+            Name = name,
+            Email = "email@example.com",
+            Phone = "0612345678",
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
 
+        await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
+            await _userService!.CreateUser(user));
+
+        _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
+    }
+
+    [TestMethod]
+    [DataRow("user@domain.com", "user@domain.com")]
+    [DataRow("john@doe.org", "john@doe.org")]
+    [DataRow("jane.doe@familyhome.com", "jane.doe@familyhome.com")]
+    [DataRow("james123@gmail.com", "james123@gmail.com")]
+    [DataRow("familie.spatiebalk@kpnmail.nl", "familie.spatiebalk@kpnmail.nl")]
+    [DataRow("user@domain.TLDsLongerThanSixtyThreeCharactersCannotExistSoItIsTheLimitHere",
+        "user@domain.tldslongerthansixtythreecharacterscannotexistsoitisthelimithere")]
+    [DataRow("user+tag@domain.com", "user+tag@domain.com")]
+    [DataRow("user_name@domain.com", "user_name@domain.com")]
+    [DataRow("user-name@domain.com", "user-name@domain.com")]
+    [DataRow("u@domain.com", "u@domain.com")]
+    [DataRow("user@sub.domain.com", "user@sub.domain.com")]
+    [DataRow("user@a.b.c.d.e.com", "user@a.b.c.d.e.com")]
+    [DataRow("user@exämple.de", "user@xn--exmple-cua.de")]
+    [DataRow("user@xn--fsq.com", "user@xn--fsq.com")]
+    [DataRow("user%domain@domain.com", "user%domain@domain.com")]
+    [DataRow("12345@numbers.com", "12345@numbers.com")]
+    [DataRow("user@123.com", "user@123.com")]
+    [DataRow(" user@domain.com ", "user@domain.com")]
+    [DataRow("user--name@domain.com", "user--name@domain.com")]
+    public async Task CreateUser_ValidEmail_CreatesUser(string inputEmail, string expectedNormalized)
+    {
+        // Arrange
+        var user = new UserModel
+        {
+            Username = "validUser",
+            Password = "W0rK!ngP@ss",
+            Name = "Valid Name",
+            Email = inputEmail,
+            Phone = "+310612345678",
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
+        _mockUserAccess!.Setup(access => access.Create(It.IsAny<UserModel>())).ReturnsAsync(true).Verifiable();
+
+        // Act
+        var result = await _userService!.CreateUser(user);
+
+        // Assert
+        Assert.AreEqual(expectedNormalized, result.Email);
+        _mockUserAccess.Verify(access => access.Create(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
+    }
+
+    [TestMethod]
+    [DataRow("allMissing")]
+    [DataRow("missingAtSymbol.com")]
+    [DataRow("missingDot@com")]
+    [DataRow("two@@ats.com")]
+    [DataRow("spaces in@em ail.com")]
+    [DataRow("")]
+    [DataRow(" ")]
+    [DataRow(".startdot@domain.com")]
+    [DataRow("enddot.@domain.com")]
+    [DataRow("double..dot@domain.com")]
+    [DataRow("user@-domain.com")]
+    [DataRow("user@domain-.com")]
+    [DataRow("user!@domain.com")]
+    [DataRow("user()@domain.com")]
+    [DataRow("user@do(main).com")]
+    [DataRow("user@")]
+    [DataRow("user@.")]
+    [DataRow("@domain.com")]
+    [DataRow("user@domain.c")]
+    [DataRow("\"quoted@local\"@domain.com")] // quoted local parts are valid but often unsupported. Disallowed for simplicity and to avoid injection risks.
+    [DataRow("user\t@domain.com")]
+    [DataRow("user\n@domain.com")]
+    [DataRow("user@domain.TLDsLongerThanSixtyThreeCharactersCannotExistSoItIsTheLimitHereA")]
+    [DataRow("user..name@domain.com")]
+    [DataRow("user@domain!name.com")]
+    [DataRow("user@domain#name.com")]
+    [DataRow("user@domain$%.com")]
+    public async Task CreateUser_InvalidEmail_ThrowsArgumentException(string email)
+    {
+        var user = new UserModel
+        {
+            Username = "validUser",
+            Password = "W0rK!ngP@ss",
+            Name = "Valid Name",
+            Email = email,
+            Phone = "+31612345678",
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
+        await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
+            await _userService!.CreateUser(user));
+        _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
+    }
+
+    [TestMethod]
+    [DataRow("012345678")]
+    [DataRow("0612345678")]
+    [DataRow("06 12345678")]
+    [DataRow("+31 6 12345678")]
+    [DataRow("+31612345678")]
+    [DataRow("00316 12345678")]
+    [DataRow("0031612345678")]
+    [DataRow("(06)12345678")]
+    [DataRow("06-12345678")]
+    [DataRow("06-12-34-56-78")]
+    [DataRow("+31 (0)6 12345678")]
+    [DataRow("0031 06 12345678")]
+    [DataRow("++31612345678")]
+    [DataRow(" 06  1234  5678 ")]
+    public async Task CreateUser_ValidPhoneFormats_CreatesUser(string phone)
+    {
+        // Arrange
+        var user = new UserModel
+        {
+            Username = "validUser",
+            Password = "W0rK!ngP@ss",
+            Name = "Valid Name",
+            Email = "valid@email.com",
+            Phone = phone,
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
+        _mockUserAccess!
+            .Setup(access => access.Create(It.IsAny<UserModel>()))
+            .ReturnsAsync(true).Verifiable();
+
+        // Act
+        var result = await _userService!.CreateUser(user);
+
+        // Assert
+        Assert.AreEqual("+310612345678", result.Phone);
+    }
+
+    [TestMethod]
+    [DataRow("12345678")]
+    [DataRow("1234567890")]
+    [DataRow("phone")]
+    [DataRow("")]
+    [DataRow(" ")]
+    [DataRow("0123456789012345")]
+    [DataRow("0123A56789")]
+    public async Task CreateUser_InvalidPhoneFormats_ThrowsArgumentException(string phone)
+    {
+        var user = new UserModel
+        {
+            Username = "validUser",
+            Password = "W0rK!ngP@ss",
+            Name = "Valid Name",
+            Email = "valid@email.com",
+            Phone = phone,
+            BirthYear = 2000,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+        await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
+            await _userService!.CreateUser(user));
         _mockUserAccess!.Verify(access => access.Create(It.IsAny<UserModel>()), Times.Never);
     }
 

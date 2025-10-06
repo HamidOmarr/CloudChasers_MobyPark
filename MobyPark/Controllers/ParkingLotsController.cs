@@ -23,7 +23,7 @@ public class ParkingLotsController : BaseController
         var user = GetCurrentUser();
         if (user.Role != "ADMIN") return Forbid();
 
-        lot.CreatedAt = DateTime.UtcNow;
+        lot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
         await _services.ParkingLots.CreateParkingLot(lot);
         return StatusCode(201, new { message = "Parking lot created" });
     }

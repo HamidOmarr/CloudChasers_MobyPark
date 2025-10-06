@@ -14,7 +14,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
         {
             { "@parking_lot_id", session.ParkingLotId },
             { "@license_plate", session.LicensePlate },
-            { "@started", session.Started }, // ISO 8601
+            { "@started", session.Started },
             { "@stopped", session.Stopped ?? (object)null },
             { "@user", session.User },
             { "@duration_minutes", session.DurationMinutes },

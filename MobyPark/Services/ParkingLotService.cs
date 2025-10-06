@@ -45,12 +45,15 @@ public class ParkingLotService
         if (parkingLot.Coordinates.Lng < -180 || parkingLot.Coordinates.Lng > 180)
             throw new ArgumentOutOfRangeException(nameof(parkingLot.Coordinates.Lng), "Longitude must be between -180 and 180.");
 
+        if (parkingLot.CreatedAt == default)
+            parkingLot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
+
         await _dataAccess.ParkingLots.Create(parkingLot);
         return parkingLot;
     }
 
     public async Task<ParkingLotModel> UpdateParkingLot(int id, string name, string location, string address,
-        int capacity, int reserved, decimal tariff, decimal dayTariff, DateTime createdAt, CoordinatesModel coordinates)
+        int capacity, int reserved, decimal tariff, decimal dayTariff, DateOnly createdAt, CoordinatesModel coordinates)
     {
         ParkingLotModel parkingLot = new()
         {

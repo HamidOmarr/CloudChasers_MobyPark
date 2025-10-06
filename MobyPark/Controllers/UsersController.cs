@@ -19,7 +19,7 @@ public class UsersController : BaseController
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] UserRegisterRequest request)
     {
-        if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password) || string.IsNullOrEmpty(request.Name))
+        if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password) || string.IsNullOrEmpty(request.Name) || string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Phone) || request.BirthYear < 1900 || request.BirthYear > DateTime.Now.Year)
             return BadRequest(new { error = "Missing required fields" });
 
         UserModel? existing = await _services.Users.GetUserByUsername(request.Username);
@@ -27,7 +27,18 @@ public class UsersController : BaseController
         if (existing is not null)
             return Conflict(new { error = "Username already taken" });
 
-        await _services.Users.CreateUserAsync(request.Username, request.Password, request.Name);
+        UserModel newUser = new UserModel
+        {
+            Username = request.Username,
+            Name = request.Name,
+            Email = request.Email,
+            Phone = request.Phone,
+            BirthYear = request.BirthYear,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+
+        await _services.Users.CreateUser(newUser);
         return StatusCode(201, new { message = "User created" });
     }
 

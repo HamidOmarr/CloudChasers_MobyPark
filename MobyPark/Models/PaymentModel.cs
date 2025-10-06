@@ -27,7 +27,7 @@ public class PaymentModel
         Completed = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("completed"));
         Hash = reader.GetString(reader.GetOrdinal("hash"));
         TransactionData.Amount = (decimal)reader.GetFloat(reader.GetOrdinal("t_amount"));
-        TransactionData.Date = reader.GetDateTime(reader.GetOrdinal("t_date"));
+        TransactionData.Date = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("t_date")));
         TransactionData.Method = reader.GetString(reader.GetOrdinal("t_method"));
         TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_issuer"));
         TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_bank"));
@@ -48,7 +48,7 @@ public class PaymentModel
 public class TransactionDataModel
 {
     public decimal Amount { get; set; }
-    public DateTime Date { get; set; }
+    public DateOnly Date { get; set; }
     public string Method { get; set; }
     public string Issuer { get; set; }
     public string Bank { get; set; }

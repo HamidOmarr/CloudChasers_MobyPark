@@ -12,7 +12,7 @@ public class ParkingLotModel
     public int Reserved { get; set; } = 0;
     public decimal Tariff { get; set; }
     public decimal DayTariff { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public DateOnly CreatedAt { get; set; }
     public CoordinatesModel Coordinates { get; set; }
 
     public ParkingLotModel()
@@ -30,7 +30,7 @@ public class ParkingLotModel
         Reserved = reader.GetInt32(reader.GetOrdinal("reserved"));
         Tariff = (decimal)reader.GetFloat(reader.GetOrdinal("tariff"));
         DayTariff = (decimal)reader.GetFloat(reader.GetOrdinal("day_tariff"));
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
+        CreatedAt = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("created_at")));
         Coordinates.Lat = reader.GetDouble(reader.GetOrdinal("lat"));
         Coordinates.Lng = reader.GetDouble(reader.GetOrdinal("lng"));
     }

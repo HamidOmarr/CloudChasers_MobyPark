@@ -12,25 +12,15 @@ public class PaymentService
         _dataAccess = dataAccess;
     }
 
-    public async Task<PaymentModel> CreatePayment(string transaction, decimal amount, string initiator,
-                                                       TransactionDataModel transactionData)
+    public async Task<PaymentModel> CreatePayment(PaymentModel payment)
     {
-        if (string.IsNullOrWhiteSpace(transaction) || string.IsNullOrWhiteSpace(initiator) ||
-            transaction is null)
+        if (string.IsNullOrWhiteSpace(payment.TransactionId) ||
+            string.IsNullOrWhiteSpace(payment.Initiator) ||
+            payment.Amount == 0 ||
+            payment.TransactionData == null)
             throw new ArgumentException("Required fields not filled!");
 
-        PaymentModel payment = new()
-        {
-            TransactionId = transaction,
-            Amount = amount,
-            Initiator = initiator,
-            CreatedAt = DateTime.UtcNow,
-            Completed = null,
-            Hash = Guid.NewGuid().ToString("N"),
-            TransactionData = transactionData
-        };
-
-        await _dataAccess.Payments.Create(payment);
+        await _dataAccess.Payments.Create(payment, false);
         return payment;
     }
 
@@ -46,7 +36,7 @@ public class PaymentService
         TransactionDataModel transactionData = new()
         {
             Amount = -Math.Abs(amount),
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "Refund",
             Issuer = adminUser,
             Bank = "N/A"
