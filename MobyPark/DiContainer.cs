@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using MobyPark.Models;
 using MobyPark.Models.Access;
+using MobyPark.Models.Access.DatabaseConnection;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
-using MobyPark.Services.DatabaseConnection;
 using MobyPark.Services.Services;
 
 namespace MobyPark;

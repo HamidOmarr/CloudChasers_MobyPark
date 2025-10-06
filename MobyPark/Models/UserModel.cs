@@ -1,5 +1,5 @@
 using System.Globalization;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace MobyPark.Models;
 
@@ -8,8 +8,7 @@ public class UserModel
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string Role { get; set; } = "USER";
@@ -22,13 +21,12 @@ public class UserModel
         Role = "USER";
     }
 
-    public UserModel(SqliteDataReader reader)
+    public UserModel(NpgsqlDataReader reader)
     {
         Id = reader.GetInt32(reader.GetOrdinal("Id"));
         Username = reader.GetString(reader.GetOrdinal("Username"));
         PasswordHash = reader.GetString(reader.GetOrdinal("PasswordHash"));
-        FirstName = reader.GetString(reader.GetOrdinal("FirstName"));
-        LastName = reader.GetString(reader.GetOrdinal("LastName"));
+        Name = reader.GetString(reader.GetOrdinal("Name"));
         Email = reader.GetString(reader.GetOrdinal("Email"));
         Phone = reader.GetString(reader.GetOrdinal("Phone"));
         Role = reader.GetString(reader.GetOrdinal("Role"));
@@ -45,5 +43,5 @@ public class UserModel
     }
     
     public override string ToString() =>
-        $"User [{Id}] {FirstName} {LastName} ({Username}), Role: {Role}, Email: {Email}, Phone: {Phone}, Birth Year: {BirthYear}, Active: {Active}, Created At: {CreatedAt}";
+        $"User [{Id}] {Name} ({Username}), Role: {Role}, Email: {Email}, Phone: {Phone}, Birth Year: {BirthYear}, Active: {Active}, Created At: {CreatedAt}";
 }

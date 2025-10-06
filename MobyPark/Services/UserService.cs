@@ -53,8 +53,7 @@ public partial class UserService
         var user = new UserModel
         {
             Username = username.Trim(),
-            FirstName = firstName.Trim(),
-            LastName = lastName.Trim(),
+            Name = firstName.Trim(),
             Email = email.Trim(),
             Phone = phone.Trim(),
             BirthYear = birthday.Year,
