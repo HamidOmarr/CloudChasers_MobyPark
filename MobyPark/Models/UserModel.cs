@@ -25,17 +25,17 @@ public class UserModel
     {
         Id = reader.GetInt32(reader.GetOrdinal("Id"));
         Username = reader.GetString(reader.GetOrdinal("Username"));
-        PasswordHash = reader.GetString(reader.GetOrdinal("PasswordHash"));
+        PasswordHash = reader.GetString(reader.GetOrdinal("Password"));
         Name = reader.GetString(reader.GetOrdinal("Name"));
         Email = reader.GetString(reader.GetOrdinal("Email"));
         Phone = reader.GetString(reader.GetOrdinal("Phone"));
         Role = reader.GetString(reader.GetOrdinal("Role"));
-        var createdStr = reader.GetString(reader.GetOrdinal("CreatedAt"));
+        var createdStr = reader.GetString(reader.GetOrdinal("Created_At"));
         if (!DateTime.TryParse(createdStr, CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var created))
             created = DateTime.UtcNow;
         CreatedAt = created;
-        BirthYear = reader.GetInt32(reader.GetOrdinal("BirthYear"));
+        BirthYear = reader.GetInt32(reader.GetOrdinal("Birth_Year"));
         var activeOrdinal = reader.GetOrdinal("Active");
         Active = reader.GetFieldType(activeOrdinal) == typeof(bool)
             ? reader.GetBoolean(activeOrdinal)

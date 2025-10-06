@@ -23,7 +23,7 @@ public class UsersController : BaseController
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest req)
     {
         var user = await _userService.CreateUserAsync(
-            req.Username, req.Password, req.FirstName, req.LastName, req.Email, req.Phone, req.Birthday);
+            req.Username, req.Password, req.Name, req.Email, req.Phone, req.Birthday);
         var token = SessionService.CreateSession(user);
         return Ok(new AuthResponse { UserId = user.Id, Username = user.Username, Email = user.Email, Token = token });
     }

@@ -17,10 +17,7 @@ public class RegisterRequest : IValidatableObject
     public string ConfirmPassword { get; set; } = string.Empty;
 
     [Required]
-    public string FirstName { get; set; } = string.Empty;
-
-    [Required]
-    public string LastName { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
     [Required, DataType(DataType.Date)]
     public DateTime Birthday { get; set; }

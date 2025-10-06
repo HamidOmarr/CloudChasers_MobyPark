@@ -25,23 +25,19 @@ public partial class UserService
         _sessions = sessions;
     }
 
-    public async Task<UserModel> CreateUserAsync(string username, string password, string firstName, string lastName, string email, string phone, DateTime birthday)
+    public async Task<UserModel> CreateUserAsync(string username, string password, string name, string email, string phone, DateTime birthday)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username cannot be empty.", nameof(username));
         if (string.IsNullOrWhiteSpace(password))
             throw new ArgumentException("Password cannot be empty.", nameof(password));
-        if (string.IsNullOrWhiteSpace(firstName))
-            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
-        if (string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name cannot be empty.", nameof(name));
 
         if (username.Length > UsernameLength)
             throw new ArgumentException($"Username cannot exceed {UsernameLength} characters.", nameof(username));
-        if (firstName.Length > NameLength)
-            throw new ArgumentException($"First name cannot exceed {NameLength} characters.", nameof(firstName));
-        if (lastName.Length > NameLength)
-            throw new ArgumentException($"Last mame cannot exceed {NameLength} characters.", nameof(lastName));
+        if (name.Length > NameLength)
+            throw new ArgumentException($"First name cannot exceed {NameLength} characters.", nameof(name));
 
         if (!PasswordRegex().IsMatch(password))
             throw new ArgumentException("Password does not meet complexity requirements.", nameof(password));
@@ -53,7 +49,7 @@ public partial class UserService
         var user = new UserModel
         {
             Username = username.Trim(),
-            Name = firstName.Trim(),
+            Name = name.Trim(),
             Email = email.Trim(),
             Phone = phone.Trim(),
             BirthYear = birthday.Year,
