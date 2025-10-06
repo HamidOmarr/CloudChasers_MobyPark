@@ -34,14 +34,14 @@ public partial class UserService
         if (string.IsNullOrWhiteSpace(firstName))
             throw new ArgumentException("First name cannot be empty.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("First name cannot be empty.", nameof(lastName));
+            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
 
         if (username.Length > UsernameLength)
             throw new ArgumentException($"Username cannot exceed {UsernameLength} characters.", nameof(username));
         if (firstName.Length > NameLength)
-            throw new ArgumentException($"Name cannot exceed {NameLength} characters.", nameof(firstName));
+            throw new ArgumentException($"First name cannot exceed {NameLength} characters.", nameof(firstName));
         if (lastName.Length > NameLength)
-            throw new ArgumentException($"Name cannot exceed {NameLength} characters.", nameof(lastName));
+            throw new ArgumentException($"Last mame cannot exceed {NameLength} characters.", nameof(lastName));
 
         if (!PasswordRegex().IsMatch(password))
             throw new ArgumentException("Password does not meet complexity requirements.", nameof(password));
@@ -51,9 +51,7 @@ public partial class UserService
           //  throw new InvalidOperationException("Email address or username already in use");
           if (await _repo.ExistsByEmailOrUsernameAsync(email, username))
               throw new InvalidOperationException("Email address or username already in use");
-
-
-
+          
         var user = new UserModel
         {
             Username = username.Trim(),
