@@ -10,8 +10,6 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    
-    /*
     private readonly UserService _userService;
     private readonly ServiceStack _services;
 
@@ -19,19 +17,12 @@ public class UsersController : BaseController
     {
         _userService = services.Users;
         _services = services;
-    }*/
-    private readonly UserService _users;
-
-    public UsersController(UserService users, SessionService sessions) : base(sessions)
-    {
-        _users = users;
     }
-
-
+    
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest req)
     {
-        var user = await _users.CreateUserAsync(
+        var user = await _userService.CreateUserAsync(
             req.Username, req.Password, req.FirstName, req.LastName, req.Email, req.Phone, req.Birthday);
         var token = SessionService.CreateSession(user);
         return Ok(new AuthResponse { UserId = user.Id, Username = user.Username, Email = user.Email, Token = token });
@@ -42,8 +33,8 @@ public class UsersController : BaseController
     {
         try
         {
-            //var response = await _services.Users.LoginAsync(req.Identifier, req.Password);
-            var response = await _users.LoginAsync(req.Identifier, req.Password);
+            var response = await _services.Users.LoginAsync(req.Identifier, req.Password);
+
             return Ok(response);
         }
         catch (InvalidOperationException)

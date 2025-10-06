@@ -9,18 +9,18 @@ namespace MobyPark.Services;
 
 public partial class UserService
 {
-    private readonly IUserRepository _repo;
+    private readonly IDataAccess _dataAccess;
     private readonly IPasswordHasher<UserModel> _hasher;
     private readonly SessionService _sessions;
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const int UsernameLength = 25;
     private const int NameLength = 50;
     
-    public UserService(IUserRepository repo,
+    public UserService(IDataAccess dataAccess,
         IPasswordHasher<UserModel> hasher,
         SessionService sessions)
     {
-        _repo = repo;
+        _dataAccess = dataAccess;
         _hasher = hasher;
         _sessions = sessions;
     }
@@ -45,13 +45,11 @@ public partial class UserService
 
         if (!PasswordRegex().IsMatch(password))
             throw new ArgumentException("Password does not meet complexity requirements.", nameof(password));
-        //var existingByUser = await _dataAccess.Users.GetByUsername(username);
-       // var existingByEmail = await _dataAccess.Users.GetByEmail(email);
-        //if (existingByUser is not null || existingByEmail is not null)
-          //  throw new InvalidOperationException("Email address or username already in use");
-          if (await _repo.ExistsByEmailOrUsernameAsync(email, username))
-              throw new InvalidOperationException("Email address or username already in use");
-          
+        var existingByUser = await _dataAccess.Users.GetByUsername(username);
+        var existingByEmail = await _dataAccess.Users.GetByEmail(email);
+        if (existingByUser is not null || existingByEmail is not null)
+            throw new InvalidOperationException("Email address or username already in use");
+        
         var user = new UserModel
         {
             Username = username.Trim(),
@@ -66,8 +64,7 @@ public partial class UserService
         };
 
         user.PasswordHash = _hasher.HashPassword(user, password); 
-        await _repo.AddAsync(user);
-        //await _dataAccess.Users.Create(user);
+        await _dataAccess.Users.Create(user);
         return user;
     }
 
@@ -76,8 +73,7 @@ public partial class UserService
         if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(password))
             throw new ArgumentException("Identifier and password are required.");
 
-        //var user = await _dataAccess.Users.GetByEmail(identifier) ?? await _dataAccess.Users.GetByUsername(identifier);
-        var user = await _repo.GetByEmailOrUsernameAsync(identifier.Trim());
+        var user = await _dataAccess.Users.GetByEmail(identifier) ?? await _dataAccess.Users.GetByUsername(identifier);
         if (user is null)
             throw new InvalidOperationException("Invalid credentials");
 
@@ -95,23 +91,16 @@ public partial class UserService
         };
     } 
 
-    /*public async Task<UserModel?> GetUserByUsername(string username)
+    public async Task<UserModel?> GetUserByUsername(string username)
     {
         UserModel? user = await _dataAccess.Users.GetByUsername(username);
         return user;
-    }*/
-    
-    public async Task<UserModel?> GetUserByUsername(string username)
-    {
-        var user = await _repo.GetByUsernameAsync(username);
-        return user;
     }
-
+    
     public async Task<UserModel> UpdateUser(UserModel user)
     {
         ArgumentNullException.ThrowIfNull(user);
-        await _repo.UpdateAsync(user);
-        //await _dataAccess.Users.Update(user);
+        await _dataAccess.Users.Update(user);
         return user;
     }
 
