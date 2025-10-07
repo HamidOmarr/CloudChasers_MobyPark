@@ -10,12 +10,25 @@ namespace MobyPark.Services;
 public partial class UserService
 {
     private readonly IDataAccess _dataAccess;
-    private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
-    private const string PhonePattern = @"^[\d\s\-\+\(\)]+$";
-    private const string EmailPattern = @"^(?!\.)(?!.*\.\.)[A-Za-z0-9._%+-]+(?<!\.)@(?:(?:xn--)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$";
-
     private const int UsernameLength = 25;
     private const int NameLength = 50;
+
+    private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
+    private const string PhoneTrimPattern = @"\D";
+    private const string PhonePattern = @"^\+?[0-9]+$";
+    private const string PhoneDigitPattern = @"^0\d{9}$";
+    private const string EmailPattern = @"^(?!\.)(?!.*\.\.)[A-Za-z0-9._%+-]+(?<!\.)@(?:(?:xn--)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$";
+
+    [GeneratedRegex(PasswordPattern)]
+    private static partial Regex PasswordRegex();
+    [GeneratedRegex(PhoneTrimPattern)]
+    private static partial Regex PhoneTrim();
+    [GeneratedRegex(PhonePattern)]
+    private static partial Regex Phone();
+    [GeneratedRegex(PhoneDigitPattern)]
+    private static partial Regex PhoneDigits();
+    [GeneratedRegex(EmailPattern)]
+    private static partial Regex EmailRegex();
 
     public UserService(IDataAccess dataAccess)
     {
@@ -37,46 +50,36 @@ public partial class UserService
         return HashPassword(password) == hashedPassword;
     }
 
-    private string CleanPhone(string phone)
+    private static string CleanPhone(string phone)
     {
         if (string.IsNullOrWhiteSpace(phone))
             throw new ArgumentException("Phone number cannot be empty.", nameof(phone));
 
-        string cleanPhone = phone.Trim();
+        bool hasLeadingPlus = phone.StartsWith('+');
+        phone = PhoneTrim().Replace(phone, "");
+        if (hasLeadingPlus)
+            phone = "+" + phone;
 
-        if (!PhoneRegex().IsMatch(cleanPhone))
+        if (!Phone().IsMatch(phone))
             throw new ArgumentException("Phone number contains invalid characters.", nameof(phone));
 
-        string digitsOnlyWithPrefix = cleanPhone.StartsWith('+')
-            ? "+" + DigitsOnly().Replace(cleanPhone[1..], "")
-            : DigitsOnly().Replace(cleanPhone, "");
+        // Normalize to +310 ...
+        if (phone.StartsWith("00"))
+            phone = phone[2..];
+        if (phone.StartsWith('+'))
+            phone = phone[1..];
+        if (phone.StartsWith("31"))
+            phone = phone[2..];
+        if (!phone.StartsWith('0'))
+            phone = "0" + phone;
 
-        if (digitsOnlyWithPrefix.StartsWith("00"))
-            digitsOnlyWithPrefix = string.Concat("+", digitsOnlyWithPrefix.AsSpan(2));
+        if (!PhoneDigits().IsMatch(phone))
+            throw new ArgumentException("Invalid Dutch phone number digits.", nameof(phone));
 
-        string digitsOnly = digitsOnlyWithPrefix.TrimStart('+');
-        bool inInternationalFormat = digitsOnlyWithPrefix.StartsWith('+');
-
-        cleanPhone = inInternationalFormat switch
-        {
-            false when digitsOnly.StartsWith("06") => "+31" + digitsOnly,
-            false when digitsOnly.StartsWith('0') => "+31" + digitsOnly[1..],
-            false => throw new ArgumentException(
-                "Phone number must be provided in international format (starting with '+') or as a Dutch mobile (06...)",
-                nameof(phone)),
-            true when digitsOnly.StartsWith("31") => digitsOnly.Length > 2 && digitsOnly[2] != '0'
-                ? $"+310{digitsOnly[2..]}"
-                : "+" + digitsOnly,
-            true => "+" + digitsOnly,
-        };
-
-        if (!PhonePlusAndLength().IsMatch(cleanPhone))
-            throw new ArgumentException("Normalized phone number is not a valid international length (+ followed by 10-16 digits).", nameof(phone));
-
-        return cleanPhone;
+        return "+31" + phone;
     }
 
-    private string CleanEmail(string email)
+    private static string CleanEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
@@ -96,9 +99,7 @@ public partial class UserService
             domain = idn.GetAscii(domain);
         }
         catch (ArgumentException)
-        {
-            throw new ArgumentException("Email contains invalid international domain name.", nameof(email));
-        }
+        { throw new ArgumentException("Email contains invalid international domain name.", nameof(email)); }
 
         string normalizedEmail = $"{local.ToLowerInvariant()}@{domain.ToLowerInvariant()}";
 
@@ -143,18 +144,6 @@ public partial class UserService
 
         user.Password = HashPassword(user.Password);
 
-        // var user = new UserModel
-        // {
-        //     Username = username,
-        //     Password = hashedPassword,
-        //     Name = name,
-        //     Email = email,
-        //     Phone = phone,
-        //     CreatedAt = DateTime.UtcNow,
-        //     BirthYear = birthYear,
-        //     Active = true
-        // };
-
         await _dataAccess.Users.Create(user);
         return user;
     }
@@ -172,15 +161,4 @@ public partial class UserService
         await _dataAccess.Users.Update(user);
         return user;
     }
-
-    [GeneratedRegex(PasswordPattern)]
-    private static partial Regex PasswordRegex();
-    [GeneratedRegex(PhonePattern)]
-    private static partial Regex PhoneRegex();
-    [GeneratedRegex(@"\D")]
-    private static partial Regex DigitsOnly();
-    [GeneratedRegex(@"^\+\d{10,16}$")]
-    private static partial Regex PhonePlusAndLength();
-    [GeneratedRegex(EmailPattern)]
-    private static partial Regex EmailRegex();
 }

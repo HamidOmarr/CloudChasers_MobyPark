@@ -316,21 +316,63 @@ public sealed class UserServiceTests
     }
 
     [TestMethod]
-    [DataRow("012345678")]
-    [DataRow("0612345678")]
-    [DataRow("06 12345678")]
-    [DataRow("+31 6 12345678")]
-    [DataRow("+31612345678")]
-    [DataRow("00316 12345678")]
-    [DataRow("0031612345678")]
-    [DataRow("(06)12345678")]
-    [DataRow("06-12345678")]
-    [DataRow("06-12-34-56-78")]
-    [DataRow("+31 (0)6 12345678")]
-    [DataRow("0031 06 12345678")]
-    [DataRow("++31612345678")]
-    [DataRow(" 06  1234  5678 ")]
-    public async Task CreateUser_ValidPhoneFormats_CreatesUser(string phone)
+    [DataRow("0612345678", "+310612345678")]
+    [DataRow("06 12345678", "+310612345678")]
+    [DataRow("+31 6 12345678", "+310612345678")]
+    [DataRow("+31612345678", "+310612345678")]
+    [DataRow("00316 12345678", "+310612345678")]
+    [DataRow("0031612345678", "+310612345678")]
+    [DataRow("(06)12345678", "+310612345678")]
+    [DataRow("06-12345678", "+310612345678")]
+    [DataRow("06-12-34-56-78", "+310612345678")]
+    [DataRow("612345678", "+310612345678")]
+    [DataRow("+31 (0)6 12345678", "+310612345678")]
+    [DataRow("0031 06 12345678", "+310612345678")]
+    [DataRow("++31612345678", "+310612345678")]
+    [DataRow(" 06  1234  5678 ", "+310612345678")]
+    [DataRow("+310612345678", "+310612345678")]
+    [DataRow("0101234567", "+310101234567")]
+    [DataRow("010 1234567", "+310101234567")]
+    [DataRow("+31 10 1234567", "+310101234567")]
+    [DataRow("+31101234567", "+310101234567")]
+    [DataRow("0031 10 1234567", "+310101234567")]
+    [DataRow("0031515123456", "+310515123456")]
+    [DataRow("(0515)123456", "+310515123456")]
+    [DataRow("0515-123456", "+310515123456")]
+    [DataRow("0515-12-34-56", "+310515123456")]
+    [DataRow("515123456", "+310515123456")]
+    [DataRow("+31 (0)76 1234567", "+310761234567")]
+    [DataRow("0031 076 1234567", "+310761234567")]
+    [DataRow("++310761234567", "+310761234567")]
+    [DataRow(" 076  1234  567 ", "+310761234567")]
+    [DataRow("+310761234567", "+310761234567")]
+    // All separators will be stripped out. These are valid but rare/hacky/weird/not recommended formats, but included for robustness.
+    [DataRow("06.1234.5678", "+310612345678")]    //        .
+    [DataRow("06#1234#5678", "+310612345678")]    //        #
+    [DataRow("06/1234/5678", "+310612345678")]    //        /
+    [DataRow("06_1234_5678", "+310612345678")]    //        _
+    [DataRow("06*1234*5678", "+310612345678")]    //        *
+    [DataRow("06+1234+5678", "+310612345678")]    //        +
+    [DataRow("06=1234=5678", "+310612345678")]    //        =
+    [DataRow("06@1234@5678", "+310612345678")]    //        @
+    [DataRow("06!1234!5678", "+310612345678")]    //        !
+    [DataRow("06$1234$5678", "+310612345678")]    //        $
+    [DataRow("06%1234%5678", "+310612345678")]    //        %
+    [DataRow("06^1234^5678", "+310612345678")]    //        ^
+    [DataRow("06&1234&5678", "+310612345678")]    //        &
+    [DataRow("06{1234}5678", "+310612345678")]    //        {}
+    [DataRow("06[1234]5678", "+310612345678")]    //        []
+    [DataRow("06|1234|5678", "+310612345678")]    //        |
+    [DataRow("06;1234;5678", "+310612345678")]    //        ;
+    [DataRow("06:1234:5678", "+310612345678")]    //        :
+    [DataRow("06'1234'5678", "+310612345678")]    //        '
+    [DataRow("06\"1234\"5678", "+310612345678")]  //        "
+    [DataRow("06<1234>5678", "+310612345678")]    //        <>
+    [DataRow("06,1234,5678", "+310612345678")]    //        ,
+    [DataRow("06?1234?5678", "+310612345678")]    //        ?
+    [DataRow("06`1234`5678", "+310612345678")]    //        `
+    [DataRow("06~1234~5678", "+310612345678")]    //        ~
+    public async Task CreateUser_ValidPhoneFormats_CreatesUser(string phone, string expected)
     {
         // Arrange
         var user = new UserModel
@@ -353,17 +395,16 @@ public sealed class UserServiceTests
         var result = await _userService!.CreateUser(user);
 
         // Assert
-        Assert.AreEqual("+310612345678", result.Phone);
+        Assert.AreEqual(expected, result.Phone);
     }
 
     [TestMethod]
-    [DataRow("12345678")]
-    [DataRow("1234567890")]
-    [DataRow("phone")]
-    [DataRow("")]
-    [DataRow(" ")]
-    [DataRow("0123456789012345")]
-    [DataRow("0123A56789")]
+    [DataRow("061234567")]
+    [DataRow("012345678901")]
+    [DataRow("A061234567")]
+    [DataRow("061234A567")]
+    [DataRow("061234567A")]
+    [DataRow("+32 612345678")]
     public async Task CreateUser_InvalidPhoneFormats_ThrowsArgumentException(string phone)
     {
         var user = new UserModel
@@ -386,12 +427,7 @@ public sealed class UserServiceTests
     [DataRow("user1", "ValidPass1@", "Alice", "USER", true)]
     [DataRow("user2", "Another1!", "Bob", "ADMIN", false)]
     [DataRow("user3", "Complex#Pass2", "Charlie", "MANAGER", true)]
-    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(
-        string username,
-        string password,
-        string name,
-        string role,
-        bool active)
+    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(string username, string password, string name, string role, bool active)
     {
         // Arrange
         var user = new UserModel
@@ -428,10 +464,7 @@ public sealed class UserServiceTests
     [TestMethod]
     [DataRow("userX", "FailPass1@", "Dave")]
     [DataRow("userY", "OtherFail2#", "Eve")]
-    public async Task UpdateUser_WhenUpdateThrows_ExceptionPropagates(
-        string username,
-        string password,
-        string name)
+    public async Task UpdateUser_WhenUpdateThrows_ExceptionPropagates(string username, string password, string name)
     {
         // Arrange
         var user = new UserModel
@@ -459,12 +492,7 @@ public sealed class UserServiceTests
     [DataRow("", "plain", null, "ADMIN", false)]
     [DataRow("userWeird", "notHashed", "", "SUPERUSER", true)]
     [DataRow("   ", "123", "   ", "GUEST", false)]
-    public async Task UpdateUser_DoesNotValidateUserFields(
-        string username,
-        string password,
-        string name,
-        string role,
-        bool active)
+    public async Task UpdateUser_DoesNotValidateUserFields(string username, string password, string name, string role, bool active)
     {
         // Arrange
         var user = new UserModel
