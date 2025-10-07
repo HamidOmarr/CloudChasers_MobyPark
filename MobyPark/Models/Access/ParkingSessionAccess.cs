@@ -44,7 +44,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object> { { "@user", user } };
         List<ParkingSessionModel> sessions = [];
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_name = @user", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_username = @user", parameters);
 
         while (await reader.ReadAsync())
             sessions.Add(MapFromReader(reader));

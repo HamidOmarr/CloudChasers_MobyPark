@@ -24,6 +24,32 @@ public class PaymentService
         return payment;
     }
 
+    public async Task<PaymentModel?> GetPaymentByTransactionId(string id) => await _dataAccess.Payments.GetByTransactionId(id);
+
+    public Task<List<PaymentModel>> GetPaymentsByUser(string username) => _dataAccess.Payments.GetByUser(username);
+
+    public async Task<List<PaymentModel>> GetAllPayments() => await _dataAccess.Payments.GetAll();
+
+    public async Task<int> CountPayments() => await _dataAccess.Payments.Count();
+
+    private async Task<bool> UpdatePayment(PaymentModel payment)
+    {
+        var existingPayment = await GetPaymentByTransactionId(payment.TransactionId);
+        if (existingPayment is null) throw new KeyNotFoundException("Payment not found");
+
+        bool success = await _dataAccess.Payments.Update(payment);
+        return success;
+    }
+
+    public async Task<bool> DeletePayment(string transactionId)
+    {
+        var payment = await GetPaymentByTransactionId(transactionId);
+        if (payment is null) throw new KeyNotFoundException("Payment not found");
+
+        bool success = await _dataAccess.Payments.DeletePayment(transactionId);
+        return success;
+    }
+
     public async Task<PaymentModel> RefundPayment(string originalTransaction, decimal amount, string adminUser)
     {
         string refundTransaction = Guid.NewGuid().ToString("N");
@@ -74,34 +100,10 @@ public class PaymentService
         payment.TransactionData = transactionData;
         if (payment.Completed.HasValue) return payment;
         payment.Completed = DateTime.UtcNow;
-        await _dataAccess.Payments.Update(payment);
+        await UpdatePayment(payment);
 
         return payment;
     }
-
-    public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataAccess.Payments.GetByUser(username);
-
-    public async Task<PaymentModel?> GetPaymentByTransactionId(string id) => await _dataAccess.Payments.GetByTransactionId(id);
-
-    // public async Task<PaymentModel> GetPaymentByTransactionId(string id)
-    // {
-    //     PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(id);
-    //     if (payment is null) throw new KeyNotFoundException("Payment not found");
-    //     return payment;
-    // }
-
-    public async Task<bool> DeletePayment(string transactionId)
-    {
-        var payment = await GetPaymentByTransactionId(transactionId);
-        if (payment is null) throw new KeyNotFoundException("Payment not found");
-
-        bool success = await _dataAccess.Payments.DeletePayment(transactionId);
-        return success;
-    }
-
-    public async Task<List<PaymentModel>> GetAllPayments() => await _dataAccess.Payments.GetAll();
-
-    public async Task<int> CountPayments() => await _dataAccess.Payments.Count();
 
     public async Task<decimal> GetTotalAmountForTransaction(string transaction)
     {
@@ -111,4 +113,3 @@ public class PaymentService
         return payment.Amount;
     }
 }
-

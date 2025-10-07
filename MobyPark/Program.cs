@@ -32,22 +32,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 
-// call DatabaseConnectionTest
-var services = app.Services.GetRequiredService<ServiceStack>();
-var dbTest = new DatabaseConnectionTest(services);
-dbTest.Testing();
-
-// var vehicle = new VehicleModel
-// {
-//     UserId = 1,
-//     LicensePlate = "XYZ123",
-//     Make = "Toyota",
-//     Model = "Camry",
-//     Color = "Blue",
-//     Year = 2020,
-//     CreatedAt = DateTime.UtcNow
-// };
-//
-// await services.Vehicles.CreateVehicle(vehicle);
-
 app.Run();

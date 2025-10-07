@@ -12,12 +12,6 @@ public class ParkingLotService
         _dataAccess = dataAccess;
     }
 
-    public async Task<ParkingLotModel?> GetParkingLotById(int id) => await _dataAccess.ParkingLots.GetById(id);
-
-    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _dataAccess.ParkingLots.GetAll();
-
-    public async Task<int> CountParkingLots() => await _dataAccess.ParkingLots.Count();
-
     public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel parkingLot)
     {
         ArgumentNullException.ThrowIfNull(parkingLot, nameof(parkingLot));
@@ -52,6 +46,21 @@ public class ParkingLotService
         if (success) parkingLot.Id = id;
         return parkingLot;
     }
+
+    public async Task<ParkingLotModel?> GetParkingLotById(int id) => await _dataAccess.ParkingLots.GetById(id);
+
+    public async Task<ParkingLotModel?> GetParkingLotByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name, nameof(name));
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name cannot be empty or whitespace.", nameof(name));
+
+        return await _dataAccess.ParkingLots.GetByName(name);
+    }
+
+    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _dataAccess.ParkingLots.GetAll();
+
+    public async Task<int> CountParkingLots() => await _dataAccess.ParkingLots.Count();
 
     public async Task<bool> UpdateParkingLot(ParkingLotModel parkingLot) => await _dataAccess.ParkingLots.Update(parkingLot);
 

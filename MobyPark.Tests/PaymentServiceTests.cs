@@ -295,7 +295,7 @@ public sealed class PaymentServiceTests
         _mockPaymentAccess!.Setup(p => p.GetByUser(username)).ReturnsAsync(payments);
 
         // Act
-        var result = await _paymentService!.GetPaymentsForUser(username);
+        var result = await _paymentService!.GetPaymentsByUser(username);
 
         // Assert
         Assert.IsNotNull(result);

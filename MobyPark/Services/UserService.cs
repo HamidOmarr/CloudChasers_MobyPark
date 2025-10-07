@@ -35,6 +35,72 @@ public partial class UserService
         _dataAccess = dataAccess;
     }
 
+    public async Task<UserModel> CreateUser(UserModel user)
+    {
+        if (string.IsNullOrWhiteSpace(user.Username))
+            throw new ArgumentException("Username cannot be empty.", nameof(user.Username));
+        if (string.IsNullOrWhiteSpace(user.Password))
+            throw new ArgumentException("Password cannot be empty.", nameof(user.Password));
+        if (string.IsNullOrWhiteSpace(user.Name))
+            throw new ArgumentException("Name cannot be empty.", nameof(user.Name));
+        if (string.IsNullOrWhiteSpace(user.Email))
+            throw new ArgumentException("Email cannot be empty.", nameof(user.Email));
+        if (string.IsNullOrWhiteSpace(user.Phone))
+            throw new ArgumentException("Phone cannot be empty.", nameof(user.Phone));
+        if (user.BirthYear < 1900 || user.BirthYear > DateTime.Now.Year)
+            throw new ArgumentException("Birth year is out of valid range.", nameof(user.BirthYear));
+
+        if (user.Username.Length > UsernameLength)
+            throw new ArgumentException($"Username cannot exceed {UsernameLength} characters.", nameof(user.Username));
+        if (user.Name.Length > NameLength)
+            throw new ArgumentException($"Name cannot exceed {NameLength} characters.", nameof(user.Name));
+
+        try
+        { user.Phone = CleanPhone(user.Phone); }
+        catch (ArgumentException ex)
+        { throw new ArgumentException(ex.Message, nameof(user.Phone)); }
+
+        try
+        { user.Email = CleanEmail(user.Email); }
+        catch (ArgumentException ex)
+        { throw new ArgumentException(ex.Message, nameof(user.Email)); }
+
+        if (!PasswordRegex().IsMatch(user.Password))
+            throw new ArgumentException("Password does not meet complexity requirements.", nameof(user.Password));
+
+        user.Password = HashPassword(user.Password);
+
+        (bool success, int id) = await _dataAccess.Users.CreateWithId(user);
+        if (success) user.Id = id;
+        return user;
+    }
+
+    public async Task<UserModel?> GetUserByUsername(string username) =>  await _dataAccess.Users.GetByUsername(username);
+
+    public async Task<UserModel?> GetUserByEmail(string email) => await _dataAccess.Users.GetByEmail(email);
+
+    public async Task<UserModel?> GetUserById(int id) => await _dataAccess.Users.GetById(id);
+
+    public async Task<List<UserModel>> GetAllUsers() => await _dataAccess.Users.GetAll();
+
+    public async Task<int> CountUsers() => await _dataAccess.Users.Count();
+
+    public async Task<UserModel> UpdateUser(UserModel user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        await _dataAccess.Users.Update(user);
+        return user;
+    }
+
+    public async Task<bool> DeleteUser(int id)
+    {
+        var user = GetUserById(id);
+        if (user is null) throw new KeyNotFoundException("User not found");
+
+        bool success = await _dataAccess.Users.Delete(id);
+        return success;
+    }
+
     public string HashPassword(string password)
     {
         if (password is null) throw new ArgumentNullException(nameof(password));
@@ -107,81 +173,5 @@ public partial class UserService
             throw new ArgumentException("Email address is not in a valid format.", nameof(email));
 
         return normalizedEmail;
-    }
-
-    public async Task<UserModel> CreateUser(UserModel user)
-    {
-        if (string.IsNullOrWhiteSpace(user.Username))
-            throw new ArgumentException("Username cannot be empty.", nameof(user.Username));
-        if (string.IsNullOrWhiteSpace(user.Password))
-            throw new ArgumentException("Password cannot be empty.", nameof(user.Password));
-        if (string.IsNullOrWhiteSpace(user.Name))
-            throw new ArgumentException("Name cannot be empty.", nameof(user.Name));
-        if (string.IsNullOrWhiteSpace(user.Email))
-            throw new ArgumentException("Email cannot be empty.", nameof(user.Email));
-        if (string.IsNullOrWhiteSpace(user.Phone))
-            throw new ArgumentException("Phone cannot be empty.", nameof(user.Phone));
-        if (user.BirthYear < 1900 || user.BirthYear > DateTime.Now.Year)
-            throw new ArgumentException("Birth year is out of valid range.", nameof(user.BirthYear));
-
-        if (user.Username.Length > UsernameLength)
-            throw new ArgumentException($"Username cannot exceed {UsernameLength} characters.", nameof(user.Username));
-        if (user.Name.Length > NameLength)
-            throw new ArgumentException($"Name cannot exceed {NameLength} characters.", nameof(user.Name));
-
-        try
-        { user.Phone = CleanPhone(user.Phone); }
-        catch (ArgumentException ex)
-        { throw new ArgumentException(ex.Message, nameof(user.Phone)); }
-
-        try
-        { user.Email = CleanEmail(user.Email); }
-        catch (ArgumentException ex)
-        { throw new ArgumentException(ex.Message, nameof(user.Email)); }
-
-        if (!PasswordRegex().IsMatch(user.Password))
-            throw new ArgumentException("Password does not meet complexity requirements.", nameof(user.Password));
-
-        user.Password = HashPassword(user.Password);
-
-        (bool success, int id) = await _dataAccess.Users.CreateWithId(user);
-        if (success) user.Id = id;
-        return user;
-    }
-
-    public async Task<UserModel?> GetUserByUsername(string username)
-    {
-        UserModel? user = await _dataAccess.Users.GetByUsername(username);
-
-        return user;
-    }
-
-    // public async Task<UserModel> GetUserById(int id)
-    // {
-    //     UserModel? user = await _dataAccess.Users.GetById(id);
-    //     if (user is null) throw new KeyNotFoundException("User not found");
-    //     return user;
-    // }
-
-    public async Task<UserModel?> GetUserById(int id) => await _dataAccess.Users.GetById(id);
-
-    public async Task<List<UserModel>> GetAllUsers() => await _dataAccess.Users.GetAll();
-
-    public async Task<int> CountUsers() => await _dataAccess.Users.Count();
-
-    public async Task<UserModel> UpdateUser(UserModel user)
-    {
-        ArgumentNullException.ThrowIfNull(user);
-        await _dataAccess.Users.Update(user);
-        return user;
-    }
-
-    public async Task<bool> DeleteUser(int id)
-    {
-        var user = GetUserById(id);
-        if (user is null) throw new KeyNotFoundException("User not found");
-
-        bool success = await _dataAccess.Users.Delete(id);
-        return success;
     }
 }

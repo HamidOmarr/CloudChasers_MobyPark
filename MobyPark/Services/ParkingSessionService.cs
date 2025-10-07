@@ -14,14 +14,6 @@ public class ParkingSessionService
         _dataAccess = dataAccess;
     }
 
-    public async Task<ParkingSessionModel> GetParkingSessionById(int id)
-    {
-        ParkingSessionModel? session = await _dataAccess.ParkingSessions.GetById(id);
-        if (session is null) throw new KeyNotFoundException("Parking session not found");
-
-        return session;
-    }
-
     public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
     {
         if (string.IsNullOrWhiteSpace(session.LicensePlate) ||
@@ -35,17 +27,33 @@ public class ParkingSessionService
         return session;
     }
 
-    public async Task<bool> DeleteParkingSession(int id)
+    public async Task<ParkingSessionModel> GetParkingSessionById(int id)
     {
-        await GetParkingSessionById(id);
+        ParkingSessionModel? session = await _dataAccess.ParkingSessions.GetById(id);
+        if (session is null) throw new KeyNotFoundException("Parking session not found");
 
-        bool success = await _dataAccess.ParkingSessions.Delete(id);
-        return success;
+        return session;
     }
 
     public async Task<List<ParkingSessionModel>> GetParkingSessionsByParkingLotId(int lotId)
     {
         List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByParkingLotId(lotId);
+        if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
+
+        return sessions;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetParkingSessionsByUser(string user)
+    {
+        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByUser(user);
+        if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
+
+        return sessions;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetParkingSessionsByPaymentStatus(string status)
+    {
+        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByPaymentStatus(status);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
@@ -57,10 +65,9 @@ public class ParkingSessionService
 
     public async Task<bool> UpdateParkingSession(ParkingSessionModel session) => await _dataAccess.ParkingSessions.Update(session);
 
-    public async Task<bool> DeleteParkingSessionById(int id)
+    public async Task<bool> DeleteParkingSession(int id)
     {
-        var session = await GetParkingSessionById(id);
-        if (session is null) throw new KeyNotFoundException("Parking session not found");
+        await GetParkingSessionById(id);
 
         bool success = await _dataAccess.ParkingSessions.Delete(id);
         return success;

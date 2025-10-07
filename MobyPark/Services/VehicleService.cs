@@ -12,6 +12,29 @@ public class VehicleService
         _dataAccess = dataAccess;
     }
 
+    public async Task<VehicleModel> CreateVehicle(VehicleModel vehicle)
+    {
+        Dictionary<string, object?> parameters = new()
+        {
+            { nameof(vehicle.LicensePlate), vehicle.LicensePlate },
+            { nameof(vehicle.Make), vehicle.Make },
+            { nameof(vehicle.Model), vehicle.Model },
+            { nameof(vehicle.Color), vehicle.Color }
+        };
+
+        foreach (var param in parameters)
+            ArgumentNullException.ThrowIfNull(param.Value, param.Key);
+
+        if (vehicle.UserId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.UserId), "UserId must be greater than 0.");
+        if (vehicle.Year <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.Year), "Year must be greater than 0.");
+
+        (bool success, int id) = await _dataAccess.Vehicles.CreateWithId(vehicle);
+        if (success) vehicle.Id = id;
+        return vehicle;
+    }
+
     public async Task<VehicleModel> GetVehicleById(int id)
     {
         VehicleModel? vehicle = await _dataAccess.Vehicles.GetById(id);
@@ -19,10 +42,6 @@ public class VehicleService
 
         return vehicle;
     }
-
-    public async Task<List<VehicleModel>> GetAllVehicles() => await _dataAccess.Vehicles.GetAll();
-
-    public async Task<int> CountVehicles() => await _dataAccess.Vehicles.Count();
 
     public async Task<List<VehicleModel>> GetVehicleByUserId(int userId)
     {
@@ -49,28 +68,9 @@ public class VehicleService
         return vehicle;
     }
 
-    public async Task<VehicleModel> CreateVehicle(VehicleModel vehicle)
-    {
-        Dictionary<string, object?> parameters = new()
-        {
-            { nameof(vehicle.LicensePlate), vehicle.LicensePlate },
-            { nameof(vehicle.Make), vehicle.Make },
-            { nameof(vehicle.Model), vehicle.Model },
-            { nameof(vehicle.Color), vehicle.Color }
-        };
+    public async Task<List<VehicleModel>> GetAllVehicles() => await _dataAccess.Vehicles.GetAll();
 
-        foreach (var param in parameters)
-            ArgumentNullException.ThrowIfNull(param.Value, param.Key);
-
-        if (vehicle.UserId <= 0)
-            throw new ArgumentOutOfRangeException(nameof(vehicle.UserId), "UserId must be greater than 0.");
-        if (vehicle.Year <= 0)
-            throw new ArgumentOutOfRangeException(nameof(vehicle.Year), "Year must be greater than 0.");
-
-        (bool success, int id) = await _dataAccess.Vehicles.CreateWithId(vehicle);
-        if (success) vehicle.Id = id;
-        return vehicle;
-    }
+    public async Task<int> CountVehicles() => await _dataAccess.Vehicles.Count();
 
     public async Task<VehicleModel> UpdateVehicle(VehicleModel vehicle)
     {

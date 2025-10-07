@@ -88,7 +88,7 @@ public class PaymentsController : BaseController
     public async Task<IActionResult> GetUserPayments()
     {
         var user = GetCurrentUser();
-        var payments = await _services.Payments.GetPaymentsForUser(user.Username);
+        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
         return Ok(payments);
     }
 
@@ -99,7 +99,7 @@ public class PaymentsController : BaseController
         if (user.Role != "ADMIN")
             return Forbid();
 
-        var payments = await _services.Payments.GetPaymentsForUser(username);
+        var payments = await _services.Payments.GetPaymentsByUser(username);
         return Ok(payments);
     }
 }
