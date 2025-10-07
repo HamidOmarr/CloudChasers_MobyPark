@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddMobyParkServices();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerAuthorization();
 
 var app = builder.Build();
 
