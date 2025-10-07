@@ -17,7 +17,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
             { "@license_plate", session.LicensePlate },
             { "@started", session.Started },
             { "@stopped", session.Stopped.HasValue ? session.Stopped.Value : DBNull.Value },
-            { "@user", session.User },
+            { "@user_username", session.User },
             { "@duration_minutes", session.DurationMinutes },
             { "@cost", session.Cost },
             { "@payment_status", session.PaymentStatus }

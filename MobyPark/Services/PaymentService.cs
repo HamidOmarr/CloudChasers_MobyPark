@@ -68,9 +68,7 @@ public class PaymentService
         if (payment == null)
             throw new KeyNotFoundException("Payment not found");
 
-        string uuid = SystemService.GenerateGuid(validationHash).ToString("D");
-
-        if (payment.Hash != uuid)
+        if (payment.Hash != validationHash)
             throw new UnauthorizedAccessException("Validation hash does not match the existing payment");
 
         payment.TransactionData = transactionData;
@@ -83,12 +81,27 @@ public class PaymentService
 
     public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataAccess.Payments.GetByUser(username);
 
-    public async Task<PaymentModel> GetPaymentByTransactionId(string id)
+    public async Task<PaymentModel?> GetPaymentByTransactionId(string id) => await _dataAccess.Payments.GetByTransactionId(id);
+
+    // public async Task<PaymentModel> GetPaymentByTransactionId(string id)
+    // {
+    //     PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(id);
+    //     if (payment is null) throw new KeyNotFoundException("Payment not found");
+    //     return payment;
+    // }
+
+    public async Task<bool> DeletePayment(string transactionId)
     {
-        PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(id);
+        var payment = await GetPaymentByTransactionId(transactionId);
         if (payment is null) throw new KeyNotFoundException("Payment not found");
-        return payment;
+
+        bool success = await _dataAccess.Payments.DeletePayment(transactionId);
+        return success;
     }
+
+    public async Task<List<PaymentModel>> GetAllPayments() => await _dataAccess.Payments.GetAll();
+
+    public async Task<int> CountPayments() => await _dataAccess.Payments.Count();
 
     public async Task<decimal> GetTotalAmountForTransaction(string transaction)
     {

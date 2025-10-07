@@ -60,12 +60,11 @@ public class ReservationsController : BaseController
             Cost = cost
         };
 
-        var reservationId = await _services.Reservations.CreateReservation(reservation);
-        reservation.Id = reservationId;
+        var fullReservation = await _services.Reservations.CreateReservation(reservation);
 
         parkingLot.Reserved += 1;
 
-        return StatusCode(201, new { status = "Success", reservation });
+        return StatusCode(201, new { status = "Success", fullReservation });
     }
 
     [HttpPut("{reservationId}")]
@@ -80,7 +79,19 @@ public class ReservationsController : BaseController
         if (user.Role != "ADMIN")
             request.UserId = user.Id;
 
-        await _services.Reservations.UpdateReservation(request.ParkingLotId, request.VehicleId, request.StartTime, request.EndTime, request.UserId);
+        if (request.ParkingLotId > 0)
+            reservation.ParkingLotId = request.ParkingLotId;
+        if (request.VehicleId > 0)
+            reservation.VehicleId = request.VehicleId;
+        if (request.StartTime != default)
+            reservation.StartTime = request.StartTime;
+        if (request.EndTime != default)
+            reservation.EndTime = request.EndTime;
+        if (!string.IsNullOrEmpty(request.Status))
+            reservation.Status = request.Status;
+
+
+        await _services.Reservations.UpdateReservation(reservation);
         return Ok(new { status = "Updated", reservation });
     }
 
@@ -94,11 +105,11 @@ public class ReservationsController : BaseController
             return Forbid();
 
         var parkingLot = await _services.ParkingLots.GetParkingLotById(reservation.ParkingLotId);
+        if (parkingLot is null)
+            return NotFound(new { error = "Parking lot not found" });
         parkingLot.Reserved = Math.Max(0, parkingLot.Reserved - 1);
 
-        await _services.ParkingLots.UpdateParkingLot(parkingLot.Id, parkingLot.Name, parkingLot.Location,
-            parkingLot.Address, parkingLot.Capacity, parkingLot.Reserved, parkingLot.Tariff, parkingLot.DayTariff,
-            parkingLot.CreatedAt, parkingLot.Coordinates);
+        await _services.ParkingLots.UpdateParkingLot(parkingLot);
 
         bool success = await _services.Reservations.DeleteReservation(reservationId);
         return success

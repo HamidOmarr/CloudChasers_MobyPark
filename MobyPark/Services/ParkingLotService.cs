@@ -12,11 +12,11 @@ public class ParkingLotService
         _dataAccess = dataAccess;
     }
 
-    public async Task<ParkingLotModel?> GetParkingLotById(int id)
-    {
-        ParkingLotModel? parkingLot = await _dataAccess.ParkingLots.GetById(id);
-        return parkingLot;
-    }
+    public async Task<ParkingLotModel?> GetParkingLotById(int id) => await _dataAccess.ParkingLots.GetById(id);
+
+    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _dataAccess.ParkingLots.GetAll();
+
+    public async Task<int> CountParkingLots() => await _dataAccess.ParkingLots.Count();
 
     public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel parkingLot)
     {
@@ -48,30 +48,12 @@ public class ParkingLotService
         if (parkingLot.CreatedAt == default)
             parkingLot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        await _dataAccess.ParkingLots.Create(parkingLot);
+        (bool success, int id) = await _dataAccess.ParkingLots.CreateWithId(parkingLot);
+        if (success) parkingLot.Id = id;
         return parkingLot;
     }
 
-    public async Task<ParkingLotModel> UpdateParkingLot(int id, string name, string location, string address,
-        int capacity, int reserved, decimal tariff, decimal dayTariff, DateOnly createdAt, CoordinatesModel coordinates)
-    {
-        ParkingLotModel parkingLot = new()
-        {
-            Id = id,
-            Name = name,
-            Location = location,
-            Address = address,
-            Capacity = capacity,
-            Reserved = reserved,
-            Tariff = tariff,
-            DayTariff = dayTariff,
-            CreatedAt = createdAt,
-            Coordinates = coordinates
-        };
-
-        await _dataAccess.ParkingLots.Update(parkingLot);
-        return parkingLot;
-    }
+    public async Task<bool> UpdateParkingLot(ParkingLotModel parkingLot) => await _dataAccess.ParkingLots.Update(parkingLot);
 
     public async Task<bool> DeleteParkingLot(int id)
     {
@@ -81,6 +63,4 @@ public class ParkingLotService
         bool success = await _dataAccess.ParkingLots.Delete(id);
         return success;
     }
-
-    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _dataAccess.ParkingLots.GetAll();
 }

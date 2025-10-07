@@ -12,36 +12,34 @@ public class ReservationService
         _dataAccess = dataAccess;
     }
 
-    public async Task<int> CreateReservation(ReservationModel reservation)
+    public async Task<ReservationModel> CreateReservation(ReservationModel reservation)
     {
         (bool success, int id) = await _dataAccess.Reservations.CreateWithId(reservation);
-        if (success) return id;
-        throw new Exception("Failed to create reservation");
-    }
+        if (!success) throw new Exception("Failed to create reservation");
 
-    public async Task<ReservationModel> UpdateReservation(int parkingLotId, int vehicleId, DateTime startTime,
-        DateTime endTime, int userId)
-    {
-        var reservation = new ReservationModel
-        {
-            ParkingLotId = parkingLotId,
-            VehicleId = vehicleId,
-            StartTime = startTime,
-            EndTime = endTime,
-            UserId = userId
-        };
-
-        await _dataAccess.Reservations.Update(reservation);
+        reservation.Id = id;
         return reservation;
     }
 
-    public async Task<ReservationModel> GetReservationById(int id)
+    public async Task<bool> UpdateReservation(ReservationModel reservation)
     {
-        ReservationModel? reservation = await _dataAccess.Reservations.GetById(id);
-        if (reservation is null) throw new KeyNotFoundException("Reservation not found");
-
-        return reservation;
+        var success = await _dataAccess.Reservations.Update(reservation);
+        return success;
     }
+
+    // public async Task<ReservationModel> GetReservationById(int id)
+    // {
+    //     ReservationModel? reservation = await _dataAccess.Reservations.GetById(id);
+    //     if (reservation is null) throw new KeyNotFoundException("Reservation not found");
+    //
+    //     return reservation;
+    // }
+
+    public async Task<ReservationModel?> GetReservationById(int id) => await _dataAccess.Reservations.GetById(id);
+
+    public async Task<List<ReservationModel>> GetAllReservations() => await _dataAccess.Reservations.GetAll();
+
+    public async Task<int> CountReservations() => await _dataAccess.Reservations.Count();
 
     public async Task<bool> DeleteReservation(int id)
     {

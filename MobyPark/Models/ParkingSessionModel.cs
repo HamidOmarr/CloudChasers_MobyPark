@@ -23,7 +23,7 @@ public class ParkingSessionModel
         LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
         Started = reader.GetDateTime(reader.GetOrdinal("started"));
         Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("stopped"));
-        User = reader.GetString(reader.GetOrdinal("user_name"));
+        User = reader.GetString(reader.GetOrdinal("user_username"));
         DurationMinutes = reader.GetInt32(reader.GetOrdinal("duration_minutes"));
         Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
         PaymentStatus = reader.GetString(reader.GetOrdinal("payment_status"));

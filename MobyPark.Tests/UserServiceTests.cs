@@ -121,7 +121,7 @@ public sealed class UserServiceTests
         Assert.IsTrue(_userService.VerifyPassword(password, result.Password));
 
         // Verify persistence call
-        _mockUserAccess.Verify(u => u.Create(It.Is<UserModel>(usr =>
+        _mockUserAccess.Verify(u => u.CreateWithId(It.Is<UserModel>(usr =>
             usr.Username == username &&
             usr.Name == name &&
             usr.Role == "USER"
@@ -258,14 +258,14 @@ public sealed class UserServiceTests
             Active = true
         };
 
-        _mockUserAccess!.Setup(access => access.Create(It.IsAny<UserModel>())).ReturnsAsync(true).Verifiable();
+        _mockUserAccess!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
 
         // Act
         var result = await _userService!.CreateUser(user);
 
         // Assert
         Assert.AreEqual(expectedNormalized, result.Email);
-        _mockUserAccess.Verify(access => access.Create(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
+        _mockUserAccess.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
     }
 
     [TestMethod]

@@ -20,6 +20,10 @@ public class VehicleService
         return vehicle;
     }
 
+    public async Task<List<VehicleModel>> GetAllVehicles() => await _dataAccess.Vehicles.GetAll();
+
+    public async Task<int> CountVehicles() => await _dataAccess.Vehicles.Count();
+
     public async Task<List<VehicleModel>> GetVehicleByUserId(int userId)
     {
         List<VehicleModel> vehicles = await _dataAccess.Vehicles.GetByUserId(userId);
@@ -63,39 +67,28 @@ public class VehicleService
         if (vehicle.Year <= 0)
             throw new ArgumentOutOfRangeException(nameof(vehicle.Year), "Year must be greater than 0.");
 
-        await _dataAccess.Vehicles.Create(vehicle);
+        (bool success, int id) = await _dataAccess.Vehicles.CreateWithId(vehicle);
+        if (success) vehicle.Id = id;
         return vehicle;
     }
 
-    public async Task<VehicleModel> UpdateVehicle(int userId, string licensePlate, string make, string model,
-        string color, int year)
+    public async Task<VehicleModel> UpdateVehicle(VehicleModel vehicle)
     {
         Dictionary<string, object?> parameters = new()
         {
-            { nameof(licensePlate), licensePlate },
-            { nameof(make), make },
-            { nameof(model), model },
-            { nameof(color), color }
+            { nameof(vehicle.LicensePlate), vehicle.LicensePlate },
+            { nameof(vehicle.Make), vehicle.Make },
+            { nameof(vehicle.Model), vehicle.Model },
+            { nameof(vehicle.Color), vehicle.Color }
         };
 
         foreach (var param in parameters)
             ArgumentNullException.ThrowIfNull(param.Value, param.Key);
 
-        if (userId <= 0)
-            throw new ArgumentOutOfRangeException(nameof(userId), "UserId must be greater than 0.");
-        if (year <= 0)
-            throw new ArgumentOutOfRangeException(nameof(year), "Year must be greater than 0.");
-
-        VehicleModel vehicle = new()
-        {
-            UserId = userId,
-            LicensePlate = licensePlate,
-            Make = make,
-            Model = model,
-            Color = color,
-            Year = year,
-            CreatedAt = DateTime.UtcNow
-        };
+        if (vehicle.UserId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.UserId), "UserId must be greater than 0.");
+        if (vehicle.Year <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.Year), "Year must be greater than 0.");
 
         await _dataAccess.Vehicles.Update(vehicle);
         return vehicle;
@@ -103,8 +96,7 @@ public class VehicleService
 
     public async Task<bool> DeleteVehicle(int id)
     {
-        await GetVehicleById(id);  // to ensure the vehicle exists beforehand.
-
+        await GetVehicleById(id);
 
         bool success = await _dataAccess.Vehicles.Delete(id);
         return success;

@@ -20,14 +20,11 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
             { "@capacity", parkingLot.Capacity },
             { "@reserved", parkingLot.Reserved },
             { "@tariff", parkingLot.Tariff },
-            { "@daytariff", parkingLot.DayTariff },
+            { "@daytariff", parkingLot.DayTariff.HasValue ? (object)parkingLot.DayTariff.Value : DBNull.Value },
+            { "@created_at", parkingLot.CreatedAt },
             { "@lat", parkingLot.Coordinates.Lat },
-            { "@lng", parkingLot.Coordinates.Lng }
+            { "@lng", parkingLot.Coordinates.Lng },
         };
-        parameters.Add("@created_at", new NpgsqlParameter("@created_at", NpgsqlDbType.Date)
-        {
-            Value = parkingLot.CreatedAt
-        });
 
         return parameters;
     }
@@ -36,10 +33,10 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 
     public async Task<ParkingLotModel?> GetByName(string modelName)
     {
-        Dictionary<string, object> parameters = new() { { "@model", modelName } };
+        Dictionary<string, object> parameters = new() { { "@modelname", modelName } };
 
         await using var reader =
-            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE model = @model", parameters);
+            await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE name = @modelname", parameters);
 
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }

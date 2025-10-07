@@ -72,8 +72,16 @@ public class VehiclesController : BaseController
         if (vehicle is null)
             return NotFound(new { error = "Vehicle not found" });
 
-        var updatedVehicle = await _services.Vehicles.UpdateVehicle(user.Id, request.LicensePlate, request.Make,
-            request.Model, request.Color, request.Year);
+        if (!string.IsNullOrEmpty(request.Make))
+            vehicle.Make = request.Make;
+        if (!string.IsNullOrEmpty(request.Model))
+            vehicle.Model = request.Model;
+        if (!string.IsNullOrEmpty(request.Color))
+            vehicle.Color = request.Color;
+        if (request.Year > 0)
+            vehicle.Year = request.Year;
+
+        var updatedVehicle = await _services.Vehicles.UpdateVehicle(vehicle);
 
         return Ok(new { status = "Success", updatedVehicle });
     }

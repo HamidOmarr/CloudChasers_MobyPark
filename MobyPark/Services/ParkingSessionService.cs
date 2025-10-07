@@ -22,6 +22,19 @@ public class ParkingSessionService
         return session;
     }
 
+    public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
+    {
+        if (string.IsNullOrWhiteSpace(session.LicensePlate) ||
+            session.ParkingLotId == 0 ||
+            session.Started == default ||
+            string.IsNullOrWhiteSpace(session.User))
+            throw new ArgumentException("Required fields not filled!");
+
+        (bool success, int id) = await _dataAccess.ParkingSessions.CreateWithId(session);
+        if (success) session.Id = id;
+        return session;
+    }
+
     public async Task<bool> DeleteParkingSession(int id)
     {
         await GetParkingSessionById(id);
@@ -36,6 +49,21 @@ public class ParkingSessionService
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetAllParkingSessions() => await _dataAccess.ParkingSessions.GetAll();
+
+    public async Task<int> CountParkingSessions() => await _dataAccess.ParkingSessions.Count();
+
+    public async Task<bool> UpdateParkingSession(ParkingSessionModel session) => await _dataAccess.ParkingSessions.Update(session);
+
+    public async Task<bool> DeleteParkingSessionById(int id)
+    {
+        var session = await GetParkingSessionById(id);
+        if (session is null) throw new KeyNotFoundException("Parking session not found");
+
+        bool success = await _dataAccess.ParkingSessions.Delete(id);
+        return success;
     }
 
     public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
@@ -58,14 +86,22 @@ public class ParkingSessionService
         {
             // Round up partial leftover hours to another day
             int billableDays = (int)Math.Ceiling(diff.TotalHours / 24.0);
-            price = parkingLot.DayTariff * billableDays;
+            if (parkingLot.DayTariff is null)
+            {
+                // day tariff not set up, just charge normal tariff per hour
+                price = parkingLot.Tariff * hours;
+                days = 0;
+                return (price, hours, days);
+            }
+
+            price = (decimal)parkingLot.DayTariff * billableDays;
             days = billableDays;
         }
         else
         {
             price = parkingLot.Tariff * hours;
-            if (price > parkingLot.DayTariff)
-                price = parkingLot.DayTariff;
+            if (parkingLot.DayTariff is not null && price > parkingLot.DayTariff)
+                price = (decimal)parkingLot.DayTariff;
         }
 
         price = Math.Max(0, price);

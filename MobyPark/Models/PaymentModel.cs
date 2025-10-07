@@ -20,18 +20,18 @@ public class PaymentModel
 
     public PaymentModel(NpgsqlDataReader reader) : this()
     {
-        TransactionId = reader.GetString(reader.GetOrdinal("transaction_id"));
+        TransactionId = reader.GetString(reader.GetOrdinal("transaction"));
         Amount = (decimal)reader.GetFloat(reader.GetOrdinal("amount"));
         Initiator = reader.GetString(reader.GetOrdinal("initiator"));
         CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
         Completed = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("completed"));
         Hash = reader.GetString(reader.GetOrdinal("hash"));
-        TransactionData.Amount = (decimal)reader.GetFloat(reader.GetOrdinal("t_amount"));
-        TransactionData.Date = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("t_date")));
-        TransactionData.Method = reader.GetString(reader.GetOrdinal("t_method"));
-        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_issuer"));
-        TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_bank"));
-        CoupledTo = reader.GetFieldValue<string?>(reader.GetOrdinal("coupled_to"));
+        TransactionData.Amount = (decimal)reader.GetFloat(reader.GetOrdinal("t_data_amount"));
+        TransactionData.Date = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("t_data_date")));
+        TransactionData.Method = reader.GetString(reader.GetOrdinal("t_data_method"));
+        TransactionData.Issuer = reader.GetString(reader.GetOrdinal("t_data_issuer"));
+        TransactionData.Bank = reader.GetString(reader.GetOrdinal("t_data_bank"));
+        CoupledTo = reader.IsDBNull(reader.GetOrdinal("coupled_to")) ? null : reader.GetString(reader.GetOrdinal("coupled_to"));
     }
 
     public override string ToString() =>

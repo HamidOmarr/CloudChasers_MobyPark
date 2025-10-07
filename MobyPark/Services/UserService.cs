@@ -144,7 +144,8 @@ public partial class UserService
 
         user.Password = HashPassword(user.Password);
 
-        await _dataAccess.Users.Create(user);
+        (bool success, int id) = await _dataAccess.Users.CreateWithId(user);
+        if (success) user.Id = id;
         return user;
     }
 
@@ -155,10 +156,32 @@ public partial class UserService
         return user;
     }
 
+    // public async Task<UserModel> GetUserById(int id)
+    // {
+    //     UserModel? user = await _dataAccess.Users.GetById(id);
+    //     if (user is null) throw new KeyNotFoundException("User not found");
+    //     return user;
+    // }
+
+    public async Task<UserModel?> GetUserById(int id) => await _dataAccess.Users.GetById(id);
+
+    public async Task<List<UserModel>> GetAllUsers() => await _dataAccess.Users.GetAll();
+
+    public async Task<int> CountUsers() => await _dataAccess.Users.Count();
+
     public async Task<UserModel> UpdateUser(UserModel user)
     {
         ArgumentNullException.ThrowIfNull(user);
         await _dataAccess.Users.Update(user);
         return user;
+    }
+
+    public async Task<bool> DeleteUser(int id)
+    {
+        var user = GetUserById(id);
+        if (user is null) throw new KeyNotFoundException("User not found");
+
+        bool success = await _dataAccess.Users.Delete(id);
+        return success;
     }
 }

@@ -32,7 +32,10 @@ app.UseAuthorization();
 app.MapControllers();
 
 
+// call DatabaseConnectionTest
 var services = app.Services.GetRequiredService<ServiceStack>();
+var dbTest = new DatabaseConnectionTest(services);
+dbTest.Testing();
 
 // var vehicle = new VehicleModel
 // {
