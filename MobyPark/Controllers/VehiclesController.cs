@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.Models;
 using MobyPark.Models.Requests;
 using MobyPark.Services.Services;
 
@@ -26,9 +27,18 @@ public class VehiclesController : BaseController
         var existingVehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, request.LicensePlate);
         if (existingVehicle is not null) return Conflict(new { error = "Vehicle already exists", data = existingVehicle });
 
+        var vehicleModel = new VehicleModel
+        {
+            UserId = user.Id,
+            LicensePlate = request.LicensePlate,
+            Make = request.Make,
+            Model = request.Model,
+            Color = request.Color,
+            Year = request.Year,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        var vehicle = await _services.Vehicles.CreateVehicle(user.Id, request.LicensePlate, request.Make, request.Model,
-            request.Color, request.Year);
+        var vehicle = await _services.Vehicles.CreateVehicle(vehicleModel);
 
         return StatusCode(201, new { status = "Success", vehicle });
     }

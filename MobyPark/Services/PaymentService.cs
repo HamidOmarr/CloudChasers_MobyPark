@@ -20,7 +20,7 @@ public class PaymentService
             payment.TransactionData == null)
             throw new ArgumentException("Required fields not filled!");
 
-        await _dataAccess.Payments.Create(payment, false);
+        await _dataAccess.Payments.Create(payment);
         return payment;
     }
 

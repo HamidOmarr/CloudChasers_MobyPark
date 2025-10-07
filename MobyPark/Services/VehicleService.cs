@@ -45,35 +45,23 @@ public class VehicleService
         return vehicle;
     }
 
-    public async Task<VehicleModel> CreateVehicle(int userId, string licensePlate, string make, string model,
-        string color, int year)
+    public async Task<VehicleModel> CreateVehicle(VehicleModel vehicle)
     {
         Dictionary<string, object?> parameters = new()
         {
-            { nameof(licensePlate), licensePlate },
-            { nameof(make), make },
-            { nameof(model), model },
-            { nameof(color), color }
+            { nameof(vehicle.LicensePlate), vehicle.LicensePlate },
+            { nameof(vehicle.Make), vehicle.Make },
+            { nameof(vehicle.Model), vehicle.Model },
+            { nameof(vehicle.Color), vehicle.Color }
         };
 
         foreach (var param in parameters)
             ArgumentNullException.ThrowIfNull(param.Value, param.Key);
 
-        if (userId <= 0)
-            throw new ArgumentOutOfRangeException(nameof(userId), "UserId must be greater than 0.");
-        if (year <= 0)
-            throw new ArgumentOutOfRangeException(nameof(year), "Year must be greater than 0.");
-
-        VehicleModel vehicle = new()
-        {
-            UserId = userId,
-            LicensePlate = licensePlate,
-            Make = make,
-            Model = model,
-            Color = color,
-            Year = year,
-            CreatedAt = DateTime.UtcNow
-        };
+        if (vehicle.UserId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.UserId), "UserId must be greater than 0.");
+        if (vehicle.Year <= 0)
+            throw new ArgumentOutOfRangeException(nameof(vehicle.Year), "Year must be greater than 0.");
 
         await _dataAccess.Vehicles.Create(vehicle);
         return vehicle;

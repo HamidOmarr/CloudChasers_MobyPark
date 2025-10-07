@@ -110,7 +110,18 @@ public class VehicleServiceTests
         _mockVehicleAccess!.Setup(v => v.Create(It.IsAny<VehicleModel>()))
             .ReturnsAsync(true).Verifiable();
 
-        var result = await _vehicleService!.CreateVehicle(userId, plate, make, model, color, year);
+        var vehicle = new VehicleModel
+        {
+            UserId = userId,
+            LicensePlate = plate,
+            Make = make,
+            Model = model,
+            Color = color,
+            Year = year,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _vehicleService!.CreateVehicle(vehicle);
 
         Assert.AreEqual(userId, result.UserId);
         Assert.AreEqual(plate, result.LicensePlate);
@@ -131,8 +142,19 @@ public class VehicleServiceTests
     [DataRow("ABC123", "Toyota", "Corolla", null, 2020)]
     public async Task CreateVehicle_NullParameter_ThrowsArgumentNullException(string plate, string make, string model, string color, int year)
     {
+        var vehicle = new VehicleModel
+        {
+            UserId = 1,
+            LicensePlate = plate,
+            Make = make,
+            Model = model,
+            Color = color,
+            Year = year,
+            CreatedAt = DateTime.UtcNow
+        };
+
         await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
-            await _vehicleService!.CreateVehicle(1, plate, make, model, color, year));
+            await _vehicleService!.CreateVehicle(vehicle));
 
         _mockVehicleAccess!.Verify(v => v.Create(It.IsAny<VehicleModel>()), Times.Never);
     }
@@ -142,8 +164,19 @@ public class VehicleServiceTests
     [DataRow(1, "ABC123", "Toyota", "Corolla", "Blue", 0)]
     public async Task CreateVehicle_InvalidUserIdOrYear_ThrowsArgumentOutOfRangeException(int userId, string plate, string make, string model, string color, int year)
     {
+        var vehicle = new VehicleModel
+        {
+            UserId = userId,
+            LicensePlate = plate,
+            Make = make,
+            Model = model,
+            Color = color,
+            Year = year,
+            CreatedAt = DateTime.UtcNow
+        };
+
         await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(async () =>
-            await _vehicleService!.CreateVehicle(userId, plate, make, model, color, year));
+            await _vehicleService!.CreateVehicle(vehicle));
 
         _mockVehicleAccess!.Verify(v => v.Create(It.IsAny<VehicleModel>()), Times.Never);
     }

@@ -39,28 +39,12 @@ public abstract class Repository<T> : IRepository<T> where T : class
         return result != null ? Convert.ToInt32(result) : 0;
     }
 
-    public virtual Task<bool> Create(T item) => Create(item, true);
-    public virtual async Task<bool> Create(T item, bool returnId)
+    public virtual async Task<bool> Create(T item)
     {
         var parameters = GetParameters(item);
         parameters.Remove("@id");
 
-        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId);
-
-        if (returnId)
-        {
-            try
-            {
-                await Connection.ExecuteScalar(query, parameters);
-                return true;
-            }
-            catch (PostgresException ex) when (ex.SqlState == "42703") // Catch column "id" does not exist
-            {
-                await Connection.ExecuteNonQuery(query, parameters);
-                return true;
-            }
-        }
-
+        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId: false);
         int rowsAffected = await Connection.ExecuteNonQuery(query, parameters);
         return rowsAffected > 0;
     }
@@ -70,12 +54,12 @@ public abstract class Repository<T> : IRepository<T> where T : class
         var parameters = GetParameters(item);
         parameters.Remove("@id");
 
-        var query = BuildInsertQuery(parameters.Keys.ToList());
+        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId: true);
+        var scalarResult = await Connection.ExecuteScalar(query, parameters);
 
-        var (rowsAffected, scalar) = await Connection.ExecuteNonQueryWithScalar(query, parameters);
-        var id = Convert.ToInt32(scalar);
-
-        return (rowsAffected > 0, id);
+        if (scalarResult is null or DBNull) return (false, 0);
+        var id = Convert.ToInt32(scalarResult);
+        return (true, id);
     }
 
     public virtual async Task<bool> Update(T item)
@@ -100,12 +84,13 @@ public abstract class Repository<T> : IRepository<T> where T : class
 
     private string BuildInsertQuery(List<string> keys, bool returnId = true)
     {
-        var columns = string.Join(", ", keys.Select(key => key.TrimStart('@')));
+        var columns = string.Join(", ", keys.Select(key => $"\"{key.TrimStart('@')}\""));
         var values = string.Join(", ", keys);
-        var query = $"INSERT INTO {TableName} ({columns}) VALUES ({values});";
+        var query = $"INSERT INTO {TableName} ({columns}) VALUES ({values})";
 
         if (returnId)
             query += " RETURNING id";
+        query += ";";
 
         return query;
     }

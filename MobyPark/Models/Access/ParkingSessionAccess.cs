@@ -12,18 +12,16 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object>
         {
+            { "@id", session.Id },
             { "@parking_lot_id", session.ParkingLotId },
             { "@license_plate", session.LicensePlate },
             { "@started", session.Started },
-            { "@stopped", session.Stopped ?? (object)null },
+            { "@stopped", session.Stopped.HasValue ? session.Stopped.Value : DBNull.Value },
             { "@user", session.User },
             { "@duration_minutes", session.DurationMinutes },
             { "@cost", session.Cost },
             { "@payment_status", session.PaymentStatus }
         };
-
-        if (session.Id.HasValue)
-            parameters.Add("@id", session.Id);
 
         return parameters;
     }

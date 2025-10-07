@@ -12,20 +12,11 @@ public class ReservationService
         _dataAccess = dataAccess;
     }
 
-    public async Task<ReservationModel> CreateReservation(int parkingLotId, int vehicleId, DateTime startTime,
-        DateTime endTime, int userId)
+    public async Task<int> CreateReservation(ReservationModel reservation)
     {
-        var reservation = new ReservationModel
-        {
-            ParkingLotId = parkingLotId,
-            VehicleId = vehicleId,
-            StartTime = startTime,
-            EndTime = endTime,
-            UserId = userId
-        };
-
-        await _dataAccess.Reservations.Create(reservation);
-        return reservation;
+        (bool success, int id) = await _dataAccess.Reservations.CreateWithId(reservation);
+        if (success) return id;
+        throw new Exception("Failed to create reservation");
     }
 
     public async Task<ReservationModel> UpdateReservation(int parkingLotId, int vehicleId, DateTime startTime,

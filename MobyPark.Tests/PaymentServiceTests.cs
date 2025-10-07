@@ -75,7 +75,7 @@ public sealed class PaymentServiceTests
             model.Amount == amount &&
             model.Initiator == initiator &&
             model.TransactionData == transactionData
-        ), false), Times.Once);
+        )), Times.Once);
     }
 
     [TestMethod]
