@@ -12,16 +12,15 @@ public class UserAccess : Repository<UserModel>, IUserAccess
     {
         var parameters = new Dictionary<string, object>
         {
-            { "@id", user.Id},
-            { "@username", user.Username },
-            { "@password", user.Password },
-            { "@name", user.Name },
-            { "@email", user.Email },
-            { "@phone", user.Phone },
-            { "@role", user.Role },
-            { "@created_at", user.CreatedAt },
-            { "@birth_year", user.BirthYear },
-            { "@active", user.Active }
+            { "@Username", user.Username },
+            { "@Password", user.PasswordHash },
+            { "@Name", user.Name },
+            { "@Email", user.Email },
+            { "@Phone", user.Phone },
+            { "@Role", user.Role },
+            { "@Created_At", user.CreatedAt.ToString("yyyy-MM-dd") },
+            { "@Birth_Year", user.BirthYear },
+            { "@Active", user.Active }
         };
 
         return parameters;
@@ -31,15 +30,15 @@ public class UserAccess : Repository<UserModel>, IUserAccess
 
     public async Task<UserModel?> GetByUsername(string username)
     {
-        var parameters = new Dictionary<string, object> { { "@username", username } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE username = @username", parameters);
+        var parameters = new Dictionary<string, object> { { "@Username", username } };
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Username = @Username", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 
     public async Task<UserModel?> GetByEmail(string email)
     {
-        var parameters = new Dictionary<string, object> { { "@email", email } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE email = @email", parameters);
+        var parameters = new Dictionary<string, object> { { "@Email", email } };
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Email = @Email", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 }

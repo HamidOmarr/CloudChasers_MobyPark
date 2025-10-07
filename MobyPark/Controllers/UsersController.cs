@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
 using MobyPark.Models.Requests;
+using MobyPark.Services;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
@@ -9,58 +10,53 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
+    private readonly UserService _userService;
     private readonly ServiceStack _services;
 
     public UsersController(ServiceStack services) : base(services.Sessions)
     {
+        _userService = services.Users;
         _services = services;
     }
-
+    
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] UserRegisterRequest request)
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest req)
     {
-        if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password) || string.IsNullOrEmpty(request.Name))
-            return BadRequest(new { error = "Missing required fields" });
-
-        UserModel? existing = await _services.Users.GetUserByUsername(request.Username);
-
-        if (existing is not null)
-            return Conflict(new { error = "Username already taken" });
-
-        await _services.Users.CreateUserAsync(request.Username, request.Password, request.Name);
-        return StatusCode(201, new { message = "User created" });
+        var user = await _userService.CreateUserAsync(
+            req.Username, req.Password, req.Name, req.Email, req.Phone, req.Birthday);
+        var token = SessionService.CreateSession(user);
+        return Ok(new AuthResponse { UserId = user.Id, Username = user.Username, Email = user.Email, Token = token });
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] UserLoginRequest request)
+    public async Task<ActionResult<AuthResponse>> Login([FromBody]LoginRequest req)
     {
-        if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
-            return BadRequest(new { error = "Missing credentials" });
+        try
+        {
+            var response = await _services.Users.LoginAsync(req.Identifier, req.Password);
 
-        UserModel? user = await _services.Users.GetUserByUsername(request.Username);
-        if (user is null || !_services.Users.VerifyPassword(request.Password, user.Password))
+            return Ok(response);
+        }
+        catch (InvalidOperationException)
+        {
             return Unauthorized(new { error = "Invalid credentials" });
-
-        var token = Guid.NewGuid().ToString();
-        SessionService.AddSession(token, user);
-
-        return Ok(new { message = "User logged in", session_token = token });
+        }
     }
 
-    [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UserLoginRequest request)
+    /*[HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] LoginRequest request)
     {
         var user = GetCurrentUser();
 
         if (!string.IsNullOrWhiteSpace(request.Password))
-            user.Password = _services.Users.HashPassword(request.Password);
+            user.PasswordHash = _services.Users.HashPassword(request.Password);
 
         if (!string.IsNullOrWhiteSpace(request.Username))
             user.Username = request.Username;
 
         await _services.Users.UpdateUser(user);
         return Ok(new { message = "User updated successfully" });
-    }
+    }*/
 
     [HttpGet("profile")]
     public IActionResult GetProfile()
