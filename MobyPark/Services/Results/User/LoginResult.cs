@@ -1,6 +1,6 @@
-using MobyPark.Models;
+using MobyPark.Models.Responses.User;
 
-namespace MobyPark.Services.Results;
+namespace MobyPark.Services.Results.User;
 
 public abstract record LoginResult
 {

@@ -1,4 +1,4 @@
-﻿namespace MobyPark.Models;
+﻿namespace MobyPark.Models.Responses.User;
 
 public class AuthResponse
 {

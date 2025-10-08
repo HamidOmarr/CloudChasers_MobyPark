@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models;
+using MobyPark.Models.Responses.User;
 using MobyPark.Models.Requests.User;
 using MobyPark.Services;
 using MobyPark.Services.Results.User;

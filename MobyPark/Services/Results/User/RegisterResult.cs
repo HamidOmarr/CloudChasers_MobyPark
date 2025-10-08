@@ -1,6 +1,6 @@
 using MobyPark.Models;
 
-namespace MobyPark.Services.Results;
+namespace MobyPark.Services.Results.User;
 
 public abstract record RegisterResult
 {

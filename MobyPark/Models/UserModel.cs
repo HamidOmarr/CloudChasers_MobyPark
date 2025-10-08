@@ -17,9 +17,7 @@ public class UserModel
     public bool Active { get; set; } = true;
 
     public UserModel()
-    {
-        Role = "USER";
-    }
+    { }
 
     public UserModel(NpgsqlDataReader reader)
     {
@@ -41,7 +39,7 @@ public class UserModel
             ? reader.GetBoolean(activeOrdinal)
             : Convert.ToInt32(reader.GetValue(activeOrdinal)) != 0;
     }
-    
+
     public override string ToString() =>
         $"User [{Id}] {Name} ({Username}), Role: {Role}, Email: {Email}, Phone: {Phone}, Birth Year: {BirthYear}, Active: {Active}, Created At: {CreatedAt}";
 }
