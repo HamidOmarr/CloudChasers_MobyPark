@@ -5,7 +5,7 @@ namespace MobyPark.Models.Access;
 
 public class VehicleAccess : Repository<VehicleModel>, IVehicleAccess
 {
-    protected override string TableName => "Vehicles";
+    protected override string TableName => "vehicles";
     protected override VehicleModel MapFromReader(NpgsqlDataReader reader) => new(reader);
 
     protected override Dictionary<string, object> GetParameters(VehicleModel vehicle)

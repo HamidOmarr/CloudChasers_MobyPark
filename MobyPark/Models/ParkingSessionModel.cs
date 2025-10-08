@@ -4,7 +4,7 @@ namespace MobyPark.Models;
 
 public class ParkingSessionModel
 {
-    public int? Id { get; set; }
+    public int Id { get; set; }
     public int ParkingLotId { get; set; }
     public string LicensePlate { get; set; }
     public DateTime Started { get; set; }
@@ -18,12 +18,12 @@ public class ParkingSessionModel
 
     public ParkingSessionModel(NpgsqlDataReader reader)
     {
-        Id = reader.IsDBNull(reader.GetOrdinal("id")) ? null : reader.GetInt32(reader.GetOrdinal("id"));
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
         ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
         LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
         Started = reader.GetDateTime(reader.GetOrdinal("started"));
         Stopped = reader.GetFieldValue<DateTime?>(reader.GetOrdinal("stopped"));
-        User = reader.GetString(reader.GetOrdinal("user_name"));
+        User = reader.GetString(reader.GetOrdinal("user_username"));
         DurationMinutes = reader.GetInt32(reader.GetOrdinal("duration_minutes"));
         Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
         PaymentStatus = reader.GetString(reader.GetOrdinal("payment_status"));

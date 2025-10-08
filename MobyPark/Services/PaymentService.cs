@@ -12,26 +12,42 @@ public class PaymentService
         _dataAccess = dataAccess;
     }
 
-    public async Task<PaymentModel> CreatePayment(string transaction, decimal amount, string initiator,
-                                                       TransactionDataModel transactionData)
+    public async Task<PaymentModel> CreatePayment(PaymentModel payment)
     {
-        if (string.IsNullOrWhiteSpace(transaction) || string.IsNullOrWhiteSpace(initiator) ||
-            transaction is null)
+        if (string.IsNullOrWhiteSpace(payment.TransactionId) ||
+            string.IsNullOrWhiteSpace(payment.Initiator) ||
+            payment.Amount == 0 ||
+            payment.TransactionData == null)
             throw new ArgumentException("Required fields not filled!");
-
-        PaymentModel payment = new()
-        {
-            TransactionId = transaction,
-            Amount = amount,
-            Initiator = initiator,
-            CreatedAt = DateTime.UtcNow,
-            Completed = null,
-            Hash = Guid.NewGuid().ToString("N"),
-            TransactionData = transactionData
-        };
 
         await _dataAccess.Payments.Create(payment);
         return payment;
+    }
+
+    public async Task<PaymentModel?> GetPaymentByTransactionId(string id) => await _dataAccess.Payments.GetByTransactionId(id);
+
+    public Task<List<PaymentModel>> GetPaymentsByUser(string username) => _dataAccess.Payments.GetByUser(username);
+
+    public async Task<List<PaymentModel>> GetAllPayments() => await _dataAccess.Payments.GetAll();
+
+    public async Task<int> CountPayments() => await _dataAccess.Payments.Count();
+
+    private async Task<bool> UpdatePayment(PaymentModel payment)
+    {
+        var existingPayment = await GetPaymentByTransactionId(payment.TransactionId);
+        if (existingPayment is null) throw new KeyNotFoundException("Payment not found");
+
+        bool success = await _dataAccess.Payments.Update(payment);
+        return success;
+    }
+
+    public async Task<bool> DeletePayment(string transactionId)
+    {
+        var payment = await GetPaymentByTransactionId(transactionId);
+        if (payment is null) throw new KeyNotFoundException("Payment not found");
+
+        bool success = await _dataAccess.Payments.DeletePayment(transactionId);
+        return success;
     }
 
     public async Task<PaymentModel> RefundPayment(string originalTransaction, decimal amount, string adminUser)
@@ -46,7 +62,7 @@ public class PaymentService
         TransactionDataModel transactionData = new()
         {
             Amount = -Math.Abs(amount),
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "Refund",
             Issuer = adminUser,
             Bank = "N/A"
@@ -78,25 +94,14 @@ public class PaymentService
         if (payment == null)
             throw new KeyNotFoundException("Payment not found");
 
-        string uuid = SystemService.GenerateGuid(validationHash).ToString("D");
-
-        if (payment.Hash != uuid)
+        if (payment.Hash != validationHash)
             throw new UnauthorizedAccessException("Validation hash does not match the existing payment");
 
         payment.TransactionData = transactionData;
         if (payment.Completed.HasValue) return payment;
         payment.Completed = DateTime.UtcNow;
-        await _dataAccess.Payments.Update(payment);
+        await UpdatePayment(payment);
 
-        return payment;
-    }
-
-    public Task<List<PaymentModel>> GetPaymentsForUser(string username) => _dataAccess.Payments.GetByUser(username);
-
-    public async Task<PaymentModel> GetPaymentByTransactionId(string id)
-    {
-        PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(id);
-        if (payment is null) throw new KeyNotFoundException("Payment not found");
         return payment;
     }
 
@@ -108,4 +113,3 @@ public class PaymentService
         return payment.Amount;
     }
 }
-

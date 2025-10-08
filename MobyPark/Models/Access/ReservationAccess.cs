@@ -12,6 +12,7 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
     {
         var parameters = new Dictionary<string, object>
         {
+            { "@id", reservation.Id },
             { "@user_id", reservation.UserId },
             { "@parking_lot_id", reservation.ParkingLotId },
             { "@vehicle_id", reservation.VehicleId },
@@ -21,9 +22,6 @@ public class ReservationAccess : Repository<ReservationModel>, IReservationAcces
             { "@created_at", reservation.CreatedAt },
             { "@cost", reservation.Cost }
         };
-
-        if (reservation.Id.HasValue)
-            parameters.Add("@id", reservation.Id.Value);
 
         return parameters;
     }

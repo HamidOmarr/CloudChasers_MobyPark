@@ -1,11 +1,13 @@
 using MobyPark;
+using MobyPark.Models;
+using MobyPark.Services.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddMobyParkServices();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerAuthorization();
 
 var app = builder.Build();
 
@@ -28,5 +30,6 @@ app.UseAuthorization();
 
 // Attribute-based routing onlya
 app.MapControllers();
+
 
 app.Run();

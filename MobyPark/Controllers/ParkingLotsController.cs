@@ -23,7 +23,7 @@ public class ParkingLotsController : BaseController
         var user = GetCurrentUser();
         if (user.Role != "ADMIN") return Forbid();
 
-        lot.CreatedAt = DateTime.UtcNow;
+        lot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
         await _services.ParkingLots.CreateParkingLot(lot);
         return StatusCode(201, new { message = "Parking lot created" });
     }
@@ -37,15 +37,25 @@ public class ParkingLotsController : BaseController
         var existingLot = await _services.ParkingLots.GetParkingLotById(lotId);
         if (existingLot is null) return NotFound(new { error = "Parking lot not found" });
 
-        existingLot.Name = lot.Name;
-        existingLot.Location = lot.Location;
-        existingLot.Tariff = lot.Tariff;
-        existingLot.DayTariff = lot.DayTariff;
+        var newLot = new ParkingLotModel
+        {
+            Id = lotId,
+            Name = lot.Name ?? existingLot.Name,
+            Location = lot.Location ?? existingLot.Location,
+            Address = lot.Address ?? existingLot.Address,
+            Capacity = lot.Capacity != 0 ? lot.Capacity : existingLot.Capacity,
+            Reserved = existingLot.Reserved,
+            Tariff = lot.Tariff != 0 ? lot.Tariff : existingLot.Tariff,
+            DayTariff = lot.DayTariff ?? existingLot.DayTariff,
+            CreatedAt = existingLot.CreatedAt,
+            Coordinates = new CoordinatesModel
+            {
+                Lat = lot.Coordinates.Lat != 0 ? lot.Coordinates.Lat : existingLot.Coordinates.Lat,
+                Lng = lot.Coordinates.Lng != 0 ? lot.Coordinates.Lng : existingLot.Coordinates.Lng
+            }
+        };
 
-        await _services.ParkingLots.UpdateParkingLot(
-            existingLot.Id, existingLot.Name, existingLot.Location, existingLot.Address,
-            existingLot.Capacity, existingLot.Reserved, existingLot.Tariff, existingLot.DayTariff,
-            existingLot.CreatedAt, existingLot.Coordinates);
+        await _services.ParkingLots.UpdateParkingLot(newLot);
 
         return Ok(new { message = "Parking lot modified" });
     }

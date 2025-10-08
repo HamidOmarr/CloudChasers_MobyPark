@@ -46,7 +46,7 @@ public sealed class ParkingLotServiceTests
             Reserved = reserved,
             Tariff = tariff,
             DayTariff = dayTariff,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow),
             Coordinates = new CoordinatesModel { Lat = 10.5, Lng = 20.5 }
         };
 
@@ -101,43 +101,45 @@ public sealed class ParkingLotServiceTests
         decimal tariff = (decimal)tariffDouble;
         decimal dayTariff = (decimal)dayTariffDouble;
 
-        var createdAt = DateTime.UtcNow.AddDays(-1);
+        var createdAt = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
         var coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude };
 
         _mockParkingLotAccess!
             .Setup(access => access.Update(It.IsAny<ParkingLotModel>()))
             .ReturnsAsync(true).Verifiable();
 
+        var lot = new ParkingLotModel
+        {
+            Id = id,
+            Name = name,
+            Location = location,
+            Address = address,
+            Capacity = capacity,
+            Reserved = reserved,
+            Tariff = tariff,
+            DayTariff = dayTariff,
+            CreatedAt = createdAt,
+            Coordinates = coordinates
+        };
+
         // Act
-        var result = await _parkingLotService!.UpdateParkingLot(
-            id, name, location, address, capacity, reserved, tariff, dayTariff, createdAt, coordinates);
+        var result = await _parkingLotService!.UpdateParkingLot(lot);
 
         // Assert
-        Assert.IsNotNull(result);
-        Assert.AreEqual(id, result.Id);
-        Assert.AreEqual(name, result.Name);
-        Assert.AreEqual(location, result.Location);
-        Assert.AreEqual(address, result.Address);
-        Assert.AreEqual(capacity, result.Capacity);
-        Assert.AreEqual(reserved, result.Reserved);
-        Assert.AreEqual(tariff, result.Tariff);
-        Assert.AreEqual(dayTariff, result.DayTariff);
-        Assert.AreEqual(createdAt, result.CreatedAt);
-        Assert.AreEqual(latitude, result.Coordinates.Lat);
-        Assert.AreEqual(longitude, result.Coordinates.Lng);
+        Assert.IsTrue(result);
 
-        _mockParkingLotAccess.Verify(access => access.Update(It.Is<ParkingLotModel>(lot =>
-            lot.Id == id &&
-            lot.Name == name &&
-            lot.Location == location &&
-            lot.Address == address &&
-            lot.Capacity == capacity &&
-            lot.Reserved == reserved &&
-            lot.Tariff == tariff &&
-            lot.DayTariff == dayTariff &&
-            lot.CreatedAt == createdAt &&
-            Math.Abs(lot.Coordinates.Lat - latitude) < 0.1 &&
-            Math.Abs(lot.Coordinates.Lng - longitude) < 0.1
+        _mockParkingLotAccess.Verify(access => access.Update(It.Is<ParkingLotModel>(parkingLot =>
+            parkingLot.Id == id &&
+            parkingLot.Name == name &&
+            parkingLot.Location == location &&
+            parkingLot.Address == address &&
+            parkingLot.Capacity == capacity &&
+            parkingLot.Reserved == reserved &&
+            parkingLot.Tariff == tariff &&
+            parkingLot.DayTariff == dayTariff &&
+            parkingLot.CreatedAt == createdAt &&
+            (decimal)parkingLot.Coordinates.Lat == (decimal)latitude &&
+            (decimal)parkingLot.Coordinates.Lng == (decimal)longitude
         )), Times.Once);
     }
 
@@ -178,14 +180,14 @@ public sealed class ParkingLotServiceTests
         Assert.IsNotNull(result);
         Assert.AreEqual(name, result.Name);
         Assert.AreEqual(location, result.Location);
-        _mockParkingLotAccess.Verify(access => access.Create(It.Is<ParkingLotModel>(pl =>
+        _mockParkingLotAccess.Verify(access => access.CreateWithId(It.Is<ParkingLotModel>(pl =>
             pl.Name == name &&
             pl.Location == location &&
             pl.Capacity == capacity &&
             pl.Tariff == tariff &&
             pl.DayTariff == dayTariff &&
-            Math.Abs(lot.Coordinates.Lat - latitude) < 0.1 &&
-            Math.Abs(lot.Coordinates.Lng - longitude) < 0.1
+            (decimal)pl.Coordinates.Lat == (decimal)latitude &&
+            (decimal)pl.Coordinates.Lng == (decimal)longitude
         )), Times.Once);
     }
 

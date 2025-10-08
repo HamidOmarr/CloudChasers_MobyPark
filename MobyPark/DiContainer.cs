@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Identity;
+using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.Access.DatabaseConnection;
 using MobyPark.Models.DataService;
@@ -29,12 +31,21 @@ public static class DiContainer
         services.AddScoped<PaymentPreauthService>();
         services.AddScoped<GateService>();
         services.AddScoped<Services.Services.ServiceStack>();
+        services.AddScoped<ServiceStack>();
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();
-        services.AddScoped<ServiceStack>();
 
-        // Database connection
+        // Password Hasher
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+
+        //Database connection
         services.AddScoped<IDatabaseConnection, DatabaseConnection>();
+
+
+        // ✅ Auth/services
+        services.AddSingleton<SessionService>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        services.AddScoped<UserService>();
     }
 }
