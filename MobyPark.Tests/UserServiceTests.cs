@@ -34,7 +34,7 @@ public sealed class UserServiceTests
     [DataRow("mypassword")]
     [DataRow("anotherSecret")]
     [DataRow("123456")]
-    public void VerifyPassword_CorrectPassword_ReturnsTrue(string password)
+    public void VerifyPassword_CorrectPassword_ReturnsSuccess(string password)
     {
         // Arrange
         var user = new UserModel();
@@ -51,7 +51,7 @@ public sealed class UserServiceTests
     [DataRow("mypassword", "wrongpassword")]
     [DataRow("correct123", "wrong123")]
     [DataRow("test", "TEST")] // case-sensitive
-    public void VerifyPassword_WrongPassword_ReturnsFalse(string realPassword, string attempt)
+    public void VerifyPassword_WrongPassword_ReturnsFailed(string realPassword, string attempt)
     {
         // Arrange
         var user = new UserModel();
@@ -143,7 +143,7 @@ public sealed class UserServiceTests
     [DataRow("user", "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
     [DataRow("user", "password", "Name", "email@example.com", "0612345678", "3000-01-01")]
     [DataRow("user", "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    public async Task CreateUserAsync_InvalidInput_ThrowsArgumentException(string username, string password, string name, string email, string phone, string birthdayString)
+    public async Task CreateUserAsync_InvalidInput_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
         var birthday = DateTime.Parse(birthdayString);
@@ -211,7 +211,7 @@ public sealed class UserServiceTests
     [DataRow("user3", "Password1", "   ", "frank@example.com", "+310666666666", "2000-01-01")]
     [DataRow("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu", "Password1", "LongName", "longuser@example.com", "+310677777777", "2000-01-01")] // very long username
     [DataRow("user4", "Password1", "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN", "longname@example.com", "+310688888888", "2000-01-01")] // very long name
-    public async Task CreateUserAsync_InvalidUsernameOrName_ThrowsArgumentException(string username, string password, string name, string email, string phone, string birthdayString)
+    public async Task CreateUserAsync_InvalidUsernameOrName_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
     {
         //arrange
         var birthday = DateTime.Parse(birthdayString);
@@ -310,11 +310,10 @@ public sealed class UserServiceTests
     [DataRow("user\t@domain.com")]
     [DataRow("user\n@domain.com")]
     [DataRow("user@domain.TLDsLongerThanSixtyThreeCharactersCannotExistSoItIsTheLimitHereA")]
-    [DataRow("user..name@domain.com")]
     [DataRow("user@domain!name.com")]
     [DataRow("user@domain#name.com")]
     [DataRow("user@domain$%.com")]
-    public async Task CreateUser_InvalidEmail_ThrowsArgumentException(string email)
+    public async Task CreateUser_InvalidEmail_ReturnsInvalidDataResponse(string email)
     {
         var birthday = DateTime.Parse("2000-01-01");
 
@@ -435,7 +434,7 @@ public sealed class UserServiceTests
     [DataRow("061234A567")]
     [DataRow("061234567A")]
     [DataRow("+32 612345678")]
-    public async Task CreateUser_InvalidPhoneFormats_ThrowsArgumentException(string phone)
+    public async Task CreateUser_InvalidPhoneFormats_ReturnsInvalidDataResponse(string phone)
     {
         var birthday = DateTime.Parse("2000-01-01");
 

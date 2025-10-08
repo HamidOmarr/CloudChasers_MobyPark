@@ -170,7 +170,7 @@ public sealed class PaymentServiceTests
         var existingPayment = new PaymentModel
         {
             TransactionId = transactionId,
-            Hash = SystemService.GenerateGuid(validationHash).ToString("D"),
+            Hash = validationHash,
             Completed = null,
             TransactionData = new TransactionDataModel()
         };
@@ -258,7 +258,7 @@ public sealed class PaymentServiceTests
         var existingPayment = new PaymentModel
         {
             TransactionId = transactionId,
-            Hash = SystemService.GenerateGuid(validationHash).ToString("D"),
+            Hash = validationHash,
             Completed = DateTime.UtcNow.AddHours(-1), // already completed
             TransactionData = new TransactionDataModel()
         };

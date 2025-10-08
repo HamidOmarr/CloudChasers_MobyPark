@@ -62,6 +62,14 @@ public partial class UserService
 
     public async Task<UserModel> UpdateUser(UserModel user)
     {
+        /*
+         TODO:
+         Consider adding validation here, to ensure data integrity.
+         I.e.: Use the same checks as in CreateUserAsync, but allow null/empty for fields that are not being updated, and set them to the existing values when building the updated user object.
+         For now, we assume the caller has already validated the user object, but is risky.
+         Alternatively, make this method private and only allow updates through specialised methods (like UpdateEmail, UpdatePassword, etc).
+        */
+
         ArgumentNullException.ThrowIfNull(user);
         await _dataAccess.Users.Update(user);
         return user;
@@ -183,7 +191,6 @@ public partial class UserService
         await UpdateUser(user);
         return new UpdateProfileResult.Success(user);
     }
-
 
     // Helpers for cleaning and validation
     private static string CleanPhone(string phone)
