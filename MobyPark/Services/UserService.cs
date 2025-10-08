@@ -1,17 +1,18 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Identity;
 using MobyPark.Models;
 using MobyPark.Models.DataService;
+using MobyPark.Models.Requests.User;
+using MobyPark.Services.Results.User;
 
 namespace MobyPark.Services;
 
 public partial class UserService
 {
     private readonly IDataAccess _dataAccess;
-    private const int UsernameLength = 25;
-    private const int NameLength = 50;
+    private readonly IPasswordHasher<UserModel> _hasher;
+    private readonly SessionService _sessions;
 
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
@@ -30,49 +31,22 @@ public partial class UserService
     [GeneratedRegex(EmailPattern)]
     private static partial Regex EmailRegex();
 
-    public UserService(IDataAccess dataAccess)
+    public UserService(IDataAccess dataAccess, IPasswordHasher<UserModel> hasher, SessionService sessions)
     {
         _dataAccess = dataAccess;
+        _hasher = hasher;
+        _sessions = sessions;
     }
 
-    public async Task<UserModel> CreateUser(UserModel user)
+    // Generic CRUD operations
+    private async Task<(bool success, UserModel user)> CreateUser(UserModel user)
     {
-        if (string.IsNullOrWhiteSpace(user.Username))
-            throw new ArgumentException("Username cannot be empty.", nameof(user.Username));
-        if (string.IsNullOrWhiteSpace(user.Password))
-            throw new ArgumentException("Password cannot be empty.", nameof(user.Password));
-        if (string.IsNullOrWhiteSpace(user.Name))
-            throw new ArgumentException("Name cannot be empty.", nameof(user.Name));
-        if (string.IsNullOrWhiteSpace(user.Email))
-            throw new ArgumentException("Email cannot be empty.", nameof(user.Email));
-        if (string.IsNullOrWhiteSpace(user.Phone))
-            throw new ArgumentException("Phone cannot be empty.", nameof(user.Phone));
-        if (user.BirthYear < 1900 || user.BirthYear > DateTime.Now.Year)
-            throw new ArgumentException("Birth year is out of valid range.", nameof(user.BirthYear));
-
-        if (user.Username.Length > UsernameLength)
-            throw new ArgumentException($"Username cannot exceed {UsernameLength} characters.", nameof(user.Username));
-        if (user.Name.Length > NameLength)
-            throw new ArgumentException($"Name cannot exceed {NameLength} characters.", nameof(user.Name));
-
-        try
-        { user.Phone = CleanPhone(user.Phone); }
-        catch (ArgumentException ex)
-        { throw new ArgumentException(ex.Message, nameof(user.Phone)); }
-
-        try
-        { user.Email = CleanEmail(user.Email); }
-        catch (ArgumentException ex)
-        { throw new ArgumentException(ex.Message, nameof(user.Email)); }
-
-        if (!PasswordRegex().IsMatch(user.Password))
-            throw new ArgumentException("Password does not meet complexity requirements.", nameof(user.Password));
-
-        user.Password = HashPassword(user.Password);
-
         (bool success, int id) = await _dataAccess.Users.CreateWithId(user);
-        if (success) user.Id = id;
-        return user;
+        if (!success)
+            throw new InvalidOperationException("Failed to insert user into database.");
+
+        user.Id = id;
+        return (success, user);
     }
 
     public async Task<UserModel?> GetUserByUsername(string username) =>  await _dataAccess.Users.GetByUsername(username);
@@ -94,28 +68,123 @@ public partial class UserService
 
     public async Task<bool> DeleteUser(int id)
     {
-        var user = GetUserById(id);
+        var user = await GetUserById(id);
         if (user is null) throw new KeyNotFoundException("User not found");
 
         bool success = await _dataAccess.Users.Delete(id);
         return success;
     }
 
-    public string HashPassword(string password)
+    // Direct methods
+    public async Task<RegisterResult> CreateUserAsync(RegisterRequest request)
     {
-        if (password is null) throw new ArgumentNullException(nameof(password));
-        var bytes = Encoding.UTF8.GetBytes(password);
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToBase64String(hash);
+        if (await GetUserByUsername(request.Username) is not null)
+            return new RegisterResult.UsernameTaken();
+
+        // check name
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password) ||
+            string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Phone) || request.Birthday.Year < 1900 ||
+            request.Birthday.Year > DateTime.Now.Year)
+            return new RegisterResult.InvalidData("Missing required fields");
+
+        string cleanEmail;
+        string cleanPhone;
+
+        try
+        { cleanEmail = CleanEmail(request.Email); }
+        catch (Exception e)
+        { return new RegisterResult.InvalidData($"Invalid email: {e.Message}"); }
+        try
+        { cleanPhone = CleanPhone(request.Phone); }
+        catch (Exception e)
+        { return new RegisterResult.InvalidData($"Invalid phone number: {e.Message}"); }
+
+
+        if (!PasswordRegex().IsMatch(request.Password))
+            return new RegisterResult.InvalidData("Password does not meet complexity requirements.");
+
+        var user = new UserModel
+        {
+            Username = request.Username.Trim(),
+            Name = request.Name.Trim(),
+            Email = cleanEmail,
+            Phone = cleanPhone,
+            BirthYear = request.Birthday.Year,
+            Role = "USER",
+            Active = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        user.PasswordHash = _hasher.HashPassword(user, request.Password);
+
+        (bool success, UserModel createdUser) = await CreateUser(user);
+        if (!success) return new RegisterResult.Error("Failed to create user");
+
+        return new RegisterResult.Success(createdUser);
     }
 
-    public bool VerifyPassword(string password, string hashedPassword)
+    public async Task<LoginResult> LoginAsync(LoginRequest request)
     {
-        ArgumentNullException.ThrowIfNull(password);
-        ArgumentNullException.ThrowIfNull(hashedPassword);
-        return HashPassword(password) == hashedPassword;
+        if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
+            return new LoginResult.Error("Identifier and password are required.");
+
+        var user = await GetUserByEmail(request.Identifier) ?? await GetUserByUsername(request.Identifier);
+        if (user is null)
+            return new LoginResult.InvalidCredentials();
+
+        var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        if (verification == PasswordVerificationResult.Failed)
+            return new LoginResult.InvalidCredentials();
+
+        var token = _sessions.CreateSession(user);
+        var response = new AuthResponse
+        {
+            UserId = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Token = token
+        };
+
+        return new LoginResult.Success(response);
     }
 
+    public async Task<UpdateProfileResult> UpdateUserProfileAsync(UserModel user, UpdateProfileRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Username))
+        {
+            var existing = await _dataAccess.Users.GetByUsername(request.Username);
+            if (existing is not null && existing.Id != user.Id)
+                return new UpdateProfileResult.UsernameTaken();
+
+            user.Username = request.Username.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Password))
+            user.PasswordHash = _hasher.HashPassword(user, request.Password);
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var cleanEmail = CleanEmail(request.Email);
+            var existingEmail = await _dataAccess.Users.GetByEmail(cleanEmail);
+            if (existingEmail is not null && existingEmail.Id != user.Id)
+                return new UpdateProfileResult.EmailTaken();
+
+            user.Email = cleanEmail;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            var cleanPhone = CleanPhone(request.Phone);
+            user.Phone = cleanPhone;
+        }
+
+        await UpdateUser(user);
+        return new UpdateProfileResult.Success(user);
+    }
+
+
+    // Helpers for cleaning and validation
     private static string CleanPhone(string phone)
     {
         if (string.IsNullOrWhiteSpace(phone))
