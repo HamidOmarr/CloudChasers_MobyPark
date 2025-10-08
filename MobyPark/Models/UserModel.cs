@@ -21,20 +21,20 @@ public class UserModel
 
     public UserModel(NpgsqlDataReader reader)
     {
-        Id = reader.GetInt32(reader.GetOrdinal("Id"));
-        Username = reader.GetString(reader.GetOrdinal("Username"));
-        PasswordHash = reader.GetString(reader.GetOrdinal("Password"));
-        Name = reader.GetString(reader.GetOrdinal("Name"));
-        Email = reader.GetString(reader.GetOrdinal("Email"));
-        Phone = reader.GetString(reader.GetOrdinal("Phone"));
-        Role = reader.GetString(reader.GetOrdinal("Role"));
-        var createdStr = reader.GetString(reader.GetOrdinal("Created_At"));
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
+        Username = reader.GetString(reader.GetOrdinal("username"));
+        PasswordHash = reader.GetString(reader.GetOrdinal("password"));
+        Name = reader.GetString(reader.GetOrdinal("name"));
+        Email = reader.GetString(reader.GetOrdinal("email"));
+        Phone = reader.GetString(reader.GetOrdinal("phone"));
+        Role = reader.GetString(reader.GetOrdinal("role"));
+        var createdStr = reader.GetString(reader.GetOrdinal("created_at"));
         if (!DateTime.TryParse(createdStr, CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var created))
             created = DateTime.UtcNow;
         CreatedAt = created;
-        BirthYear = reader.GetInt32(reader.GetOrdinal("Birth_Year"));
-        var activeOrdinal = reader.GetOrdinal("Active");
+        BirthYear = reader.GetInt32(reader.GetOrdinal("birth_year"));
+        var activeOrdinal = reader.GetOrdinal("active");
         Active = reader.GetFieldType(activeOrdinal) == typeof(bool)
             ? reader.GetBoolean(activeOrdinal)
             : Convert.ToInt32(reader.GetValue(activeOrdinal)) != 0;
