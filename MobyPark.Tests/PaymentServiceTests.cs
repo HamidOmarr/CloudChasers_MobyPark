@@ -31,14 +31,11 @@ public sealed class PaymentServiceTests
 
     [TestMethod]
     [DataRow("abc123", 50.0)]
-    [DataRow("def456", 0.0)]
     [DataRow("ghi789", -25.5)]
     [DataRow("jkl012", 1000000.99)]
     [DataRow("mno345", 0.0001)]
     public async Task CreatePayment_ValidInput_ReturnsPaymentModel(string transaction, double amountDouble)
     {
-        // Use doubles in the DataRows, as decimals are not runtime constants, but better for financial situations like this.
-
         // Arrange
         decimal amount = (decimal)amountDouble;
 
@@ -46,14 +43,25 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = amount,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CreditCard",
             Issuer = "TestBank",
             Bank = "TestBank"
         };
 
+        var payment = new PaymentModel
+        {
+            TransactionId = transaction,
+            Amount = amount,
+            Initiator = initiator,
+            CreatedAt = DateTime.UtcNow,
+            Completed = null,
+            Hash = Guid.NewGuid().ToString("N"),
+            TransactionData = transactionData
+        };
+
         // Act
-        var result = await _paymentService!.CreatePayment(transaction, amount, initiator, transactionData);
+        var result = await _paymentService!.CreatePayment(payment);
 
         // Assert
         Assert.IsNotNull(result);
@@ -62,14 +70,16 @@ public sealed class PaymentServiceTests
         Assert.AreEqual(initiator, result.Initiator);
         Assert.AreEqual(transactionData, result.TransactionData);
 
-        _mockPaymentAccess!.Verify(access => access.Create(It.Is<PaymentModel>(p =>
-            p.TransactionId == transaction &&
-            p.Amount == amount &&
-            p.Initiator == initiator
+        _mockPaymentAccess!.Verify(access => access.Create(It.Is<PaymentModel>(model =>
+            model.TransactionId == transaction &&
+            model.Amount == amount &&
+            model.Initiator == initiator &&
+            model.TransactionData == transactionData
         )), Times.Once);
     }
 
     [TestMethod]
+    [DataRow("abc123", 0.0, "testUser")]
     [DataRow(null, 50.0, "testUser")]
     [DataRow("", 50.0, "testUser")]
     [DataRow("abc123", 50.0, null)]
@@ -81,16 +91,27 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = amount,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CreditCard",
             Issuer = "TestBank",
             Bank = "TestBank"
         };
 
+        var payment = new PaymentModel
+        {
+            TransactionId = transaction,
+            Amount = amount,
+            Initiator = initiator,
+            CreatedAt = DateTime.UtcNow,
+            Completed = null,
+            Hash = Guid.NewGuid().ToString("N"),
+            TransactionData = transactionData
+        };
+
         // Act & Assert
         await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
         {
-            await _paymentService!.CreatePayment(transaction, amount, initiator, transactionData);
+            await _paymentService!.CreatePayment(payment);
         });
 
         _mockPaymentAccess!.Verify(access => access.Create(It.IsAny<PaymentModel>()), Times.Never);
@@ -140,7 +161,7 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = 100,
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CARD",
             Issuer = "BANK",
             Bank = "BANK01"
@@ -149,7 +170,7 @@ public sealed class PaymentServiceTests
         var existingPayment = new PaymentModel
         {
             TransactionId = transactionId,
-            Hash = SystemService.GenerateGuid(validationHash).ToString("D"),
+            Hash = validationHash,
             Completed = null,
             TransactionData = new TransactionDataModel()
         };
@@ -174,7 +195,7 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = 50,
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CARD",
             Issuer = "BANK",
             Bank = "BANK02"
@@ -205,7 +226,7 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = 75,
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CARD",
             Issuer = "BANK",
             Bank = "BANK03"
@@ -228,7 +249,7 @@ public sealed class PaymentServiceTests
         var transactionData = new TransactionDataModel
         {
             Amount = 200,
-            Date = DateTime.UtcNow,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
             Method = "CARD",
             Issuer = "BANK",
             Bank = "BANK04"
@@ -237,7 +258,7 @@ public sealed class PaymentServiceTests
         var existingPayment = new PaymentModel
         {
             TransactionId = transactionId,
-            Hash = SystemService.GenerateGuid(validationHash).ToString("D"),
+            Hash = validationHash,
             Completed = DateTime.UtcNow.AddHours(-1), // already completed
             TransactionData = new TransactionDataModel()
         };
@@ -274,7 +295,7 @@ public sealed class PaymentServiceTests
         _mockPaymentAccess!.Setup(p => p.GetByUser(username)).ReturnsAsync(payments);
 
         // Act
-        var result = await _paymentService!.GetPaymentsForUser(username);
+        var result = await _paymentService!.GetPaymentsByUser(username);
 
         // Assert
         Assert.IsNotNull(result);

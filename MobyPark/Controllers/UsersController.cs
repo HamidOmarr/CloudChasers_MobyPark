@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models;
-using MobyPark.Models.Requests;
+using MobyPark.Models.Responses.User;
+using MobyPark.Models.Requests.User;
 using MobyPark.Services;
+using MobyPark.Services.Results.User;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
@@ -11,60 +13,120 @@ namespace MobyPark.Controllers;
 public class UsersController : BaseController
 {
     private readonly UserService _userService;
-    private readonly ServiceStack _services;
 
     public UsersController(ServiceStack services) : base(services.Sessions)
     {
         _userService = services.Users;
-        _services = services;
     }
-    
+
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest req)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var user = await _userService.CreateUserAsync(
-            req.Username, req.Password, req.Name, req.Email, req.Phone, req.Birthday);
-        var token = SessionService.CreateSession(user);
-        return Ok(new AuthResponse { UserId = user.Id, Username = user.Username, Email = user.Email, Token = token });
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await _userService.CreateUserAsync(request);
+        return result switch
+        {
+            RegisterResult.Success s => CreatedAtAction(
+                nameof(GetUser),
+                new { id = s.User.Id },
+                new AuthResponse
+                {
+                    UserId = s.User.Id,
+                    Username = s.User.Username,
+                    Email = s.User.Email,
+                    Token = SessionService.CreateSession(s.User)
+                }),
+            RegisterResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
+            RegisterResult.InvalidData e => BadRequest(new { error = e.Message }),
+            RegisterResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "Unknown result" })
+        };
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponse>> Login([FromBody]LoginRequest req)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        try
-        {
-            var response = await _services.Users.LoginAsync(req.Identifier, req.Password);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            return Ok(response);
-        }
-        catch (InvalidOperationException)
+        var result = await _userService.LoginAsync(request);
+
+        return result switch
         {
-            return Unauthorized(new { error = "Invalid credentials" });
-        }
+            LoginResult.Success s => Ok(s.Response),
+            LoginResult.InvalidCredentials => Unauthorized(new { error = "Invalid credentials" }),
+            LoginResult.Error e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(500, new { error = "Unexpected error" })
+        };
     }
 
-    /*[HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] LoginRequest request)
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         var user = GetCurrentUser();
 
-        if (!string.IsNullOrWhiteSpace(request.Password))
-            user.PasswordHash = _services.Users.HashPassword(request.Password);
+        var result = await _userService.UpdateUserProfileAsync(user, request);
 
-        if (!string.IsNullOrWhiteSpace(request.Username))
-            user.Username = request.Username;
+        return result switch
+        {
+            UpdateProfileResult.Success s => Ok(new { message = "User updated successfully", user = s.User }),
+            UpdateProfileResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
+            UpdateProfileResult.InvalidData e => BadRequest(new { error = e.Message }),
+            UpdateProfileResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "Unexpected error" })
+        };
+    }
 
-        await _services.Users.UpdateUser(user);
-        return Ok(new { message = "User updated successfully" });
-    }*/
-
+    [Authorize]
     [HttpGet("profile")]
     public IActionResult GetProfile()
     {
         var user = GetCurrentUser();
-        return Ok(user);
+        return Ok( new UserProfileResponse
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            BirthYear = user.BirthYear
+        });
     }
 
+    [Authorize]
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetUser(int id)
+    {
+        var user = await _userService.GetUserById(id);
+        if (user is null || user.Active == false) return NotFound();
+
+        return Ok(new { user.Id, user.Username, user.Name });
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet("admin/users/{id:int}")]
+    public async Task<IActionResult> GetUserAdmin(int id)
+    {
+        var user = await _userService.GetUserById(id);
+        if (user is null || user.Active == false) return NotFound();
+
+        return Ok(new AdminUserProfileResponse
+        {
+            Id = user.Id,
+            Username = user.Username,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            BirthYear = user.BirthYear,
+            Role = user.Role,
+            Active = user.Active,
+            CreatedAt = user.CreatedAt
+        });
+    }
+
+    [Authorize]
     [HttpGet("logout")]
     public IActionResult Logout()
     {

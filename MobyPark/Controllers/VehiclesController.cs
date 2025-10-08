@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.Models;
 using MobyPark.Models.Requests;
 using MobyPark.Services.Services;
 
@@ -26,9 +27,18 @@ public class VehiclesController : BaseController
         var existingVehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, request.LicensePlate);
         if (existingVehicle is not null) return Conflict(new { error = "Vehicle already exists", data = existingVehicle });
 
+        var vehicleModel = new VehicleModel
+        {
+            UserId = user.Id,
+            LicensePlate = request.LicensePlate,
+            Make = request.Make,
+            Model = request.Model,
+            Color = request.Color,
+            Year = request.Year,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        var vehicle = await _services.Vehicles.CreateVehicle(user.Id, request.LicensePlate, request.Make, request.Model,
-            request.Color, request.Year);
+        var vehicle = await _services.Vehicles.CreateVehicle(vehicleModel);
 
         return StatusCode(201, new { status = "Success", vehicle });
     }
@@ -62,8 +72,16 @@ public class VehiclesController : BaseController
         if (vehicle is null)
             return NotFound(new { error = "Vehicle not found" });
 
-        var updatedVehicle = await _services.Vehicles.UpdateVehicle(user.Id, request.LicensePlate, request.Make,
-            request.Model, request.Color, request.Year);
+        if (!string.IsNullOrEmpty(request.Make))
+            vehicle.Make = request.Make;
+        if (!string.IsNullOrEmpty(request.Model))
+            vehicle.Model = request.Model;
+        if (!string.IsNullOrEmpty(request.Color))
+            vehicle.Color = request.Color;
+        if (request.Year > 0)
+            vehicle.Year = request.Year;
+
+        var updatedVehicle = await _services.Vehicles.UpdateVehicle(vehicle);
 
         return Ok(new { status = "Success", updatedVehicle });
     }

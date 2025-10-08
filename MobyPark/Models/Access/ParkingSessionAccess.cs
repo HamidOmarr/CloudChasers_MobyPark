@@ -12,18 +12,16 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object>
         {
+            { "@id", session.Id },
             { "@parking_lot_id", session.ParkingLotId },
             { "@license_plate", session.LicensePlate },
-            { "@started", session.Started }, // ISO 8601
-            { "@stopped", session.Stopped ?? (object)null },
-            { "@user", session.User },
+            { "@started", session.Started },
+            { "@stopped", session.Stopped.HasValue ? session.Stopped.Value : DBNull.Value },
+            { "@user_username", session.User },
             { "@duration_minutes", session.DurationMinutes },
             { "@cost", session.Cost },
             { "@payment_status", session.PaymentStatus }
         };
-
-        if (session.Id.HasValue)
-            parameters.Add("@id", session.Id);
 
         return parameters;
     }
@@ -46,7 +44,7 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
     {
         var parameters = new Dictionary<string, object> { { "@user", user } };
         List<ParkingSessionModel> sessions = [];
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_name = @user", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE user_username = @user", parameters);
 
         while (await reader.ReadAsync())
             sessions.Add(MapFromReader(reader));

@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace MobyPark.Models.Requests;
+namespace MobyPark.Models.Requests.User;
 
 public class RegisterRequest : IValidatableObject
 {

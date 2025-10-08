@@ -3,6 +3,11 @@
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AIPasswordHasher_00601_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F188fa438f1284dfc8aa95a32088f2dd06d928_003Fb1_003Fdd8f6356_003FIPasswordHasher_00601_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AIPasswordHasher_00601_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F188fa438f1284dfc8aa95a32088f2dd06d928_003Fb1_003Fdd8f6356_003FIPasswordHasher_00601_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003APasswordVerificationResult_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2024_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F188fa438f1284dfc8aa95a32088f2dd06d928_003F38_003F39214a63_003FPasswordVerificationResult_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=2069babf_002D9ee8_002D460f_002D8d65_002D15ce094d5720/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="UserServiceTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.UserServiceTests&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3b401e74_002Ded23_002D4af1_002Dbd9d_002D3a76bde7024c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="CalculatePrice_MultipleDays_ReturnsCorrectPrice" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;Project Location="\Users\faye\Library\CloudStorage\OneDrive-HogeschoolRotterdam\Jaar2\Software Construction Process and Tools\App\MobyPark.Tests" Presentation="&amp;lt;MobyPark.Tests&amp;gt;" /&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
@@ -11,6 +16,9 @@
     &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.PaymentServiceTests&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=9d69fc44_002Dc937_002D402c_002Dbe03_002D181c816d7e2f/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CreateUserAsync_ValidInput_CreatesUserModel" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;Project Location="/Users/faye/Documents/GitHub/CloudChasers_MobyPark/MobyPark.Tests" Presentation="&amp;lt;MobyPark.Tests&amp;gt;" /&gt;
 &lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fcd4f371_002D9f41_002D464b_002D8ee6_002Df621d1708feb/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CreatePayment_Successful_ReturnsPaymentModel" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;Or&gt;&#xD;
