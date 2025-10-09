@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
 using MobyPark.Models;
 using MobyPark.Models.DataService;
+using MobyPark.Services.Exceptions;
 
 namespace MobyPark.Services;
 
@@ -10,12 +12,81 @@ public class ParkingSessionService
     private readonly IDataAccess _dataAccess;
     private readonly PaymentPreauthService? _preauth;
     private readonly GateService? _gate;
+    private readonly IPasswordHasher<UserModel>? _hasher; // optional if temp user creation requires hashing
 
-    public ParkingSessionService(IDataAccess dataAccess, PaymentPreauthService preauth, GateService gate)
+    public ParkingSessionService(IDataAccess dataAccess)
+    {
+        _dataAccess = dataAccess;
+    }
+
+    public ParkingSessionService(
+        IDataAccess dataAccess,
+        PaymentPreauthService preauth,
+        GateService gate,
+        IPasswordHasher<UserModel>? hasher = null)
     {
         _dataAccess = dataAccess;
         _preauth = preauth;
         _gate = gate;
+        _hasher = hasher;
+    }
+    private static string NormalizePlate(string plate) => plate.Trim().ToUpperInvariant();
+
+
+
+    private async Task<UserModel> EnsureUserForPlateAsync(string normalizedPlate, string? usernameHint)
+    {
+        // 1. Try find existing vehicle -> user
+        var vehicle = await _dataAccess.Vehicles.GetByLicensePlate(normalizedPlate);
+        if (vehicle is not null)
+        {
+            var user = await _dataAccess.Users.GetById(vehicle.UserId);
+            if (user != null) return user;
+        }
+
+        // 2. Try username hint
+        if (!string.IsNullOrWhiteSpace(usernameHint))
+        {
+            var userByName = await _dataAccess.Users.GetByUsername(usernameHint);
+            if (userByName != null) return userByName;
+        }
+
+        // 3. Create temporary user + vehicle 
+        var tempUser = new UserModel
+        {
+            Username = $"TEMP_{Guid.NewGuid().ToString("N")[..8]}",
+            Name = "Temporary User",
+            Email = $"temp_{Guid.NewGuid().ToString("N")[..8]}@temp.local",
+            Phone = "+31000000000",
+            Role = "TEMP", // TEMP role
+            BirthYear = DateTime.UtcNow.Year - 30,
+            CreatedAt = DateTime.UtcNow,
+            Active = true
+        };
+        if (_hasher is not null)
+            tempUser.PasswordHash = _hasher.HashPassword(tempUser, Guid.NewGuid().ToString("N"));
+        else
+            tempUser.PasswordHash = Guid.NewGuid().ToString("N");
+
+        var createUser = await _dataAccess.Users.CreateWithId(tempUser);
+        if (createUser.success)
+            tempUser.Id = createUser.id;
+
+        // create vehicle record
+        var vehicleModel = new VehicleModel
+        {
+            UserId = tempUser.Id,
+            LicensePlate = normalizedPlate,
+            Make = "Unknown",
+            Model = "Unknown",
+            Color = "Unknown",
+            Year = DateTime.UtcNow.Year,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _dataAccess.Vehicles.Create(vehicleModel);
+
+        return tempUser;
+    }
 
     public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
     {
@@ -130,12 +201,14 @@ public class ParkingSessionService
 
     public string GenerateTransactionValidationHash() => Guid.NewGuid().ToString("N");
 
-    // Contract: throws InvalidOperationException if not available; ArgumentException on invalid input; returns created session with id
+    // returns created session with id; throws InvalidOperationException if not available; ArgumentException on invalid input
     public async Task<ParkingSessionModel> StartSession(int parkingLotId, string licensePlate, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
     {
         if (string.IsNullOrWhiteSpace(licensePlate)) throw new ArgumentException("License plate required", nameof(licensePlate));
         if (string.IsNullOrWhiteSpace(cardToken)) throw new ArgumentException("Card token required", nameof(cardToken));
         if (estimatedAmount <= 0) throw new ArgumentException("Estimated amount must be > 0", nameof(estimatedAmount));
+
+        var normalizedPlate = NormalizePlate(licensePlate);
 
         // 1) Check lot availability
         var lot = await _dataAccess.ParkingLots.GetById(parkingLotId) ?? throw new KeyNotFoundException("Parking lot not found");
@@ -143,7 +216,12 @@ public class ParkingSessionService
         if (available <= 0)
             throw new InvalidOperationException("Parking lot is full");
 
-        // 2) Payment pre authorization (placeholder!)
+        //  Ensure no active session exists for same plate
+        var existingActive = await _dataAccess.ParkingSessions.GetActiveByLicensePlate(normalizedPlate);
+        if (existingActive is not null)
+            throw new ActiveSessionAlreadyExistsException(normalizedPlate);
+
+        // Payment pre authorization (placeholder!!)!
         if (_preauth is not null)
         {
             var preauth = await _preauth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
@@ -151,24 +229,15 @@ public class ParkingSessionService
                 throw new UnauthorizedAccessException(preauth.Reason ?? "Card declined");
         }
 
-        // 3) Resolve user by license plate link if present -> otherwise create a temporary user placeholder in DB
-        int? userId = null;
-        string userNameForSession = username ?? "TEMP";
-        var existingVehicle = await _dataAccess.Vehicles.GetByLicensePlate(licensePlate);
-        if (existingVehicle is not null)
-        {
-            userId = existingVehicle.UserId;
-            // try resolve username if needed
-            var existingUser = await _dataAccess.Users.GetById(userId.Value);
-            if (existingUser is not null)
-                userNameForSession = existingUser.Username;
-        }
+        // create user
+        var userEntity = await EnsureUserForPlateAsync(normalizedPlate, username);
+        var userNameForSession = userEntity.Username;
 
-        // 4) Create session
+        // Create session
         var session = new ParkingSessionModel
         {
             ParkingLotId = parkingLotId,
-            LicensePlate = licensePlate,
+            LicensePlate = normalizedPlate,
             Started = DateTime.UtcNow,
             Stopped = null,
             User = userNameForSession,
@@ -177,43 +246,46 @@ public class ParkingSessionService
             PaymentStatus = "Preauthorized"
         };
 
-        var createResult = await _dataAccess.ParkingSessions.CreateWithId(session);
-        if (createResult.success)
-            session.Id = createResult.id;
 
-        // 5) Update lot reserved
-        lot.Reserved = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
-        await _dataAccess.ParkingLots.Update(lot);
-
-        // 6) Open gate (placeholder)
-        if (_gate is not null)
+        bool lotIncremented = false;
+        bool sessionCreated = false;
+        try
         {
-            var opened = await _gate.OpenGateAsync(parkingLotId, licensePlate);
-            if (!opened)
-                throw new InvalidOperationException("Failed to open gate");
+            // increment
+            lot.Reserved = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
+            await _dataAccess.ParkingLots.Update(lot);
+            lotIncremented = true;
+
+            var createResult = await _dataAccess.ParkingSessions.CreateWithId(session);
+            if (createResult.success)
+            {
+                session.Id = createResult.id;
+                sessionCreated = true;
+            }
+            else throw new InvalidOperationException("Failed to persist parking session");
+
+            if (_gate is not null)
+            {
+                var opened = await _gate.OpenGateAsync(parkingLotId, normalizedPlate);
+                if (!opened)
+                    throw new InvalidOperationException("Failed to open gate");
+            }
+        }
+        catch
+        {
+            // compensation
+            if (sessionCreated)
+            {
+                await _dataAccess.ParkingSessions.Delete(session.Id);
+            }
+            if (lotIncremented)
+            {
+                lot.Reserved = Math.Max(0, lot.Reserved - 1);
+                await _dataAccess.ParkingLots.Update(lot);
+            }
+            throw;
         }
 
         return session;
-    }
-
-    public async Task<int> StartParkingSession(int lotId, string licensePlate, string username, DateTime startTime)
-    {
-        // *** BUSINESS LOGIC HERE ***
-        if (string.IsNullOrWhiteSpace(licensePlate))
-        {
-            throw new ArgumentException("License plate is required.");
-        }
-
-        // Check for existing active session (The core rule)
-        var existingActiveSession = await GetActiveSessionByLicensePlate(licensePlate);
-        if (existingActiveSession != null)
-        {
-            // Throw a custom exception indicating the business rule was violated
-            throw new ActiveSessionAlreadyExistsException(licensePlate);
-        }
-
-        // If all rules pass, proceed to data access
-        // ... logic to create and save the new session ...
-        return newSessionId;
     }
 }
