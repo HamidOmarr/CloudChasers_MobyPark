@@ -12,6 +12,7 @@ public class ParkingLotService
         _dataAccess = dataAccess;
     }
 
+
     public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel parkingLot)
     {
         ArgumentNullException.ThrowIfNull(parkingLot, nameof(parkingLot));
@@ -21,7 +22,6 @@ public class ParkingLotService
             { nameof(parkingLot.Name), parkingLot.Name },
             { nameof(parkingLot.Location), parkingLot.Location },
             { nameof(parkingLot.Address), parkingLot.Address },
-            { nameof(parkingLot.Coordinates), parkingLot.Coordinates }
         };
 
         foreach (var prop in referenceProperties)
@@ -33,11 +33,6 @@ public class ParkingLotService
             throw new ArgumentOutOfRangeException(nameof(parkingLot.Tariff), "Tariff cannot be negative.");
         if (parkingLot.DayTariff < 0)
             throw new ArgumentOutOfRangeException(nameof(parkingLot.DayTariff), "Day tariff cannot be negative.");
-
-        if (parkingLot.Coordinates.Lat < -90 || parkingLot.Coordinates.Lat > 90)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Coordinates.Lat), "Latitude must be between -90 and 90.");
-        if (parkingLot.Coordinates.Lng < -180 || parkingLot.Coordinates.Lng > 180)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Coordinates.Lng), "Longitude must be between -180 and 180.");
 
         if (parkingLot.CreatedAt == default)
             parkingLot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);

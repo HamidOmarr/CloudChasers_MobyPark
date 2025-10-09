@@ -47,7 +47,6 @@ public sealed class ParkingLotServiceTests
             Tariff = tariff,
             DayTariff = dayTariff,
             CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow),
-            Coordinates = new CoordinatesModel { Lat = 10.5, Lng = 20.5 }
         };
 
         _mockParkingLotAccess!
@@ -102,7 +101,6 @@ public sealed class ParkingLotServiceTests
         decimal dayTariff = (decimal)dayTariffDouble;
 
         var createdAt = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
-        var coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude };
 
         _mockParkingLotAccess!
             .Setup(access => access.Update(It.IsAny<ParkingLotModel>()))
@@ -119,7 +117,6 @@ public sealed class ParkingLotServiceTests
             Tariff = tariff,
             DayTariff = dayTariff,
             CreatedAt = createdAt,
-            Coordinates = coordinates
         };
 
         // Act
@@ -137,9 +134,7 @@ public sealed class ParkingLotServiceTests
             parkingLot.Reserved == reserved &&
             parkingLot.Tariff == tariff &&
             parkingLot.DayTariff == dayTariff &&
-            parkingLot.CreatedAt == createdAt &&
-            (decimal)parkingLot.Coordinates.Lat == (decimal)latitude &&
-            (decimal)parkingLot.Coordinates.Lng == (decimal)longitude
+            parkingLot.CreatedAt == createdAt
         )), Times.Once);
     }
 
@@ -166,7 +161,6 @@ public sealed class ParkingLotServiceTests
             Reserved = reserved,
             Tariff = tariff,
             DayTariff = dayTariff,
-            Coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude }
         };
 
         _mockParkingLotAccess!
@@ -185,9 +179,7 @@ public sealed class ParkingLotServiceTests
             pl.Location == location &&
             pl.Capacity == capacity &&
             pl.Tariff == tariff &&
-            pl.DayTariff == dayTariff &&
-            (decimal)pl.Coordinates.Lat == (decimal)latitude &&
-            (decimal)pl.Coordinates.Lng == (decimal)longitude
+            pl.DayTariff == dayTariff
         )), Times.Once);
     }
 
@@ -207,8 +199,7 @@ public sealed class ParkingLotServiceTests
             Address = address,
             Capacity = capacity,
             Tariff = (decimal)tariff,
-            DayTariff = (decimal)dayTariff,
-            Coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude }
+            DayTariff = (decimal)dayTariff
         };
 
         // Act & Assert
@@ -236,8 +227,7 @@ public sealed class ParkingLotServiceTests
             Address = address,
             Capacity = capacity,
             Tariff = (decimal)tariff,
-            DayTariff = (decimal)dayTariff,
-            Coordinates = new CoordinatesModel { Lat = latitude, Lng = longitude }
+            DayTariff = (decimal)dayTariff
         };
 
         // Act & Assert
@@ -262,8 +252,7 @@ public sealed class ParkingLotServiceTests
             Address = "Test Address",
             Capacity = 100,
             Tariff = 2,
-            DayTariff = 5,
-            Coordinates = new CoordinatesModel { Lat = 0, Lng = 0 }
+            DayTariff = 5
         };
 
         _mockParkingLotAccess!
@@ -304,8 +293,8 @@ public sealed class ParkingLotServiceTests
         // Arrange
         var lots = new List<ParkingLotModel>
         {
-            new() { Id = 1, Name = "Lot A", Location = "City A", Address = "Street 1", Capacity = 100, Tariff = 2, DayTariff = 10, Coordinates = new CoordinatesModel { Lat = 0, Lng = 0 } },
-            new() { Id = 2, Name = "Lot B", Location = "City B", Address = "Street 2", Capacity = 200, Tariff = 3, DayTariff = 12, Coordinates = new CoordinatesModel { Lat = 10, Lng = 20 } }
+            new() { Id = 1, Name = "Lot A", Location = "City A", Address = "Street 1", Capacity = 100, Tariff = 2, DayTariff = 10 },
+            new() { Id = 2, Name = "Lot B", Location = "City B", Address = "Street 2", Capacity = 200, Tariff = 3, DayTariff = 12 }
         };
 
         _mockParkingLotAccess!

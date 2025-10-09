@@ -48,11 +48,6 @@ public class ParkingLotsController : BaseController
             Tariff = lot.Tariff != 0 ? lot.Tariff : existingLot.Tariff,
             DayTariff = lot.DayTariff ?? existingLot.DayTariff,
             CreatedAt = existingLot.CreatedAt,
-            Coordinates = new CoordinatesModel
-            {
-                Lat = lot.Coordinates.Lat != 0 ? lot.Coordinates.Lat : existingLot.Coordinates.Lat,
-                Lng = lot.Coordinates.Lng != 0 ? lot.Coordinates.Lng : existingLot.Coordinates.Lng
-            }
         };
 
         await _services.ParkingLots.UpdateParkingLot(newLot);

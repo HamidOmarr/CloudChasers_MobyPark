@@ -13,11 +13,11 @@ public class ParkingLotModel
     public decimal Tariff { get; set; }
     public decimal? DayTariff { get; set; }
     public DateOnly CreatedAt { get; set; }
-    public CoordinatesModel Coordinates { get; set; }
+
 
     public ParkingLotModel()
     {
-        Coordinates = new CoordinatesModel();
+        
     }
 
     public ParkingLotModel(NpgsqlDataReader reader) : this()
@@ -31,17 +31,9 @@ public class ParkingLotModel
         Tariff = (decimal)reader.GetFloat(reader.GetOrdinal("tariff"));
         DayTariff = reader.IsDBNull(reader.GetOrdinal("daytariff")) ? null : (decimal?)reader.GetFloat(reader.GetOrdinal("daytariff"));
         CreatedAt = DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("created_at")));
-        Coordinates.Lat = reader.GetDouble(reader.GetOrdinal("lat"));
-        Coordinates.Lng = reader.GetDouble(reader.GetOrdinal("lng"));
     }
 
     public override string ToString() =>
-        $"[{Id}] {Name} is in {Location} (Address: {Address}).\nIt has a capacity of {Capacity}, of which {Reserved} are reserved.\nThe tariff is {Tariff}, with a day tariff of {DayTariff}.\nThe parking lot was made on {CreatedAt} and is located at {Coordinates.Lat}, {Coordinates.Lng}";
+        $"[{Id}] {Name} is in {Location} (Address: {Address}).\nIt has a capacity of {Capacity}, of which {Reserved} are reserved.\nThe tariff is {Tariff}, with a day tariff of {DayTariff}.\nThe parking lot was made on {CreatedAt}";
 }
 
-
-public class CoordinatesModel
-{
-    public double Lat { get; set; }
-    public double Lng { get; set; }
-}
