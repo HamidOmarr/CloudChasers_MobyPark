@@ -21,26 +21,30 @@ public class PaymentsController : BaseController
     {
         var user = GetCurrentUser();
 
-        if (string.IsNullOrEmpty(request.TransactionId) || request.Amount == null)
+        if (request.Amount == null)
             return BadRequest(new { error = "Required fields missing" });
+
+        var payment = new PaymentModel
+        {
+            TransactionId = Guid.NewGuid().ToString("N"),
+            Amount = request.Amount.Value,
+            Initiator = user.Username,
+            CreatedAt = DateTime.UtcNow,
+            Completed = null,
+            Hash = Guid.NewGuid().ToString("N"),
+            TransactionData = request.TransactionData
+        };
 
         try
         {
-            var payment = await _services.Payments.CreatePayment(
-                request.TransactionId,
-                request.Amount.Value,
-                user.Username,
-                request.TransactionData
-            );
+            var makePayment = await _services.Payments.CreatePayment(payment);
 
             return CreatedAtAction(nameof(GetUserPayments),
-                new { id = payment.TransactionId },
+                new { id = makePayment.TransactionId },
                 payment);
         }
         catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        { return BadRequest(new { error = ex.Message }); }
     }
 
     [HttpPost("refund")]
@@ -65,9 +69,7 @@ public class PaymentsController : BaseController
             return StatusCode(201, new { status = "Success", refund });
         }
         catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        { return BadRequest(new { error = ex.Message }); }
     }
 
     [HttpPut("{transactionId}")]
@@ -86,7 +88,7 @@ public class PaymentsController : BaseController
     public async Task<IActionResult> GetUserPayments()
     {
         var user = GetCurrentUser();
-        var payments = await _services.Payments.GetPaymentsForUser(user.Username);
+        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
         return Ok(payments);
     }
 
@@ -97,7 +99,7 @@ public class PaymentsController : BaseController
         if (user.Role != "ADMIN")
             return Forbid();
 
-        var payments = await _services.Payments.GetPaymentsForUser(username);
+        var payments = await _services.Payments.GetPaymentsByUser(username);
         return Ok(payments);
     }
 }

@@ -6,4 +6,5 @@ public interface IPaymentAccess : IRepository<PaymentModel>
 {
     Task<List<PaymentModel>> GetByUser(string user);
     Task<PaymentModel?> GetByTransactionId(string transaction);
+    Task<bool> DeletePayment(string transactionId);
 }

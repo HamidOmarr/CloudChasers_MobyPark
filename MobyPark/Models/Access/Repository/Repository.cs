@@ -44,8 +44,7 @@ public abstract class Repository<T> : IRepository<T> where T : class
         var parameters = GetParameters(item);
         parameters.Remove("@id");
 
-        var query = BuildInsertQuery(parameters.Keys.ToList());
-
+        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId: false);
         int rowsAffected = await Connection.ExecuteNonQuery(query, parameters);
         return rowsAffected > 0;
     }
@@ -55,12 +54,12 @@ public abstract class Repository<T> : IRepository<T> where T : class
         var parameters = GetParameters(item);
         parameters.Remove("@id");
 
-        var query = BuildInsertQuery(parameters.Keys.ToList());
+        var query = BuildInsertQuery(parameters.Keys.ToList(), returnId: true);
+        var scalarResult = await Connection.ExecuteScalar(query, parameters);
 
-        var (rowsAffected, scalar) = await Connection.ExecuteNonQueryWithScalar(query, parameters);
-        var id = Convert.ToInt32(scalar);
-
-        return (rowsAffected > 0, id);
+        if (scalarResult is null or DBNull) return (false, 0);
+        var id = Convert.ToInt32(scalarResult);
+        return (true, id);
     }
 
     public virtual async Task<bool> Update(T item)
@@ -83,11 +82,17 @@ public abstract class Repository<T> : IRepository<T> where T : class
         return rowsAffected > 0;
     }
 
-    private string BuildInsertQuery(List<string> keys)
+    private string BuildInsertQuery(List<string> keys, bool returnId = true)
     {
-        var columns = string.Join(", ", keys.Select(key => key.TrimStart('@')));
+        var columns = string.Join(", ", keys.Select(key => $"\"{key.TrimStart('@')}\""));
         var values = string.Join(", ", keys);
-        return $"INSERT INTO {TableName} ({columns}) VALUES ({values}) RETURNING id;";
+        var query = $"INSERT INTO {TableName} ({columns}) VALUES ({values})";
+
+        if (returnId)
+            query += " RETURNING id";
+        query += ";";
+
+        return query;
     }
 
     private string BuildUpdateQuery(List<string> keys)

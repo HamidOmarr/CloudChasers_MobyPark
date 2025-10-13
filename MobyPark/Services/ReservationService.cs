@@ -12,44 +12,33 @@ public class ReservationService
         _dataAccess = dataAccess;
     }
 
-    public async Task<ReservationModel> CreateReservation(int parkingLotId, int vehicleId, DateTime startTime,
-        DateTime endTime, int userId)
+    public async Task<ReservationModel> CreateReservation(ReservationModel reservation)
     {
-        var reservation = new ReservationModel
-        {
-            ParkingLotId = parkingLotId,
-            VehicleId = vehicleId,
-            StartTime = startTime,
-            EndTime = endTime,
-            UserId = userId
-        };
+        (bool success, int id) = await _dataAccess.Reservations.CreateWithId(reservation);
+        if (!success) throw new Exception("Failed to create reservation");
 
-        await _dataAccess.Reservations.Create(reservation);
+        reservation.Id = id;
         return reservation;
     }
 
-    public async Task<ReservationModel> UpdateReservation(int parkingLotId, int vehicleId, DateTime startTime,
-        DateTime endTime, int userId)
+    public async Task<ReservationModel?> GetReservationById(int id) => await _dataAccess.Reservations.GetById(id);
+
+    public async Task<List<ReservationModel>> GetReservationsByUserId(int userId) => await _dataAccess.Reservations.GetByUserId(userId);
+
+    public async Task<List<ReservationModel>> GetReservationsByParkingLotId(int parkingLotId) => await _dataAccess.Reservations.GetByParkingLotId(parkingLotId);
+
+    public async Task<List<ReservationModel>> GetReservationsByVehicleId(int vehicleId) => await _dataAccess.Reservations.GetByVehicleId(vehicleId);
+
+    public async Task<List<ReservationModel>> GetReservationsByStatus(string status) => await _dataAccess.Reservations.GetByStatus(status);
+
+    public async Task<List<ReservationModel>> GetAllReservations() => await _dataAccess.Reservations.GetAll();
+
+    public async Task<int> CountReservations() => await _dataAccess.Reservations.Count();
+
+    public async Task<bool> UpdateReservation(ReservationModel reservation)
     {
-        var reservation = new ReservationModel
-        {
-            ParkingLotId = parkingLotId,
-            VehicleId = vehicleId,
-            StartTime = startTime,
-            EndTime = endTime,
-            UserId = userId
-        };
-
-        await _dataAccess.Reservations.Update(reservation);
-        return reservation;
-    }
-
-    public async Task<ReservationModel> GetReservationById(int id)
-    {
-        ReservationModel? reservation = await _dataAccess.Reservations.GetById(id);
-        if (reservation is null) throw new KeyNotFoundException("Reservation not found");
-
-        return reservation;
+        var success = await _dataAccess.Reservations.Update(reservation);
+        return success;
     }
 
     public async Task<bool> DeleteReservation(int id)

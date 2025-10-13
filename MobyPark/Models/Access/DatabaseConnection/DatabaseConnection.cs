@@ -63,7 +63,10 @@ internal class DatabaseConnection : IDatabaseConnection
         await using var command = new NpgsqlCommand(query, connection);
 
         foreach (var param in parameters)
-            command.Parameters.AddWithValue(param.Key, param.Value);
+        {
+            if (param.Value is NpgsqlParameter npgsqlParam) command.Parameters.Add(npgsqlParam);
+            else command.Parameters.AddWithValue(param.Key, param.Value);
+        }
 
         try
         { return await command.ExecuteNonQueryAsync(); }

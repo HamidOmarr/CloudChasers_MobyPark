@@ -4,7 +4,7 @@ namespace MobyPark.Models;
 
 public class ReservationModel
 {
-    public int? Id { get; set; }
+    public int Id { get; set; }
     public int UserId { get; set; }
     public int ParkingLotId { get; set; }
     public int VehicleId { get; set; }
@@ -18,7 +18,7 @@ public class ReservationModel
 
     public ReservationModel(NpgsqlDataReader reader)
     {
-        Id = reader.GetFieldValue<int?>(reader.GetOrdinal("id"));
+        Id = reader.GetInt32(reader.GetOrdinal("id"));
         UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
         ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
         VehicleId = reader.GetInt32(reader.GetOrdinal("vehicle_id"));

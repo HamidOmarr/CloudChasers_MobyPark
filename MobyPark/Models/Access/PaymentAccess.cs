@@ -16,7 +16,8 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
             { "@amount", payment.Amount },
             { "@initiator", payment.Initiator },
             { "@created_at", payment.CreatedAt },
-            { "@completed", payment.Completed ?? (object)null },
+            { "@completed", payment.Completed ?? (object)DBNull.Value },
+            { "@coupled_to", payment.CoupledTo ?? (object)DBNull.Value },
             { "@hash", payment.Hash },
             { "@t_data_amount", payment.TransactionData.Amount },
             { "@t_data_date", payment.TransactionData.Date },
@@ -46,8 +47,16 @@ public class PaymentAccess : Repository<PaymentModel>, IPaymentAccess
     public async Task<PaymentModel?> GetByTransactionId(string transactionId)
     {
         Dictionary<string, object> parameters = new() { { "@transaction", transactionId } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE transaction_id = @transaction", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE \"transaction\" = @transaction", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 
+    public async Task<bool> DeletePayment(string transactionId)
+    {
+        Dictionary<string, object> parameters = new() { { "@transaction", transactionId } };
+        int rowsAffected =
+            await Connection.ExecuteNonQuery($"DELETE FROM {TableName} WHERE \"transaction\" = @transaction",
+                parameters);
+        return rowsAffected > 0;
+    }
 }
