@@ -8,6 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddMobyParkServices();
 builder.Services.AddSwaggerAuthorization();
+// Admin authorization check
+builder.Services.AddAuthorization(options => { options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin")); });
 
 var app = builder.Build();
 

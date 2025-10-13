@@ -41,9 +41,9 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
 
     public async Task<int> AddParkingLotAsync(ParkingLotModel parkingLot)
     {
-        const string query = @"
-            INSERT INTO parkinglots
-                (name, location, address, capacity, reserverd, tariff, daytariff, created_at)
+        string query = @$"
+            INSERT INTO {TableName}
+                (name, location, address, capacity, reservered, tariff, daytariff, created_at)
             VALUES
                 (@Name, @Location, @Address, @Capacity, @Reserved, @Tariff, @DayTariff, @CreatedAt)
             RETURNING id;";
@@ -62,5 +62,23 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
         var result = await Connection.ExecuteScalar(query, parameters);
 
         return Convert.ToInt32(result);
+    }
+
+    public async Task<ParkingLotModel?> GetParkingLotByID(int id)
+    {
+        var parameters = new Dictionary<string, object> { { "@ID", id } };
+        string query = @$"
+            SELECT * FROM {TableName} WHERE id = @ID";
+        await using var reader = await Connection.ExecuteQuery(query, parameters);
+        return await reader.ReadAsync() ? MapFromReader(reader) : null;
+    }
+
+    public async Task<ParkingLotModel?> GetParkingLotByAddress(string address)
+    {
+        var parameters = new Dictionary<string, object> { { "@Address", address } };
+        string query = @$"
+            SELECT * FROM {TableName} WHERE address = @Address";
+        await using var reader = await Connection.ExecuteQuery(query, parameters);
+        return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 }
