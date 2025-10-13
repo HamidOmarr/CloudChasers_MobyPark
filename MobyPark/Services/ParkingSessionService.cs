@@ -34,9 +34,9 @@ public class ParkingSessionService
 
 
 
-    private async Task<UserModel> EnsureUserForPlateAsync(string normalizedPlate, string? usernameHint)
+    private async Task<UserModel> ResolveGuestByPlateAsync(string normalizedPlate, string? requestedUsername)
     {
-        // 1. Try find existing vehicle -> user
+        // existing vehicle → user
         var vehicle = await _dataAccess.Vehicles.GetByLicensePlate(normalizedPlate);
         if (vehicle is not null)
         {
@@ -44,38 +44,40 @@ public class ParkingSessionService
             if (user != null) return user;
         }
 
-        // 2. Try username hint
-        if (!string.IsNullOrWhiteSpace(usernameHint))
+        // optional requested username
+        if (!string.IsNullOrWhiteSpace(requestedUsername))
         {
-            var userByName = await _dataAccess.Users.GetByUsername(usernameHint);
+            var userByName = await _dataAccess.Users.GetByUsername(requestedUsername);
             if (userByName != null) return userByName;
         }
 
-        // 3. Create temporary user + vehicle 
-        var tempUser = new UserModel
+        //create guest user + vehicle
+        var guestId = normalizedPlate;
+        var guestUser = new UserModel
         {
-            Username = $"TEMP_{Guid.NewGuid().ToString("N")[..8]}",
-            Name = "Temporary User",
-            Email = $"temp_{Guid.NewGuid().ToString("N")[..8]}@temp.local",
+            Username = $"GUEST_{guestId}",
+            Name = $"Guest_{guestId}",
+            Email = $"guest_{guestId.ToLowerInvariant()}@guest.local",
             Phone = "+31000000000",
-            Role = "TEMP", // TEMP role
+            Role = "GUEST",
             BirthYear = DateTime.UtcNow.Year - 30,
             CreatedAt = DateTime.UtcNow,
             Active = true
         };
+
         if (_hasher is not null)
-            tempUser.PasswordHash = _hasher.HashPassword(tempUser, Guid.NewGuid().ToString("N"));
+            guestUser.PasswordHash = _hasher.HashPassword(guestUser, Guid.NewGuid().ToString("N"));
         else
-            tempUser.PasswordHash = Guid.NewGuid().ToString("N");
+            guestUser.PasswordHash = Guid.NewGuid().ToString("N");
 
-        var createUser = await _dataAccess.Users.CreateWithId(tempUser);
-        if (createUser.success)
-            tempUser.Id = createUser.id;
+        var createUser = await _dataAccess.Users.CreateWithId(guestUser);
+        if (!createUser.success)
+            throw new InvalidOperationException("Failed to create guest user");
+        guestUser.Id = createUser.id;
 
-        // create vehicle record
         var vehicleModel = new VehicleModel
         {
-            UserId = tempUser.Id,
+            UserId = guestUser.Id,
             LicensePlate = normalizedPlate,
             Make = "Unknown",
             Model = "Unknown",
@@ -85,7 +87,7 @@ public class ParkingSessionService
         };
         await _dataAccess.Vehicles.Create(vehicleModel);
 
-        return tempUser;
+        return guestUser;
     }
 
     public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
@@ -106,7 +108,6 @@ public class ParkingSessionService
     {
         ParkingSessionModel? session = await _dataAccess.ParkingSessions.GetById(id);
         if (session is null) throw new KeyNotFoundException("Parking session not found");
-
         return session;
     }
 
@@ -114,7 +115,6 @@ public class ParkingSessionService
     {
         List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByParkingLotId(lotId);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
-
         return sessions;
     }
 
@@ -122,7 +122,6 @@ public class ParkingSessionService
     {
         List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByUser(user);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
-
         return sessions;
     }
 
@@ -130,7 +129,6 @@ public class ParkingSessionService
     {
         List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByPaymentStatus(status);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
-
         return sessions;
     }
 
@@ -143,7 +141,6 @@ public class ParkingSessionService
     public async Task<bool> DeleteParkingSession(int id)
     {
         await GetParkingSessionById(id);
-
         bool success = await _dataAccess.ParkingSessions.Delete(id);
         return success;
     }
@@ -201,7 +198,7 @@ public class ParkingSessionService
 
     public string GenerateTransactionValidationHash() => Guid.NewGuid().ToString("N");
 
-    // returns created session with id; throws InvalidOperationException if not available; ArgumentException on invalid input
+    // returns created session with id; throws invalidoperationexception if not available; argumentexception on invalid input
     public async Task<ParkingSessionModel> StartSession(int parkingLotId, string licensePlate, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
     {
         if (string.IsNullOrWhiteSpace(licensePlate)) throw new ArgumentException("License plate required", nameof(licensePlate));
@@ -210,18 +207,18 @@ public class ParkingSessionService
 
         var normalizedPlate = NormalizePlate(licensePlate);
 
-        // 1) Check lot availability
+        // check lot availability
         var lot = await _dataAccess.ParkingLots.GetById(parkingLotId) ?? throw new KeyNotFoundException("Parking lot not found");
         var available = lot.Capacity - lot.Reserved;
         if (available <= 0)
             throw new InvalidOperationException("Parking lot is full");
 
-        //  Ensure no active session exists for same plate
+        //  check if theres no active session exists for same plate
         var existingActive = await _dataAccess.ParkingSessions.GetActiveByLicensePlate(normalizedPlate);
         if (existingActive is not null)
             throw new ActiveSessionAlreadyExistsException(normalizedPlate);
 
-        // Payment pre authorization (placeholder!!)!
+        // payment pre authorization (placeholder!!)!
         if (_preauth is not null)
         {
             var preauth = await _preauth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
@@ -229,8 +226,7 @@ public class ParkingSessionService
                 throw new UnauthorizedAccessException(preauth.Reason ?? "Card declined");
         }
 
-        // create user
-        var userEntity = await EnsureUserForPlateAsync(normalizedPlate, username);
+        var userEntity = await ResolveGuestByPlateAsync(normalizedPlate, username);
         var userNameForSession = userEntity.Username;
 
         // Create session
