@@ -2,10 +2,11 @@ namespace MobyPark.Models.Responses.User;
 
 public class UserProfileResponse
 {
-    public int Id { get; set; }
+    public long Id { get; set; }
     public string Username { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
-    public int BirthYear { get; set; }
+    public DateOnly Birthday { get; set; } = DateOnly.MinValue;
 }

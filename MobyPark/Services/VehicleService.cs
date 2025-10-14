@@ -59,7 +59,7 @@ public class VehicleService
         return vehicle;
     }
 
-    public async Task<VehicleModel?> GetVehicleByUserIdAndLicense(int userId, string licensePlate)
+    public async Task<VehicleModel?> GetVehicleByUserIdAndLicense(long userId, string licensePlate)
     {
         ArgumentNullException.ThrowIfNull(userId);
         ArgumentNullException.ThrowIfNull(licensePlate);

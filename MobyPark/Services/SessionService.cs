@@ -1,41 +1,44 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
+using System.Security.Claims;
+using System.Text;
 using MobyPark.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace MobyPark.Services;
 
 public class SessionService
 {
-    private readonly ConcurrentDictionary<string, UserModel> _sessions = new();
-    
+    private readonly IConfiguration _config;
+
+    public SessionService(IConfiguration config)
+    {
+        _config = config;
+    }
+
     public string CreateSession(UserModel user)
     {
-        var token = GenerateToken();
-        _sessions[token] = user;
-        return token;
-    }
+        var secretKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
+        var issuer = _config["Jwt:Issuer"] ?? "MobyParkAPI";
+        var audience = _config["Jwt:Audience"] ?? "MobyParkUsers";
 
-    public void AddSession(string token, UserModel user)
-    {
-        _sessions[token] = user;
-    }
+        var claims = new List<Claim>
+        {
+            new (ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new (ClaimTypes.Name, user.Username),
+            new (ClaimTypes.Email, user.Email),
+            new (ClaimTypes.Role, ((UserRole)user.RoleId).ToString())
+        };
 
-    public UserModel? RemoveSession(string token)
-    {
-        _sessions.TryRemove(token, out var user);
-        return user;
-    }
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-    public UserModel? GetSession(string token)
-    {
-        _sessions.TryGetValue(token, out var user);
-        return user;
-    }
-    
-    private static string GenerateToken()
-    {
-        Span<byte> bytes = stackalloc byte[32]; // 256-bit
-        RandomNumberGenerator.Fill(bytes);
-        return Convert.ToHexString(bytes); // 64 hex chars
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

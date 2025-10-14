@@ -1,37 +1,40 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using MobyPark.Models;
 using MobyPark.Services;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers
 {
     [ApiController]
     public abstract class BaseController : ControllerBase
     {
-        protected readonly SessionService SessionService;
+        protected readonly UserService UserService;
 
-        protected BaseController(SessionService sessionService)
+        protected BaseController(ServiceStack services)
         {
-            SessionService = sessionService;
+            UserService = services.Users;
         }
 
-        protected UserModel GetCurrentUser()
+        protected int GetCurrentUserId()
         {
-            if (!Request.Headers.TryGetValue("Authorization", out var token))
-                UnauthorizedResponse();
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-            var user = SessionService.GetSession(token);
-            if (user == null)
-                UnauthorizedResponse();
+            if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
+                throw new InvalidOperationException("User ID claim is missing or invalid in the token.");
+
+            return userId;
+        }
+
+        protected async Task<UserModel> GetCurrentUserAsync()
+        {
+            var userId = GetCurrentUserId();
+            var user = await UserService.GetUserById(userId);
+
+            if (user is null)
+                throw new UnauthorizedAccessException("Authenticated user record not found.");
 
             return user;
-        }
-
-        private void UnauthorizedResponse()
-        {
-            Response.StatusCode = 401;
-            Response.ContentType = "application/json";
-            Response.WriteAsync("{\"error\": \"Invalid or missing session token\"}").Wait();
-            throw new Exception("Unauthorized"); // Stop further execution
         }
     }
 }

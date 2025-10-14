@@ -4,8 +4,8 @@ namespace MobyPark.Models;
 
 public class VehicleModel
 {
-    public int Id { get; set; }
-    public int UserId { get; set; }
+    public long Id { get; set; }
+    public long UserId { get; set; }
     public string LicensePlate { get; set; }
     public string Make { get; set; }
     public string Model { get; set; }
@@ -17,8 +17,8 @@ public class VehicleModel
 
     public VehicleModel(NpgsqlDataReader reader)
     {
-        Id = reader.GetInt32(reader.GetOrdinal("id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
+        Id = reader.GetInt64(reader.GetOrdinal("id"));
+        UserId = reader.GetInt64(reader.GetOrdinal("user_id"));
         LicensePlate = reader.GetString(reader.GetOrdinal("license_plate"));
         Make = reader.GetString(reader.GetOrdinal("make"));
         Model = reader.GetString(reader.GetOrdinal("model"));

@@ -49,7 +49,7 @@ public class VehiclesController : BaseController
         var user = GetCurrentUser();
         var vehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, licensePlate);
 
-        if (user.Role == "ADMIN")
+        if ((UserRole)user.RoleId <= UserRole.Employee)
             vehicle = await _services.Vehicles.GetVehicleByLicensePlate(licensePlate);
 
         if (vehicle is null)
@@ -66,7 +66,7 @@ public class VehiclesController : BaseController
         var user = GetCurrentUser();
         var vehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, request.LicensePlate);
 
-        if (user.Role == "ADMIN")
+        if ((UserRole)user.RoleId <= UserRole.Employee)
             vehicle = await _services.Vehicles.GetVehicleByLicensePlate(request.LicensePlate);
 
         if (vehicle is null)
@@ -92,7 +92,7 @@ public class VehiclesController : BaseController
         var user = GetCurrentUser();
         var vehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, licensePlate);
 
-        if (user.Role == "ADMIN")
+        if ((UserRole)user.RoleId <= UserRole.Employee)
             vehicle = await _services.Vehicles.GetVehicleByLicensePlate(licensePlate);
 
         if (vehicle == null)
@@ -109,7 +109,7 @@ public class VehiclesController : BaseController
         var user = GetCurrentUser();
         var vehicle = await _services.Vehicles.GetVehicleByUserIdAndLicense(user.Id, licensePlate);
 
-        if (user.Role == "ADMIN")
+        if ((UserRole)user.RoleId <= UserRole.Employee)
             vehicle = await _services.Vehicles.GetVehicleByLicensePlate(licensePlate);
 
         if (vehicle == null)
@@ -126,7 +126,7 @@ public class VehiclesController : BaseController
 
         if (!string.IsNullOrEmpty(username))
         {
-            if (user.Role != "ADMIN")
+            if ((UserRole)user.RoleId == UserRole.Employee)
                 return Forbid();
 
             var targetUser = await _services.Users.GetUserByUsername(username);

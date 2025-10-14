@@ -18,7 +18,7 @@ public partial class UserService
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
     private const string PhonePattern = @"^\+?[0-9]+$";
-    private const string PhoneDigitPattern = @"^0\d{9}$";
+    private const string PhoneDigitPattern = @"^\d{9,10}$";
     private const string EmailPattern = @"^(?!\.)(?!.*\.\.)[A-Za-z0-9._%+-]+(?<!\.)@(?:(?:xn--)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$";
 
     [GeneratedRegex(PasswordPattern)]
@@ -92,9 +92,9 @@ public partial class UserService
 
         // check name
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password) ||
-            string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Phone) || request.Birthday.Year < 1900 ||
-            request.Birthday.Year > DateTime.Now.Year)
+            string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName) ||
+            string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) ||
+            request.Birthday.Year < 1900 || request.Birthday.Year > DateTime.Now.Year)
             return new RegisterResult.InvalidData("Missing required fields");
 
         string cleanEmail;
@@ -116,12 +116,11 @@ public partial class UserService
         var user = new UserModel
         {
             Username = request.Username.Trim(),
-            Name = request.Name.Trim(),
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
             Email = cleanEmail,
             Phone = cleanPhone,
-            BirthYear = request.Birthday.Year,
-            Role = "USER",
-            Active = true,
+            Birthday = request.Birthday,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -206,18 +205,19 @@ public partial class UserService
         if (!Phone().IsMatch(phone))
             throw new ArgumentException("Phone number contains invalid characters.", nameof(phone));
 
-        // Normalize to +310 ...
+        // Normalize to +31 ...
         if (phone.StartsWith("00"))
             phone = phone[2..];
         if (phone.StartsWith('+'))
             phone = phone[1..];
         if (phone.StartsWith("31"))
             phone = phone[2..];
-        if (!phone.StartsWith('0'))
-            phone = "0" + phone;
 
         if (!PhoneDigits().IsMatch(phone))
             throw new ArgumentException("Invalid Dutch phone number digits.", nameof(phone));
+
+        if (phone.StartsWith('0'))
+            phone = phone[1..];
 
         return "+31" + phone;
     }

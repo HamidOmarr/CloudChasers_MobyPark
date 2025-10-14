@@ -12,15 +12,16 @@ public class UserAccess : Repository<UserModel>, IUserAccess
     {
         var parameters = new Dictionary<string, object>
         {
+            { "@Id", user.Id },
             { "@Username", user.Username },
             { "@Password", user.PasswordHash },
-            { "@Name", user.Name },
+            { "@First_Name", user.FirstName },
+            { "@Last_Name", user.LastName },
             { "@Email", user.Email },
             { "@Phone", user.Phone },
-            { "@Role", user.Role },
+            { "@Role", user.RoleId },
             { "@Created_At", user.CreatedAt.ToString("yyyy-MM-dd") },
-            { "@Birth_Year", user.BirthYear },
-            { "@Active", user.Active }
+            { "@Birthday", user.Birthday },
         };
 
         return parameters;

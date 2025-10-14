@@ -1,6 +1,6 @@
 using Microsoft.OpenApi.Models;
 
-namespace MobyPark;
+namespace MobyPark.Configuration;
 
 public static class SwaggerServiceExtensions
 {

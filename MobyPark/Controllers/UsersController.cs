@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models.Responses.User;
+using MobyPark.Models;
 using MobyPark.Models.Requests.User;
+using MobyPark.Models.Responses.User;
 using MobyPark.Services;
-using MobyPark.Services.Results.User;
 using MobyPark.Services.Services;
+using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
 
@@ -13,18 +14,19 @@ namespace MobyPark.Controllers;
 public class UsersController : BaseController
 {
     private readonly UserService _userService;
+    private readonly SessionService _sessionService;
 
-    public UsersController(ServiceStack services) : base(services.Sessions)
+    public UsersController(ServiceStack services) : base(services)
     {
         _userService = services.Users;
+        _sessionService = services.Sessions;
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var result = await _userService.CreateUserAsync(request);
+
         return result switch
         {
             RegisterResult.Success s => CreatedAtAction(
@@ -35,7 +37,7 @@ public class UsersController : BaseController
                     UserId = s.User.Id,
                     Username = s.User.Username,
                     Email = s.User.Email,
-                    Token = SessionService.CreateSession(s.User)
+                    Token = _sessionService.CreateSession(s.User)
                 }),
             RegisterResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
             RegisterResult.InvalidData e => BadRequest(new { error = e.Message }),
@@ -47,16 +49,12 @@ public class UsersController : BaseController
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         var result = await _userService.LoginAsync(request);
 
         return result switch
         {
             LoginResult.Success s => Ok(s.Response),
-            LoginResult.InvalidCredentials => Unauthorized(new { error = "Invalid credentials" }),
-            LoginResult.Error e => BadRequest(new { error = e.Message }),
+            LoginResult.InvalidCredentials or LoginResult.Error => Unauthorized(new { error = "Invalid credentials" }),
             _ => StatusCode(500, new { error = "Unexpected error" })
         };
     }
@@ -65,7 +63,7 @@ public class UsersController : BaseController
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
-        var user = GetCurrentUser();
+        var user = await GetCurrentUserAsync();
 
         var result = await _userService.UpdateUserProfileAsync(user, request);
 
@@ -81,17 +79,19 @@ public class UsersController : BaseController
 
     [Authorize]
     [HttpGet("profile")]
-    public IActionResult GetProfile()
+    public async Task<IActionResult> GetProfile()
     {
-        var user = GetCurrentUser();
+        var user = await GetCurrentUserAsync();
+
         return Ok( new UserProfileResponse
         {
             Id = user.Id,
             Username = user.Username,
-            Name = user.Name,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Email = user.Email,
             Phone = user.Phone,
-            BirthYear = user.BirthYear
+            Birthday = user.Birthday
         });
     }
 
@@ -100,28 +100,28 @@ public class UsersController : BaseController
     public async Task<IActionResult> GetUser(int id)
     {
         var user = await _userService.GetUserById(id);
-        if (user is null || user.Active == false) return NotFound();
+        if (user is null) return NotFound();
 
-        return Ok(new { user.Id, user.Username, user.Name });
+        return Ok(new { user.Id, user.Username, user.FirstName, user.LastName });
     }
 
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Policy = "CanReadUsers")]
     [HttpGet("admin/users/{id:int}")]
     public async Task<IActionResult> GetUserAdmin(int id)
     {
         var user = await _userService.GetUserById(id);
-        if (user is null || user.Active == false) return NotFound();
+        if (user is null) return NotFound();
 
         return Ok(new AdminUserProfileResponse
         {
             Id = user.Id,
             Username = user.Username,
-            Name = user.Name,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Email = user.Email,
             Phone = user.Phone,
-            BirthYear = user.BirthYear,
-            Role = user.Role,
-            Active = user.Active,
+            Birthday = user.Birthday,
+            Role = ((UserRole)user.RoleId).ToString(),
             CreatedAt = user.CreatedAt
         });
     }
@@ -130,10 +130,6 @@ public class UsersController : BaseController
     [HttpGet("logout")]
     public IActionResult Logout()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var token))
-            return BadRequest(new { error = "Invalid session token" });
-
-        SessionService.RemoveSession(token);
-        return Ok(new { message = "User logged out" });
+        return NoContent();
     }
 }
