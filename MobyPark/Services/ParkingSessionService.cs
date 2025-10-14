@@ -51,11 +51,34 @@ public class ParkingSessionService
             if (userByName != null) return userByName;
         }
 
-        //create guest user + vehicle
+        // create guest user + vehicle 
         var guestId = normalizedPlate;
+    var guestUsername = $"GUEST_{guestId}";
+        var existingGuest = await _dataAccess.Users.GetByUsername(guestUsername);
+        if (existingGuest is not null)
+        {
+            // Ensure vehicle exists for this plate and user
+            var existingVehicle = await _dataAccess.Vehicles.GetByLicensePlate(normalizedPlate);
+            if (existingVehicle is null)
+            {
+                var newVehicle = new VehicleModel
+                {
+                    UserId = existingGuest.Id,
+                    LicensePlate = normalizedPlate,
+                    Make = "Unknown",
+                    Model = "Unknown",
+                    Color = "Unknown",
+                    Year = DateTime.UtcNow.Year,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _dataAccess.Vehicles.Create(newVehicle);
+            }
+            return existingGuest;
+        }
+
         var guestUser = new UserModel
         {
-            Username = $"GUEST_{guestId}",
+            Username = guestUsername,
             Name = $"Guest_{guestId}",
             Email = $"guest_{guestId.ToLowerInvariant()}@guest.local",
             Phone = "+31000000000",

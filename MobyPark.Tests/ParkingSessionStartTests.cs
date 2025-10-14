@@ -136,7 +136,7 @@ public sealed class ParkingSessionStartTests
         // Assert
         Assert.AreEqual(321, session.Id);
         Assert.AreEqual("NEW999", session.LicensePlate);
-        Assert.IsTrue(session.User.StartsWith("TEMP_"));
+    Assert.IsTrue(session.User.StartsWith("GUEST_"));
     _mockUserAccess.Verify(u => u.CreateWithId(It.IsAny<UserModel>()), Times.Once);
     }
 }
