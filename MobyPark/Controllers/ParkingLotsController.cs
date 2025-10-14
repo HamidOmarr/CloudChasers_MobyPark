@@ -36,17 +36,61 @@ public class ParkingLotsController : BaseController
             };
     }
 
-    [HttpPut("{lotId}")]
-    public async Task<IActionResult> Update(int lotId, [FromBody] ParkingLotModel lot)
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPut("by-id/{lotId:int}")]
+    public async Task<IActionResult> UpdateById(int lotId, [FromBody] ParkingLotModel lot)
     {
-
-        return Ok(new { message = "Parking lot modified" });
+        var result = await _services.ParkingLots.UpdateParkingLotByIDAsync(lot, lotId);
+        return result switch
+        {
+            RegisterResult.Success => Ok(new { message = "Parking lot modified" }),
+            RegisterResult.NotFound nf => NotFound(new { message = nf.Message }),
+            RegisterResult.Error error => Problem(error.Message, statusCode: 500),
+            _ => Problem("Unknown error", statusCode: 500)
+        };
+    }
+    
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPut("by-address/{address}")]
+    public async Task<IActionResult> UpdateByAddress(string address, [FromBody] ParkingLotModel lot)
+    {
+        var result = await _services.ParkingLots.UpdateParkingLotByAddressAsync(lot, address);
+        return result switch
+        {
+            RegisterResult.Success => Ok(new { message = "Parking lot modified" }),
+            RegisterResult.NotFound nf => NotFound(new { message = nf.Message }),
+            RegisterResult.Error error => Problem(error.Message, statusCode: 500),
+            _ => Problem("Unknown error", statusCode: 500)
+        };
     }
 
-    [HttpDelete("{lotId}")]
-    public async Task<IActionResult> Delete(int lotId)
+    [Authorize(Policy = "AdminOnly")]
+    [HttpDelete("by-id/{lotId:int}")]
+    public async Task<IActionResult> DeleteById(int lotId)
     {
-        return Ok(new { status = "Deleted" });
+        var result = await _services.ParkingLots.DeleteParkingLotByIDAsync(lotId);
+        
+        return result switch
+        {
+            RegisterResult.SuccessfullyDeleted => Ok(new { message = "Parking lot deleted" }),
+            RegisterResult.NotFound nf => NotFound(new { message = nf.Message }),
+            RegisterResult.Error error => Problem(error.Message, statusCode: 500),
+            _ => Problem("Unknown error", statusCode: 500)
+        };
+    }
+    
+    [Authorize(Policy = "AdminOnly")]
+    [HttpDelete("by-address/{address}")]
+    public async Task<IActionResult> DeleteByAddress(string address)
+    {
+        var result = await _services.ParkingLots.DeleteParkingLotByAddressAsync(address);
+        return result switch
+        {
+            RegisterResult.SuccessfullyDeleted => Ok(new { message = "Parking lot deleted" }),
+            RegisterResult.NotFound nf => NotFound(new { message = nf.Message }),
+            RegisterResult.Error error => Problem(error.Message, statusCode: 500),
+            _ => Problem("Unknown error", statusCode: 500)
+        };
     }
 
     [HttpGet]

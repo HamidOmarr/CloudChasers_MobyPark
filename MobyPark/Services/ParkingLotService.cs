@@ -45,5 +45,37 @@ public class ParkingLotService
         parkingLot.Id = id;
         return new RegisterResult.Success(parkingLot);
     }
+
+    public async Task<RegisterResult> UpdateParkingLotByAddressAsync(ParkingLotModel parkingLot, string address)
+    {
+        var result = await _dataAccess.ParkingLots.UpdateParkingLotByAddress(parkingLot, address);
+        if (result is null)
+            return new RegisterResult.NotFound("Parking lot not found");
+        return new RegisterResult.Success(result);
+    }
+    
+    public async Task<RegisterResult> UpdateParkingLotByIDAsync(ParkingLotModel parkingLot, int id)
+    {
+        var result = await _dataAccess.ParkingLots.UpdateParkingLotByID(parkingLot, id);
+        if (result is null)
+            return new RegisterResult.NotFound("Parking lot not found");
+        return new RegisterResult.Success(result);
+    }
+
+    public async Task<RegisterResult> DeleteParkingLotByIDAsync(int id)
+    {
+        var result = await _dataAccess.ParkingLots.DeleteParkingLotByID(id);
+        if (!result)
+            return new RegisterResult.NotFound("Parking lot not found");
+        return new RegisterResult.SuccessfullyDeleted();
+    }
+    
+    public async Task<RegisterResult> DeleteParkingLotByAddressAsync(string address)
+    {
+        var result = await _dataAccess.ParkingLots.DeleteParkingLotByAddress(address);
+        if (!result)
+            return new RegisterResult.NotFound("Parking lot not found");
+        return new RegisterResult.SuccessfullyDeleted();
+    }
     
 }

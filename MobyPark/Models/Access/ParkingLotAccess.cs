@@ -81,4 +81,66 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
         await using var reader = await Connection.ExecuteQuery(query, parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
+
+    public async Task<ParkingLotModel?> UpdateParkingLotByID(ParkingLotModel parkingLot, int id)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "@Name", parkingLot.Name },
+            { "@Location", parkingLot.Location },
+            { "@Address", parkingLot.Address },
+            { "@Capacity", parkingLot.Capacity },
+            { "@Reserved", parkingLot.Reserved },
+            { "@Tariff", parkingLot.Tariff },
+            { "@DayTariff", parkingLot.DayTariff },
+            { "@Id", id }
+        };
+        string query = $@"UPDATE {TableName} SET Name = @Name, Location = @Location, Address = @Address, Capacity = @Capacity,
+            Reserved = @Reserved, Tariff = @Tariff, DayTariff = @DayTariff OUTPUT INSERTED.Id WHERE Id = @Id;";
+        var result = await Connection.ExecuteScalar(query, parameters);
+
+        if(result is not null)
+            return await GetParkingLotByID(Convert.ToInt32(result));
+        return null;
+    }
+    
+    public async Task<ParkingLotModel?> UpdateParkingLotByAddress(ParkingLotModel parkingLot, string address)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "@Name", parkingLot.Name },
+            { "@Location", parkingLot.Location },
+            { "@Address", parkingLot.Address },
+            { "@Capacity", parkingLot.Capacity },
+            { "@Reserved", parkingLot.Reserved },
+            { "@Tariff", parkingLot.Tariff },
+            { "@DayTariff", parkingLot.DayTariff },
+            { "@OldAddress", address }
+        };
+        string query = $@"UPDATE {TableName} SET Name = @Name, Location = @Location, Address = @Address, Capacity = @Capacity,
+            Reserved = @Reserved, Tariff = @Tariff, DayTariff = @DayTariff OUTPUT INSERTED.Id WHERE Address = @OldAddress;";
+        var result = await Connection.ExecuteScalar(query, parameters);
+
+        if(result is not null)
+            return await GetParkingLotByID(Convert.ToInt32(result));
+        return null;
+    }
+
+    public async Task<bool> DeleteParkingLotByID(int id)
+    {
+        var parameters = new Dictionary<string, object> { { "@Id", id } };
+        string query = $"DELETE FROM {TableName} WHERE id = @Id";
+        
+        var affected = await Connection.ExecuteNonQuery(query, parameters);
+        return affected > 0;
+    }
+    
+    public async Task<bool> DeleteParkingLotByAddress(string address)
+    {
+        var parameters = new Dictionary<string, object> { { "@Address", address } };
+        string query = $"DELETE FROM {TableName} WHERE address = @Address";
+        
+        var affected = await Connection.ExecuteNonQuery(query, parameters);
+        return affected > 0;
+    }
 }

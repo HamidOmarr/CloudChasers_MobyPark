@@ -8,4 +8,8 @@ public interface IParkingLotAccess : IRepository<ParkingLotModel>
     Task<ParkingLotModel?> GetParkingLotByID(int id);
     Task<ParkingLotModel?> GetParkingLotByAddress(string address);
     Task<int> AddParkingLotAsync(ParkingLotModel parkingLot);
+    Task<ParkingLotModel?> UpdateParkingLotByID(ParkingLotModel parkingLot, int id);
+    Task<ParkingLotModel?> UpdateParkingLotByAddress(ParkingLotModel parkingLot, string address);
+    Task<bool> DeleteParkingLotByID(int id);
+    Task<bool> DeleteParkingLotByAddress(string address);
 }

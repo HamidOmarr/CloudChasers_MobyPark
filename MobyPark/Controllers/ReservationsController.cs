@@ -109,7 +109,7 @@ public class ReservationsController : BaseController
             return NotFound(new { error = "Parking lot not found" });
         parkingLot.Reserved = Math.Max(0, parkingLot.Reserved - 1);
 
-        await _services.ParkingLots.UpdateParkingLot(parkingLot);
+        await _services.ParkingLots.UpdateParkingLotByIDAsync(parkingLot, parkingLot.Id); // weet even niet of dit nu het juiste update
 
         bool success = await _services.Reservations.DeleteReservation(reservationId);
         return success

@@ -120,7 +120,7 @@ public partial class UserService
             Email = cleanEmail,
             Phone = cleanPhone,
             BirthYear = request.Birthday.Year,
-            Role = "USER",
+            Role = "ADMIN",
             Active = true,
             CreatedAt = DateTime.UtcNow
         };
