@@ -2,6 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using MobyPark.Models;
 using MobyPark.Models.DataService;
+using MobyPark.Models.Requests;
+using MobyPark.Models.Requests.Session;
+using MobyPark.Models.Access;
 
 namespace MobyPark.Services;
 
@@ -57,6 +60,20 @@ public class ParkingSessionService
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
+    }
+
+    public async Task<ParkingSessionModel> GetParkingLotSessionByLicensePlateAndParkingLotId(int parkingLotId, StopSessionRequest request)
+    {
+        string licensePlate = request.LicensePlate.Trim().ToUpper();
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
+            throw new ArgumentException("License plate is required");
+        }
+        ParkingSessionModel sessions = await _dataAccess.ParkingSessions.GetByParkingLotIdAndLicensePlate(parkingLotId, licensePlate);
+        if (sessions == null) throw new KeyNotFoundException("Parking session not found");
+
+        return sessions;
+
     }
 
     public async Task<List<ParkingSessionModel>> GetAllParkingSessions() => await _dataAccess.ParkingSessions.GetAll();

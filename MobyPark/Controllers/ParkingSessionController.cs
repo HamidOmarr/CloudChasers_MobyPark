@@ -55,4 +55,26 @@ public class ParkingSessionController : BaseController
 
         return Ok(session);
     }
+
+    [HttpPost("{lotID}/sessions/{sessionId}/stop")]
+
+    public async Task<IActionResult> StopSession(int lotID, string licensePlate)
+    {
+        var user = GetCurrentUser();
+        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(lotID, new Models.Requests.Session.StopSessionRequest { LicensePlate = licensePlate });
+
+        if (session.ParkingLotId != lotID)
+            return NotFound(new { error = "Session not found" });
+
+        if (user.Role != "ADMIN" && session.User != user.Username)
+            return Forbid();
+
+        if (session.Stopped is not null)
+            return BadRequest(new { error = "Session already stopped" });
+
+        session.Stopped = DateTime.UtcNow;
+        await _services.ParkingSessions.UpdateParkingSession(session);
+
+        return Ok(new { status = "Stopped", session });
+    }
 }

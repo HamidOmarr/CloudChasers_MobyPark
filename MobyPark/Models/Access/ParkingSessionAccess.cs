@@ -63,4 +63,20 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
 
         return sessions;
     }
+
+    public async Task<ParkingSessionModel> GetByParkingLotIdAndLicensePlate(int parkingLotId, string licensePlate)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "@parking_lot_id", parkingLotId },
+            { "@license_plate", licensePlate }
+        };
+
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE parking_lot_id = @parking_lot_id AND license_plate = @license_plate", parameters);
+
+        if (await reader.ReadAsync())
+            return MapFromReader(reader);
+
+        throw new KeyNotFoundException("Parking session not found");
+    }
 }

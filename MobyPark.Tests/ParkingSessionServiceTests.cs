@@ -194,4 +194,35 @@ public sealed class ParkingSessionServiceTests
 
         _mockParkingSessionAccess.Verify(access => access.GetByParkingLotId(lotId), Times.Once);
     }
+
+    [TestMethod]
+    [DataRow(1, "ABC123")]
+    public async Task GetParkingLotSessionByLicensPlateAndParkingLotId_ValidInput_ReturnsSession(int lotId, string licensePlate)
+    {
+        var expected = new ParkingSessionModel { Id = 1, ParkingLotId = lotId, LicensePlate = licensePlate };
+        _mockParkingSessionAccess!.Setup(access => access.GetByParkingLotIdAndLicensePlate(lotId, licensePlate)).ReturnsAsync(expected);
+
+        ParkingSessionModel result = await _parkingSessionService!.GetParkingLotSessionByLicensePlateAndParkingLotId(lotId, new Models.Requests.Session.StopSessionRequest { LicensePlate = licensePlate });
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(expected.Id, result.Id);
+        Assert.AreEqual(expected.ParkingLotId, result.ParkingLotId);
+        Assert.AreEqual(expected.LicensePlate, result.LicensePlate);
+        _mockParkingSessionAccess.Verify(access => access.GetByParkingLotIdAndLicensePlate(lotId, licensePlate), Times.Once);
+    }
+
+    [TestMethod]
+    [DataRow(1, "ABC123")]
+    public async Task GetParkingLotSessionByLicensPlateAndParkingLotId_SessionNotFound_ThrowsKeyNotFoundException(int lotId, string licensePlate)
+    {
+        _mockParkingSessionAccess!
+        .Setup(access => access.GetByParkingLotIdAndLicensePlate(lotId, licensePlate))
+        .ThrowsAsync(new KeyNotFoundException());
+
+        await Assert.ThrowsExceptionAsync<KeyNotFoundException>(async () =>
+            await _parkingSessionService!.GetParkingLotSessionByLicensePlateAndParkingLotId(lotId, new Models.Requests.Session.StopSessionRequest { LicensePlate = licensePlate }));
+
+        _mockParkingSessionAccess.Verify(access => access.GetByParkingLotIdAndLicensePlate(lotId, licensePlate), Times.Once);
+    }
+
 }
