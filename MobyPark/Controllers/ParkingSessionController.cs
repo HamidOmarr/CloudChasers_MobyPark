@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.Models;
 using MobyPark.Services.Services;
+using MobyPark.Models.Requests;
+using MobyPark.Models.Requests.Session;
 
 namespace MobyPark.Controllers;
 
@@ -57,11 +60,13 @@ public class ParkingSessionController : BaseController
     }
 
     [HttpPost("{lotID}/sessions/{sessionId}/stop")]
-
-    public async Task<IActionResult> StopSession(int lotID, string licensePlate)
+    public async Task<IActionResult> StopSession(int lotID, [FromBody] PaymentValidationRequest paymentValidationRequest, [FromBody] StopSessionRequest stopSessionRequest)
     {
         var user = GetCurrentUser();
-        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(lotID, new Models.Requests.Session.StopSessionRequest { LicensePlate = licensePlate });
+        var payment = await _services.Payments.GetPaymentsByUser(user.Username);
+        var validatedPayment = await _services.Payments.ValidatePayment(payment.Last().TransactionId, paymentValidationRequest.Validation, paymentValidationRequest.TransactionData);
+        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(lotID, stopSessionRequest);
+        decimal TotalPaymentAmount = await _services.Payments.GetTotalAmountForTransaction(validatedPayment.TransactionId);
 
         if (session.ParkingLotId != lotID)
             return NotFound(new { error = "Session not found" });
@@ -72,9 +77,24 @@ public class ParkingSessionController : BaseController
         if (session.Stopped is not null)
             return BadRequest(new { error = "Session already stopped" });
 
+        if (payment.Count == 0)
+            return BadRequest(new { error = "No payment found for this user" });
+
+        if (!paymentValidationRequest.Confirmed)
+            return BadRequest(new { error = "Payment not confirmed. Restart process." });
+
+        if (payment.Last().Amount == 0)
+        {
+            return BadRequest(new { error = "No payment required for this session" });
+        }
+        if (validatedPayment is null)
+            return BadRequest(new { error = "Payment validation failed" });
+
+
+
         session.Stopped = DateTime.UtcNow;
         await _services.ParkingSessions.UpdateParkingSession(session);
-
-        return Ok(new { status = "Stopped", session });
+        return Ok(new { status = "Stopped", session, totalAmount = TotalPaymentAmount });
     }
+
 }

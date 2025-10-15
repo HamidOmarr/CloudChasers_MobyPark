@@ -11,7 +11,7 @@ public record VehicleUpdateRequest(string LicensePlate, string Make, string Mode
 public record VehicleEntryRequest(string ParkingLot);
 
 public record ReservationRequest(string LicensePlate, DateTime StartDate, DateTime EndDate, int ParkingLotId, string? Username = null); // User meant only for admin override
-public record PaymentValidationRequest(TransactionDataModel TransactionData, string Validation);
+public record PaymentValidationRequest(TransactionDataModel TransactionData, string Validation, bool Confirmed);
 
 public record PaymentRequest(decimal? Amount, TransactionDataModel TransactionData);
 public record PaymentRefundRequest(decimal? Amount, string? CoupledTo);
