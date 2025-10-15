@@ -31,14 +31,14 @@ public class UserAccess : Repository<UserModel>, IUserAccess
     public async Task<UserModel?> GetByUsername(string username)
     {
         var parameters = new Dictionary<string, object> { { "@Username", username } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Username = @Username", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE username = @Username", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 
     public async Task<UserModel?> GetByEmail(string email)
     {
         var parameters = new Dictionary<string, object> { { "@Email", email } };
-        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE Email = @Email", parameters);
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE email = @Email", parameters);
         return await reader.ReadAsync() ? MapFromReader(reader) : null;
     }
 }

@@ -11,7 +11,7 @@ public class UserModel
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
-    public string Role { get; set; } = "USER";
+    public string Role { get; set; } = "ADMIN";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int BirthYear { get; set; }
     public bool Active { get; set; } = true;

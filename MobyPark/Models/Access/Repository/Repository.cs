@@ -84,7 +84,7 @@ public abstract class Repository<T> : IRepository<T> where T : class
 
     private string BuildInsertQuery(List<string> keys, bool returnId = true)
     {
-        var columns = string.Join(", ", keys.Select(key => $"\"{key.TrimStart('@')}\""));
+        var columns = string.Join(", ", keys.Select(key => key.TrimStart('@').ToLower()));
         var values = string.Join(", ", keys);
         var query = $"INSERT INTO {TableName} ({columns}) VALUES ({values})";
 

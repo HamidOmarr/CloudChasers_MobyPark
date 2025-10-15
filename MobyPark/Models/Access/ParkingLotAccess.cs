@@ -43,7 +43,7 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
     {
         string query = @$"
             INSERT INTO {TableName}
-                (name, location, address, capacity, reservered, tariff, daytariff, created_at)
+                (name, location, address, capacity, reserved, tariff, daytariff, created_at)
             VALUES
                 (@Name, @Location, @Address, @Capacity, @Reserved, @Tariff, @DayTariff, @CreatedAt)
             RETURNING id;";
@@ -96,7 +96,7 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
             { "@Id", id }
         };
         string query = $@"UPDATE {TableName} SET Name = @Name, Location = @Location, Address = @Address, Capacity = @Capacity,
-            Reserved = @Reserved, Tariff = @Tariff, DayTariff = @DayTariff OUTPUT INSERTED.Id WHERE Id = @Id;";
+            Reserved = @Reserved, Tariff = @Tariff, DayTariff = @DayTariff WHERE Id = @Id RETURNING Id;";
         var result = await Connection.ExecuteScalar(query, parameters);
 
         if(result is not null)

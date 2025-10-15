@@ -6,6 +6,10 @@ using MobyPark.Models.Responses.User;
 using MobyPark.Models.DataService;
 using MobyPark.Models.Requests.User;
 using MobyPark.Services.Results.User;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace MobyPark.Services;
 
@@ -14,6 +18,7 @@ public partial class UserService
     private readonly IDataAccess _dataAccess;
     private readonly IPasswordHasher<UserModel> _hasher;
     private readonly SessionService _sessions;
+    private readonly IConfiguration _config;
 
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
@@ -32,8 +37,9 @@ public partial class UserService
     [GeneratedRegex(EmailPattern)]
     private static partial Regex EmailRegex();
 
-    public UserService(IDataAccess dataAccess, IPasswordHasher<UserModel> hasher, SessionService sessions)
+    public UserService(IConfiguration config, IDataAccess dataAccess, IPasswordHasher<UserModel> hasher, SessionService sessions)
     {
+        _config = config;
         _dataAccess = dataAccess;
         _hasher = hasher;
         _sessions = sessions;
@@ -145,17 +151,42 @@ public partial class UserService
         var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (verification == PasswordVerificationResult.Failed)
             return new LoginResult.InvalidCredentials();
+        
+        var sessionId = _sessions.CreateSession(user);
 
-        var token = _sessions.CreateSession(user);
+        var jwt = GenerateJwt(user);
+
         var response = new AuthResponse
         {
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email,
-            Token = token
+            Token = jwt,
+            //SessionId = sessionId
         };
 
         return new LoginResult.Success(response);
+    }
+    
+    private string GenerateJwt(UserModel user)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
+            new Claim(ClaimTypes.Role, string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role)
+        };
+
+        var token = new JwtSecurityToken(
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(12),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     public async Task<UpdateProfileResult> UpdateUserProfileAsync(UserModel user, UpdateProfileRequest request)
