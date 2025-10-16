@@ -9,4 +9,5 @@ public interface IParkingSessionAccess : IRepository<ParkingSessionModel>
     Task<List<ParkingSessionModel>> GetByPaymentStatus(string paymentStatus);
 
     Task<ParkingSessionModel> GetByParkingLotIdAndLicensePlate(int parkingLotId, string licensePlate);
+    Task<ParkingSessionModel?> GetActiveByLicensePlate(string licensePlate);
 }

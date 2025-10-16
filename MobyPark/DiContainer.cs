@@ -19,7 +19,7 @@ public static class DiContainer
         services.AddScoped<IReservationAccess, ReservationAccess>();
         services.AddScoped<IPaymentAccess, PaymentAccess>();
         services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
-        
+
         // Business logic
         services.AddSingleton<SessionService>();
         services.AddScoped<ParkingSessionService>();
@@ -28,11 +28,14 @@ public static class DiContainer
         services.AddScoped<ParkingLotService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<VehicleService>();
+        services.AddScoped<PaymentPreauthService>();
+        services.AddScoped<GateService>();
+        services.AddScoped<Services.Services.ServiceStack>();
         services.AddScoped<ServiceStack>();
 
         // Data service
         services.AddScoped<IDataAccess, DataAccess>();
-        
+
         // Password Hasher
         services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
 
