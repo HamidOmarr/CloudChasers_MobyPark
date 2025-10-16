@@ -63,4 +63,11 @@ public class ParkingSessionAccess : Repository<ParkingSessionModel>, IParkingSes
 
         return sessions;
     }
+
+    public async Task<ParkingSessionModel?> GetActiveByLicensePlate(string licensePlate)
+    {
+        var parameters = new Dictionary<string, object> { { "@license_plate", licensePlate } };
+        await using var reader = await Connection.ExecuteQuery($"SELECT * FROM {TableName} WHERE license_plate = @license_plate AND stopped IS NULL LIMIT 1", parameters);
+        return await reader.ReadAsync() ? MapFromReader(reader) : null;
+    }
 }

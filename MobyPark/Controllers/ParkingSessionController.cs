@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Services.Services;
+using MobyPark.Models.Requests;
+using MobyPark.Services;
+using MobyPark.Services.Exceptions;
 
 namespace MobyPark.Controllers;
 
@@ -12,6 +15,47 @@ public class ParkingSessionController : BaseController
     public ParkingSessionController(ServiceStack services) : base(services.Sessions)
     {
         _services = services;
+    }
+
+    [HttpPost("{lotId}/sessions:start")] // start endpoint unified
+    [HttpPost("{lotId}/sessions/start")] 
+    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionRequest request)
+    {
+        try
+        {
+            var session = await _services.ParkingSessions.StartSession(
+                lotId,
+                request.LicensePlate,
+                request.CardToken,
+                request.EstimatedAmount,
+                GetCurrentUser()?.Username,
+                request.SimulateInsufficientFunds
+            );
+
+            var lot = await _services.ParkingLots.GetParkingLotById(lotId);
+            int? available = lot?.Capacity != null ? lot.Capacity - lot.Reserved : (int?)null;
+
+            return StatusCode(201, new
+            {
+                status = "Started",
+                sessionId = session.Id,
+                licensePlate = session.LicensePlate,
+                parkingLotId = session.ParkingLotId,
+                startedAt = session.Started,
+                paymentStatus = session.PaymentStatus,
+                availableSpots = available
+            });
+        }
+        catch (ActiveSessionAlreadyExistsException ex)
+        { return Conflict(new { error = ex.Message, code = "ACTIVE_SESSION_EXISTS" }); }
+        catch (KeyNotFoundException)
+        { return NotFound(new { error = "Parking lot not found" }); }
+        catch (UnauthorizedAccessException ex)
+        { return StatusCode(402, new { error = ex.Message, code = "PAYMENT_DECLINED" }); }
+        catch (InvalidOperationException ex)
+        { return BadRequest(new { error = ex.Message }); }
+        catch (ArgumentException ex)
+        { return BadRequest(new { error = ex.Message }); }
     }
 
     [HttpDelete("{lotId}/sessions/{sessionId}")]
@@ -55,4 +99,5 @@ public class ParkingSessionController : BaseController
 
         return Ok(session);
     }
+
 }
