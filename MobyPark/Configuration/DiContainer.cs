@@ -1,28 +1,38 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using MobyPark.Models;
-using MobyPark.Models.Access;
-using MobyPark.Models.Access.DatabaseConnection;
-using MobyPark.Models.DataService;
+using MobyPark.Models.DbContext;
+using MobyPark.Models.Repositories;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Services;
-using MobyPark.Services.Services;
 
 namespace MobyPark.Configuration;
 
 public static class DiContainer
 {
-    public static void AddMobyParkServices(this IServiceCollection services)
+    public static void AddMobyParkServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Access: Scoped. New instance per HTTP request.
-        // services.AddScoped<IUserAccess, UserAccess>();
-        // services.AddScoped<IVehicleAccess, VehicleAccess>();
-        // services.AddScoped<IParkingLotAccess, ParkingLotAccess>();
-        // services.AddScoped<IReservationAccess, ReservationAccess>();
-        // services.AddScoped<IPaymentAccess, PaymentAccess>();
-        // services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-        // Data Service: Scoped to align with database connection lifecycle.
-        // services.AddScoped<IDataAccess, DataAccess>();
-        // services.AddScoped<IDatabaseConnection, DatabaseConnection>();
+
+        // Repository: Scoped. New instance per HTTP request.
+        services.AddScoped<ILicensePlateRepository, LicensePlateRepository>();
+        services.AddScoped<IParkingLotRepository, ParkingLotRepository>();
+        services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IPermissionRepository, PermissionRepository>();
+        services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<IUserPlateRepository, UserPlateRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+
+        // Repository stack: Scoped to align with database connection lifecycle.
+        services.AddScoped<IRepositoryStack, RepositoryStack>();
+
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<SessionService>();
@@ -31,14 +41,19 @@ public static class DiContainer
         services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
 
         // Business Logic Services: Scoped to manage state per request.
+        services.AddScoped<LicensePlateService>();
+        services.AddScoped<ParkingLotService>();
         services.AddScoped<ParkingSessionService>();
         services.AddScoped<PaymentService>();
-        services.AddScoped<UserService>();
-        services.AddScoped<ParkingLotService>();
+        services.AddScoped<PermissionService>();
         services.AddScoped<ReservationService>();
-        // services.AddScoped<VehicleService>();
+        services.AddScoped<RolePermissionService>();
+        services.AddScoped<RoleService>();
+        services.AddScoped<TransactionService>();
+        services.AddScoped<UserPlateService>();
+        services.AddScoped<UserService>();
 
         // ServiceStack: Scoped as it bundles Scoped services together.
-        services.AddScoped<ServiceStack>();
+        // services.AddScoped<ServiceStack>();
     }
 }

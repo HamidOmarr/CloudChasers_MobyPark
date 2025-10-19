@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -16,7 +16,7 @@ public class LicensePlateService
 
     public async Task<LicensePlateModel> CreateLicensePlate(LicensePlateModel licensePlate)
     {
-        Validator.LicensePlate(licensePlate);
+        ServiceValidator.LicensePlate(licensePlate);
 
         bool createdSuccessfully = await _licensePlates.Create(licensePlate);
         if (!createdSuccessfully) throw new Exception("Failed to create license plate");

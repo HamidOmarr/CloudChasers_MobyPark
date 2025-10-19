@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -17,7 +17,7 @@ public class RoleService
     public async Task<RoleModel> CreateRole(string roleName, string description)
     {
         var role = new RoleModel { Name = roleName.ToUpperInvariant(), Description = description };
-        Validator.Role(role);
+        ServiceValidator.Role(role);
 
         (bool createdSuccessfully, long id) = await _roles.CreateWithId(role);
         if (createdSuccessfully) role.Id = id;
@@ -61,7 +61,7 @@ public class RoleService
         role.Name = string.IsNullOrWhiteSpace(newRoleName) ? role.Name : newRoleName.ToUpperInvariant();
         role.Description = string.IsNullOrWhiteSpace(newDescription) ? role.Description : newDescription;
 
-        Validator.Role(role);
+        ServiceValidator.Role(role);
 
         bool updatedSuccessfully = await _roles.Update(role);
         return updatedSuccessfully;
@@ -73,7 +73,7 @@ public class RoleService
 
     private async Task<bool> DeleteRole(RoleModel role)
     {
-        Validator.Role(role);
+        ServiceValidator.Role(role);
 
         if (role.Name.ToLower() == "admin")
             throw new InvalidOperationException("Cannot delete the admin role.");

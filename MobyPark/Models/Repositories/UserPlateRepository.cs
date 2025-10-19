@@ -16,7 +16,8 @@ public class UserPlateRepository : Repository<UserPlateModel>, IUserPlateReposit
                 && userPlate.LicensePlateNumber == plate);
         if (existingUserPlate is not null) return false;
 
-        var isFirstPlate = !await DbSet.Where(up => up.UserId == userId).AnyAsync();
+        bool isFirstPlate = userId != DeletedUserId && !await DbSet.Where(up => up.UserId == userId).AnyAsync();
+
         var userPlate = new UserPlateModel
         {
             UserId = userId,
@@ -31,6 +32,11 @@ public class UserPlateRepository : Repository<UserPlateModel>, IUserPlateReposit
     public async Task<List<UserPlateModel>> GetPlatesByUserId(long userId) =>
         await DbSet
             .Where(userPlate => userPlate.UserId == userId)
+            .ToListAsync();
+
+    public async Task<List<UserPlateModel>> GetPlatesByPlate(string plate) =>
+        await DbSet
+            .Where(userPlate => userPlate.LicensePlateNumber == plate)
             .ToListAsync();
 
     public async Task<UserPlateModel?> GetPrimaryPlateByUserId(long userId)

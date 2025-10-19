@@ -5,6 +5,9 @@ namespace MobyPark.Models.Requests.User;
 public class ConvertGuestRequest
 {
     [Required]
+    public string LicensePlate { get; set; } = string.Empty;
+
+    [Required]
     public string Username { get; set; } = string.Empty;
 
     [Required]

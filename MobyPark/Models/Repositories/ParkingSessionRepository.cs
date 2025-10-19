@@ -6,7 +6,9 @@ namespace MobyPark.Models.Repositories;
 
 public class ParkingSessionRepository : Repository<ParkingSessionModel>, IParkingSessionRepository
 {
-    public ParkingSessionRepository(AppDbContext context) : base(context) { }
+    public ParkingSessionRepository(AppDbContext context) : base(context)
+    {
+    }
 
     public async Task<List<ParkingSessionModel>> GetByParkingLotId(long parkingLotId) =>
         await DbSet.Where(session => session.ParkingLotId == parkingLotId).ToListAsync();
@@ -21,5 +23,16 @@ public class ParkingSessionRepository : Repository<ParkingSessionModel>, IParkin
         await DbSet.Where(session => session.Stopped == null).ToListAsync();
 
     public async Task<ParkingSessionModel?> GetActiveSessionByLicensePlate(string licensePlateNumber) =>
-        await DbSet.FirstOrDefaultAsync(session => session.LicensePlateNumber == licensePlateNumber && session.Stopped == null);
+        await DbSet.FirstOrDefaultAsync(session =>
+            session.LicensePlateNumber == licensePlateNumber && session.Stopped == null);
+
+    public async Task<List<ParkingSessionModel>> GetAllRecentSessionsByLicensePlate(string licensePlateNumber, TimeSpan recentDuration)
+    {
+        var cutoffTime = DateTime.UtcNow - recentDuration;
+
+        return await DbSet
+            .Where(session => session.LicensePlateNumber == licensePlateNumber &&
+                              session.Started >= cutoffTime)
+            .ToListAsync();
+    }
 }

@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -16,7 +16,7 @@ public class RolePermissionService
 
     private async Task<bool> RoleHasPermission(long roleId, long permissionId)
     {
-        Validator.RolePermission(new RolePermissionModel { RoleId = roleId, PermissionId = permissionId } );
+        ServiceValidator.RolePermission(new RolePermissionModel { RoleId = roleId, PermissionId = permissionId } );
 
         bool hasPermission = await _rolePermissionRepository.RoleHasPermission(roleId, permissionId);
         return hasPermission;

@@ -7,7 +7,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Results.User;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -43,7 +43,7 @@ public partial class UserService
 
     private async Task<(bool createdSuccessfully, UserModel user)> CreateUser(UserModel user)
     {
-        Validator.User(user);
+        ServiceValidator.User(user);
 
         (bool createdSuccessfully, long id) = await _users.CreateWithId(user);
         if (!createdSuccessfully)
@@ -83,7 +83,7 @@ public partial class UserService
 
     private async Task<bool> UpdateUser(UserModel user)
     {
-        Validator.User(user);
+        ServiceValidator.User(user);
 
         bool updatedSuccessfully = await _users.Update(user);
         return updatedSuccessfully;

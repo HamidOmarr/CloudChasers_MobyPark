@@ -52,14 +52,19 @@ public static class ServiceExtensions
             });
 
         services.AddAuthorizationBuilder()
-            .AddPolicy("CanReadUsers", policy =>
-            {
-                // This policy requires the USERS:READ permission key to be present in the token.
-                policy.RequireClaim("Permission", "USERS:READ");
-            });
+            .AddPolicy("CanReadUsers",
+                policy => { policy.RequireClaim("Permission", "USERS:READ"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanReadParkingLots",
+                policy => { policy.RequireClaim("Permission", "LOTS:READ"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanManageParkingLots",
+                policy => { policy.RequireClaim("Permission", "LOTS:MANAGE"); });
 
 
-        services.AddMobyParkServices();
+        services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();
 
         return services;

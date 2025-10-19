@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -16,7 +16,7 @@ public class ParkingLotService
 
     public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel lot)
     {
-        Validator.ParkingLot(lot);
+        ServiceValidator.ParkingLot(lot);
 
         (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
         if (createdSuccessfully) lot.Id = id;
@@ -73,7 +73,7 @@ public class ParkingLotService
         var existingLot = await GetParkingLotById(lot.Id);
         if (existingLot is null) throw new KeyNotFoundException("Parking lot not found");
 
-        Validator.ParkingLot(lot);
+        ServiceValidator.ParkingLot(lot);
 
         bool updatedSuccessfully = await _parkingLots.Update(lot);
         return updatedSuccessfully;

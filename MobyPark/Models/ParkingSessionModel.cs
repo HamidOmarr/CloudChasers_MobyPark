@@ -1,14 +1,21 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using MobyPark.Models.Repositories.Interfaces;
+using NpgsqlTypes;
 
 namespace MobyPark.Models;
 
 public enum ParkingSessionStatus
 {
+    [PgName("preauthorized")]
+    PreAuthorized,
+    [PgName("pending")]
     Pending,
+    [PgName("paid")]
     Paid,
+    [PgName("failed")]
     Failed,
+    [PgName("refunded")]
     Refunded
 }
 

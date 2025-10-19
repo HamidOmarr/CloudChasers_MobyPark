@@ -17,7 +17,7 @@ public sealed class ParkingSessionStartTests
     private Mock<IUserAccess>? _mockUserAccess;
     private Mock<IPaymentAccess>? _mockPaymentAccess;
     private Mock<IReservationAccess>? _mockReservationAccess;
-    private Mock<PaymentPreauthService>? _mockPreauth;
+    private Mock<PreAuth>? _mockPreauth;
     private Mock<GateService>? _mockGate;
     private ParkingSessionService? _parkingSessionService;
 
@@ -31,7 +31,7 @@ public sealed class ParkingSessionStartTests
         _mockUserAccess = new Mock<IUserAccess>();
         _mockPaymentAccess = new Mock<IPaymentAccess>();
         _mockReservationAccess = new Mock<IReservationAccess>();
-        _mockPreauth = new Mock<PaymentPreauthService>();
+        _mockPreauth = new Mock<PreAuth>();
         _mockGate = new Mock<GateService>();
 
         _mockDataAccess.Setup(d => d.ParkingLots).Returns(_mockParkingLotAccess.Object);
@@ -44,7 +44,7 @@ public sealed class ParkingSessionStartTests
         _parkingSessionService = new ParkingSessionService(_mockDataAccess.Object, _mockPreauth.Object, _mockGate.Object, null);
 
         _mockPreauth.Setup(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
-            .ReturnsAsync((string _, decimal _, bool sim) => new PaymentPreauthService.PreauthResult { Approved = !sim, Reason = sim ? "Insufficient funds" : null });
+            .ReturnsAsync((string _, decimal _, bool sim) => new PreAuth.PreauthResult { Approved = !sim, Reason = sim ? "Insufficient funds" : null });
         _mockGate.Setup(g => g.OpenGateAsync(It.IsAny<int>(), It.IsAny<string>())).ReturnsAsync(true);
     }
 

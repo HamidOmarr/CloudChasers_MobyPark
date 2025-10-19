@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -16,7 +16,7 @@ public class PaymentService
 
     public async Task<PaymentModel> CreatePayment(PaymentModel payment)
     {
-        Validator.Payment(payment);
+        ServiceValidator.Payment(payment);
 
         var (createdSuccessfully, id) = await _payments.CreateWithId(payment);
         if (!createdSuccessfully)
@@ -56,7 +56,7 @@ public class PaymentService
 
     private async Task<bool> UpdatePayment(PaymentModel payment)
     {
-        Validator.Payment(payment);
+        ServiceValidator.Payment(payment);
 
         var existingPayment = await GetPaymentById(payment.PaymentId.ToString());
         if (existingPayment is null) throw new KeyNotFoundException("Payment not found");

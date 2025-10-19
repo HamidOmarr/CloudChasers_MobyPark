@@ -1,9 +1,9 @@
 namespace MobyPark.Services;
 
-public class GateService
+public static class GateService
 {
-    // placeholder
-    public virtual Task<bool> OpenGateAsync(int parkingLotId, string licensePlate)
+    // Placeholder. Not yet in DiContainer. Add if class receives dependencies (i.e. IRepositoryStack).
+    public static Task<bool> OpenGateAsync(long parkingLotId, string licensePlate)
     {
         return Task.FromResult(true);
     }

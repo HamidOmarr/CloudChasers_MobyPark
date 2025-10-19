@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
 using MobyPark.Services;
-using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -11,9 +10,9 @@ public abstract class BaseController : ControllerBase
 {
     protected readonly UserService UserService;
 
-    protected BaseController(ServiceStack services)
+    protected BaseController(UserService users)
     {
-        UserService = services.Users;
+        UserService = users;
     }
 
     protected int GetCurrentUserId()

@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Services.Services;
+using MobyPark.Services;
 
 namespace MobyPark.Controllers;
 
@@ -8,33 +9,29 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingLotsController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly ParkingLotService _parkingLots;
+    private readonly IAuthorizationService _authorizationService;
 
-    public ParkingLotsController(ServiceStack services) : base(services.Sessions)
+    public ParkingLotsController(ParkingLotService parkingLots, IAuthorizationService authorizationService, UserService users) : base(users)
     {
-        _services = services;
+        _parkingLots = parkingLots;
+        _authorizationService = authorizationService;
     }
 
-    // ADMIN ONLY
-
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ParkingLotModel lot)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
         lot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
-        await _services.ParkingLots.CreateParkingLot(lot);
+        await _parkingLots.CreateParkingLot(lot);
         return StatusCode(201, new { message = "Parking lot created" });
     }
 
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpPut("{lotId}")]
     public async Task<IActionResult> Update(int lotId, [FromBody] ParkingLotModel lot)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var existingLot = await _services.ParkingLots.GetParkingLotById(lotId);
+        var existingLot = await _parkingLots.GetParkingLotById(lotId);
         if (existingLot is null) return NotFound(new { error = "Parking lot not found" });
 
         var newLot = new ParkingLotModel
@@ -48,52 +45,43 @@ public class ParkingLotsController : BaseController
             Tariff = lot.Tariff != 0 ? lot.Tariff : existingLot.Tariff,
             DayTariff = lot.DayTariff ?? existingLot.DayTariff,
             CreatedAt = existingLot.CreatedAt,
-            Coordinates = new CoordinatesModel
-            {
-                Lat = lot.Coordinates.Lat != 0 ? lot.Coordinates.Lat : existingLot.Coordinates.Lat,
-                Lng = lot.Coordinates.Lng != 0 ? lot.Coordinates.Lng : existingLot.Coordinates.Lng
-            }
         };
 
-        await _services.ParkingLots.UpdateParkingLot(newLot);
-
+        await _parkingLots.UpdateParkingLot(newLot);
         return Ok(new { message = "Parking lot modified" });
     }
 
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpDelete("{lotId}")]
     public async Task<IActionResult> Delete(int lotId)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
+        var lot = await _parkingLots.GetParkingLotById(lotId);
         if (lot is null) return NotFound(new { error = "Parking lot not found" });
 
-        await _services.ParkingLots.DeleteParkingLot(lotId);
+        await _parkingLots.DeleteParkingLot(lotId);
         return Ok(new { status = "Deleted" });
     }
 
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var lots = await _services.ParkingLots.GetAllParkingLots();
+        var lots = await _parkingLots.GetAllParkingLots();
         return Ok(lots);
     }
 
     // ADMIN + USER
-
+    [Authorize(Policy = "CanReadParkingLots")]
     [HttpGet("{lotId}")]
     public async Task<IActionResult> GetById(int lotId)
     {
-        var user = GetCurrentUser();
-        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
+        var lot = await _parkingLots.GetParkingLotById(lotId);
         if (lot is null) return NotFound(new { error = "Parking lot not found" });
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingLots");
 
         // Admins get all data, users get filtered data
-        if (user.Role == "ADMIN") return Ok(lot);
+        if (authorizationResult.Succeeded)
+            return Ok(lot);
 
         int spotsAvailable = lot.Capacity - lot.Reserved;
         return Ok(new
@@ -105,6 +93,5 @@ public class ParkingLotsController : BaseController
             lot.DayTariff,
             spotsAvailable
         });
-
     }
 }

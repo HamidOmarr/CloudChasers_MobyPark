@@ -2,7 +2,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -17,7 +17,7 @@ public class UserPlateService
 
     public async Task<UserPlateModel> CreateUserPlate(UserPlateModel userPlate)
     {
-        Validator.UserPlate(userPlate);
+        ServiceValidator.UserPlate(userPlate);
 
         (bool createdSuccessfully, long id) = await _userPlates.CreateWithId(userPlate);
         if (createdSuccessfully) userPlate.Id = id;
@@ -30,6 +30,15 @@ public class UserPlateService
     {
         var userPlates = await _userPlates.GetPlatesByUserId(userId);
         if ( userPlates.Count == 0) throw new KeyNotFoundException($"No license plates found for user with ID {userId}.");
+
+        return userPlates;
+    }
+
+    public async Task<List<UserPlateModel>> GetUserPlatesByPlate(string plate)
+    {
+        plate = ValHelper.NormalizePlate(plate);
+        var userPlates =  await _userPlates.GetPlatesByPlate(plate);
+        if (userPlates.Count == 0) throw new KeyNotFoundException($"No license plates found with plate number '{plate}'.");
 
         return userPlates;
     }
@@ -103,7 +112,7 @@ public class UserPlateService
 
     public async Task<bool> UpdateUserPlate(UserPlateModel userPlate)
     {
-        Validator.UserPlate(userPlate);
+        ServiceValidator.UserPlate(userPlate);
 
         bool updatedSuccessfully = await _userPlates.Update(userPlate);
         return updatedSuccessfully;
@@ -111,7 +120,7 @@ public class UserPlateService
 
     public async Task<bool> DeleteUserPlate(UserPlateModel userPlate)
     {
-        Validator.UserPlate(userPlate);
+        ServiceValidator.UserPlate(userPlate);
 
         bool deletedSuccessfully = await _userPlates.Delete(userPlate);
         return deletedSuccessfully;

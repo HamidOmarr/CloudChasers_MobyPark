@@ -1,7 +1,7 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Services.Services;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -16,7 +16,7 @@ public class TransactionService
 
     public async Task<TransactionModel> CreateTransaction(TransactionModel transaction)
     {
-        Validator.Transaction(transaction);
+        ServiceValidator.Transaction(transaction);
 
         (bool createdSuccessfully, Guid id) = await _transactions.CreateWithId(transaction);
         if (createdSuccessfully) transaction.Id = id;
@@ -48,7 +48,7 @@ public class TransactionService
 
     public async Task<bool> UpdateTransaction(TransactionModel transaction)
     {
-        Validator.Transaction(transaction);
+        ServiceValidator.Transaction(transaction);
         return await _transactions.Update(transaction);
     }
 
