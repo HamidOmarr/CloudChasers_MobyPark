@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.DTOs;
 using MobyPark.Models;
-using MobyPark.Models.Requests;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;

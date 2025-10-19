@@ -1,53 +1,29 @@
 using MobyPark.Models;
-using MobyPark.Models.DataService;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Models.Repositories.RepositoryStack;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Services;
 
 public class ParkingLotService
 {
-    private readonly IDataAccess _dataAccess;
+    private readonly IParkingLotRepository _parkingLots;
 
-    public ParkingLotService(IDataAccess dataAccess)
+    public ParkingLotService(IRepositoryStack repoStack)
     {
-        _dataAccess = dataAccess;
+        _parkingLots = repoStack.ParkingLots;
     }
 
-    public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel parkingLot)
+    public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel lot)
     {
-        ArgumentNullException.ThrowIfNull(parkingLot, nameof(parkingLot));
+        Validator.ParkingLot(lot);
 
-        var referenceProperties = new Dictionary<string, object?>
-        {
-            { nameof(parkingLot.Name), parkingLot.Name },
-            { nameof(parkingLot.Location), parkingLot.Location },
-            { nameof(parkingLot.Address), parkingLot.Address },
-            { nameof(parkingLot.Coordinates), parkingLot.Coordinates }
-        };
-
-        foreach (var prop in referenceProperties)
-            ArgumentNullException.ThrowIfNull(prop.Value, prop.Key);
-
-        if (parkingLot.Capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Capacity), "Capacity must be greater than 0.");
-        if (parkingLot.Tariff < 0)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Tariff), "Tariff cannot be negative.");
-        if (parkingLot.DayTariff < 0)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.DayTariff), "Day tariff cannot be negative.");
-
-        if (parkingLot.Coordinates.Lat < -90 || parkingLot.Coordinates.Lat > 90)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Coordinates.Lat), "Latitude must be between -90 and 90.");
-        if (parkingLot.Coordinates.Lng < -180 || parkingLot.Coordinates.Lng > 180)
-            throw new ArgumentOutOfRangeException(nameof(parkingLot.Coordinates.Lng), "Longitude must be between -180 and 180.");
-
-        if (parkingLot.CreatedAt == default)
-            parkingLot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        (bool success, int id) = await _dataAccess.ParkingLots.CreateWithId(parkingLot);
-        if (success) parkingLot.Id = id;
-        return parkingLot;
+        (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
+        if (createdSuccessfully) lot.Id = id;
+        return lot;
     }
 
-    public async Task<ParkingLotModel?> GetParkingLotById(int id) => await _dataAccess.ParkingLots.GetById(id);
+    public async Task<ParkingLotModel?> GetParkingLotById(long id) => await _parkingLots.GetById<ParkingLotModel>(id);
 
     public async Task<ParkingLotModel?> GetParkingLotByName(string name)
     {
@@ -55,21 +31,60 @@ public class ParkingLotService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name cannot be empty or whitespace.", nameof(name));
 
-        return await _dataAccess.ParkingLots.GetByName(name);
+        return await _parkingLots.GetByName(name);
     }
 
-    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _dataAccess.ParkingLots.GetAll();
+    public async Task<List<ParkingLotModel>> GetParkingLotsByLocation(string location)
+    {
+        ArgumentNullException.ThrowIfNull(location, nameof(location));
+        if (string.IsNullOrWhiteSpace(location))
+            throw new ArgumentException("Location cannot be empty or whitespace.", nameof(location));
 
-    public async Task<int> CountParkingLots() => await _dataAccess.ParkingLots.Count();
+        var lots = await _parkingLots.GetByLocation(location);
 
-    public async Task<bool> UpdateParkingLot(ParkingLotModel parkingLot) => await _dataAccess.ParkingLots.Update(parkingLot);
+        if (lots.Count == 0)
+            throw new KeyNotFoundException("No parking lots found for the specified location.");
 
-    public async Task<bool> DeleteParkingLot(int id)
+        return lots;
+    }
+
+    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _parkingLots.GetAll();
+
+    public async Task<bool> ParkingLotExists(string checkBy, string filterValue)
+    {
+        if (string.IsNullOrWhiteSpace(filterValue))
+            throw new ArgumentException("Filter value cannot be empty or whitespace.", nameof(filterValue));
+
+        bool exists = checkBy.ToLower() switch
+        {
+            "id" => long.TryParse(filterValue, out long id) && await _parkingLots.Exists(lot => lot.Id == id),
+            "address" => await _parkingLots.Exists(lot => lot.Address == filterValue),
+            _ => throw new ArgumentException("Invalid checkBy parameter. Must be 'id', or 'address'.",
+                nameof(checkBy))
+        };
+
+        return exists;
+    }
+
+    public async Task<int> CountParkingLots() => await _parkingLots.Count();
+
+    public async Task<bool> UpdateParkingLot(ParkingLotModel lot)
+    {
+        var existingLot = await GetParkingLotById(lot.Id);
+        if (existingLot is null) throw new KeyNotFoundException("Parking lot not found");
+
+        Validator.ParkingLot(lot);
+
+        bool updatedSuccessfully = await _parkingLots.Update(lot);
+        return updatedSuccessfully;
+    }
+
+    public async Task<bool> DeleteParkingLot(long id)
     {
         ParkingLotModel? lot = await GetParkingLotById(id);
         if (lot is null) throw new KeyNotFoundException("Parking lot not found");
 
-        bool success = await _dataAccess.ParkingLots.Delete(id);
-        return success;
+        bool deletedSuccessfully = await _parkingLots.Delete(lot);
+        return deletedSuccessfully;
     }
 }

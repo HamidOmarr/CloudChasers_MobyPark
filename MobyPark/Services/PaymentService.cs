@@ -1,115 +1,82 @@
 using MobyPark.Models;
-using MobyPark.Models.DataService;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Models.Repositories.RepositoryStack;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Services;
 
 public class PaymentService
 {
-    private readonly IDataAccess _dataAccess;
+    private readonly IPaymentRepository _payments;
 
-    public PaymentService(IDataAccess dataAccess)
+    public PaymentService(IRepositoryStack repoStack)
     {
-        _dataAccess = dataAccess;
+        _payments = repoStack.Payments;
     }
 
     public async Task<PaymentModel> CreatePayment(PaymentModel payment)
     {
-        if (string.IsNullOrWhiteSpace(payment.TransactionId) ||
-            string.IsNullOrWhiteSpace(payment.Initiator) ||
-            payment.Amount == 0 ||
-            payment.TransactionData == null)
-            throw new ArgumentException("Required fields not filled!");
+        Validator.Payment(payment);
 
-        await _dataAccess.Payments.Create(payment);
+        var (createdSuccessfully, id) = await _payments.CreateWithId(payment);
+        if (!createdSuccessfully)
+            throw new Exception("Failed to create payment");
+        payment.PaymentId = id;
         return payment;
     }
 
-    public async Task<PaymentModel?> GetPaymentByTransactionId(string id) => await _dataAccess.Payments.GetByTransactionId(id);
+    public async Task<PaymentModel?> GetPaymentById(string paymentId)
+    {
+        var payment = await _payments.GetByPaymentId(Guid.Parse(paymentId));
+        if (payment is null)
+            throw new KeyNotFoundException("Payment not found");
+        return payment;
+    }
 
-    public Task<List<PaymentModel>> GetPaymentsByUser(string username) => _dataAccess.Payments.GetByUser(username);
+    public async Task<PaymentModel?> GetPaymentByTransactionId(string transactionId)
+    {
+        var payment = await _payments.GetByTransactionId(Guid.Parse(transactionId));
+        if (payment is null)
+            throw new KeyNotFoundException("Payment not found");
+        return payment;
 
-    public async Task<List<PaymentModel>> GetAllPayments() => await _dataAccess.Payments.GetAll();
+    }
 
-    public async Task<int> CountPayments() => await _dataAccess.Payments.Count();
+    public async Task<List<PaymentModel>> GetPaymentsByLicensePlate(string licensePlate)
+    {
+        var payments = await _payments.GetByLicensePlate(licensePlate);
+        if (payments.Count == 0)
+            throw new KeyNotFoundException("No payments found for the given license plate");
+        return payments;
+    }
+
+    public async Task<List<PaymentModel>> GetAllPayments() => await _payments.GetAll();
+
+    public async Task<int> CountPayments() => await _payments.Count();
 
     private async Task<bool> UpdatePayment(PaymentModel payment)
     {
-        var existingPayment = await GetPaymentByTransactionId(payment.TransactionId);
+        Validator.Payment(payment);
+
+        var existingPayment = await GetPaymentById(payment.PaymentId.ToString());
         if (existingPayment is null) throw new KeyNotFoundException("Payment not found");
 
-        bool success = await _dataAccess.Payments.Update(payment);
-        return success;
+        bool updatedSuccessfully = await _payments.Update(payment);
+        return updatedSuccessfully;
     }
 
-    public async Task<bool> DeletePayment(string transactionId)
+    public async Task<bool> DeletePayment(string paymentId)
     {
-        var payment = await GetPaymentByTransactionId(transactionId);
+        var payment = await GetPaymentById(paymentId);
         if (payment is null) throw new KeyNotFoundException("Payment not found");
 
-        bool success = await _dataAccess.Payments.DeletePayment(transactionId);
-        return success;
+        bool deletedSuccessfully = await _payments.DeletePayment(Guid.Parse(paymentId));
+        return deletedSuccessfully;
     }
 
-    public async Task<PaymentModel> RefundPayment(string originalTransaction, decimal amount, string adminUser)
+    public async Task<decimal> GetTotalAmountForTransaction(string paymentId)
     {
-        string refundTransaction = Guid.NewGuid().ToString("N");
-
-        if (decimal.IsNegative(amount))
-            throw new ArgumentException("Amount cannot be negative");
-
-        // TODO: Add extra adminUser injection security
-
-        TransactionDataModel transactionData = new()
-        {
-            Amount = -Math.Abs(amount),
-            Date = DateOnly.FromDateTime(DateTime.UtcNow),
-            Method = "Refund",
-            Issuer = adminUser,
-            Bank = "N/A"
-        };
-
-        PaymentModel refundPayment = new()
-        {
-            TransactionId = refundTransaction,
-            Amount = -Math.Abs(amount),
-            Initiator = adminUser,
-            CreatedAt = DateTime.UtcNow,
-            Completed = null,
-            Hash = Guid.NewGuid().ToString("N"),
-            TransactionData = transactionData,
-            CoupledTo = originalTransaction
-        };
-
-        if (string.IsNullOrWhiteSpace(originalTransaction) || string.IsNullOrWhiteSpace(adminUser))
-            throw new ArgumentException("Required fields not filled!");
-
-        await _dataAccess.Payments.Create(refundPayment);
-        return refundPayment;
-    }
-
-    public async Task<PaymentModel> ValidatePayment(string transactionId, string validationHash, TransactionDataModel transactionData)
-    {
-        PaymentModel? payment = await _dataAccess.Payments.GetByTransactionId(transactionId);
-
-        if (payment == null)
-            throw new KeyNotFoundException("Payment not found");
-
-        if (payment.Hash != validationHash)
-            throw new UnauthorizedAccessException("Validation hash does not match the existing payment");
-
-        payment.TransactionData = transactionData;
-        if (payment.Completed.HasValue) return payment;
-        payment.Completed = DateTime.UtcNow;
-        await UpdatePayment(payment);
-
-        return payment;
-    }
-
-    public async Task<decimal> GetTotalAmountForTransaction(string transaction)
-    {
-        var payment = await _dataAccess.Payments.GetByTransactionId(transaction);
-        if (payment is null)
-            return Decimal.MinValue; // TODO: Make a bit clearer, either here or where called.
-        return payment.Amount;
+        var payment = await GetPaymentById(paymentId);
+        return payment?.Amount ?? decimal.MinValue;
     }
 }

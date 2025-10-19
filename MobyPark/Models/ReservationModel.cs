@@ -1,35 +1,53 @@
-using Npgsql;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using MobyPark.Models.Repositories.Interfaces;
+using NpgsqlTypes;
 
 namespace MobyPark.Models;
 
-public class ReservationModel
+public enum ReservationStatus
 {
-    public int Id { get; set; }
-    public int UserId { get; set; }
-    public int ParkingLotId { get; set; }
-    public int VehicleId { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
-    public string Status { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public decimal Cost { get; set; }
+    [PgName("pending")]
+    Pending,
+    [PgName("confirmed")]
+    Confirmed,
+    [PgName("cancelled")]
+    Cancelled,
+    [PgName("completed")]
+    Completed,
+    [PgName("no_show")]
+    NoShow
+}
 
-    public ReservationModel() { }
+public class ReservationModel : IHasLongId
+{
+    [Key]
+    public long Id { get; set; }
 
-    public ReservationModel(NpgsqlDataReader reader)
-    {
-        Id = reader.GetInt32(reader.GetOrdinal("id"));
-        UserId = reader.GetInt32(reader.GetOrdinal("user_id"));
-        ParkingLotId = reader.GetInt32(reader.GetOrdinal("parking_lot_id"));
-        VehicleId = reader.GetInt32(reader.GetOrdinal("vehicle_id"));
-        StartTime = reader.GetDateTime(reader.GetOrdinal("start_time"));
-        EndTime = reader.GetDateTime(reader.GetOrdinal("end_time"));
-        Status = reader.GetString(reader.GetOrdinal("status"));
-        CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"));
-        Cost = (decimal)reader.GetFloat(reader.GetOrdinal("cost"));
-    }
+    [Required]
+    public string LicensePlateNumber { get; set; } = string.Empty;
 
-    public override string ToString() =>
-        $"Reservation [{Id}] by User {UserId} for Parking Lot {ParkingLotId} with Vehicle {VehicleId}.\n" +
-        $"Start: {StartTime}, End: {EndTime}, Status: {Status}, Cost: {Cost}, Created: {CreatedAt}";
+    [ForeignKey(nameof(LicensePlateNumber))]
+    public LicensePlateModel LicensePlate { get; set; } = null!;
+
+    [Required]
+    public long ParkingLotId { get; set; }
+
+    [ForeignKey(nameof(ParkingLotId))]
+    public ParkingLotModel ParkingLot { get; set; } = null!;
+
+    [Required]
+    public DateTime StartTime { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    public DateTime EndTime { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
+
+    [Required]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    public decimal Cost { get; set; } = 0m;
 }

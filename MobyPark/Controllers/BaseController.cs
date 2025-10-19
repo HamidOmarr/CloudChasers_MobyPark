@@ -1,40 +1,39 @@
-using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
 using MobyPark.Services;
 using MobyPark.Services.Services;
 
-namespace MobyPark.Controllers
+namespace MobyPark.Controllers;
+
+[ApiController]
+public abstract class BaseController : ControllerBase
 {
-    [ApiController]
-    public abstract class BaseController : ControllerBase
+    protected readonly UserService UserService;
+
+    protected BaseController(ServiceStack services)
     {
-        protected readonly UserService UserService;
+        UserService = services.Users;
+    }
 
-        protected BaseController(ServiceStack services)
-        {
-            UserService = services.Users;
-        }
+    protected int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-        protected int GetCurrentUserId()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
+            throw new InvalidOperationException("User ID claim is missing or invalid in the token.");
 
-            if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
-                throw new InvalidOperationException("User ID claim is missing or invalid in the token.");
+        return userId;
+    }
 
-            return userId;
-        }
+    protected async Task<UserModel> GetCurrentUserAsync()
+    {
+        var userId = GetCurrentUserId();
+        var user = await UserService.GetUserById(userId);
 
-        protected async Task<UserModel> GetCurrentUserAsync()
-        {
-            var userId = GetCurrentUserId();
-            var user = await UserService.GetUserById(userId);
+        if (user is null)
+            throw new UnauthorizedAccessException("Authenticated user record not found.");
 
-            if (user is null)
-                throw new UnauthorizedAccessException("Authenticated user record not found.");
-
-            return user;
-        }
+        return user;
     }
 }

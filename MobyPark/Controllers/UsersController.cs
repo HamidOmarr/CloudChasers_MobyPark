@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
-using MobyPark.Models.Requests.User;
+using MobyPark.Models.DTOs.User;
 using MobyPark.Models.Responses.User;
 using MobyPark.Services;
 using MobyPark.Services.Services;
@@ -23,9 +24,9 @@ public class UsersController : BaseController
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        var result = await _userService.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         return result switch
         {
@@ -47,9 +48,9 @@ public class UsersController : BaseController
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var result = await _userService.LoginAsync(request);
+        var result = await _userService.LoginAsync(dto);
 
         return result switch
         {
@@ -61,11 +62,11 @@ public class UsersController : BaseController
 
     [Authorize]
     [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
     {
         var user = await GetCurrentUserAsync();
 
-        var result = await _userService.UpdateUserProfileAsync(user, request);
+        var result = await _userService.UpdateUserProfileAsync(user, dto);
 
         return result switch
         {

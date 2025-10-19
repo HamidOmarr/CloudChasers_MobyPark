@@ -13,16 +13,16 @@ public static class DiContainer
     public static void AddMobyParkServices(this IServiceCollection services)
     {
         // Access: Scoped. New instance per HTTP request.
-        services.AddScoped<IUserAccess, UserAccess>();
-        services.AddScoped<IVehicleAccess, VehicleAccess>();
-        services.AddScoped<IParkingLotAccess, ParkingLotAccess>();
-        services.AddScoped<IReservationAccess, ReservationAccess>();
-        services.AddScoped<IPaymentAccess, PaymentAccess>();
-        services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
+        // services.AddScoped<IUserAccess, UserAccess>();
+        // services.AddScoped<IVehicleAccess, VehicleAccess>();
+        // services.AddScoped<IParkingLotAccess, ParkingLotAccess>();
+        // services.AddScoped<IReservationAccess, ReservationAccess>();
+        // services.AddScoped<IPaymentAccess, PaymentAccess>();
+        // services.AddScoped<IParkingSessionAccess, ParkingSessionAccess>();
 
         // Data Service: Scoped to align with database connection lifecycle.
-        services.AddScoped<IDataAccess, DataAccess>();
-        services.AddScoped<IDatabaseConnection, DatabaseConnection>();
+        // services.AddScoped<IDataAccess, DataAccess>();
+        // services.AddScoped<IDatabaseConnection, DatabaseConnection>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<SessionService>();
@@ -36,7 +36,7 @@ public static class DiContainer
         services.AddScoped<UserService>();
         services.AddScoped<ParkingLotService>();
         services.AddScoped<ReservationService>();
-        services.AddScoped<VehicleService>();
+        // services.AddScoped<VehicleService>();
 
         // ServiceStack: Scoped as it bundles Scoped services together.
         services.AddScoped<ServiceStack>();

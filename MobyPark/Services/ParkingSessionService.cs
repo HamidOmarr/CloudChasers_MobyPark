@@ -1,51 +1,49 @@
 using System.Security.Cryptography;
 using System.Text;
 using MobyPark.Models;
-using MobyPark.Models.DataService;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Models.Repositories.RepositoryStack;
+using MobyPark.Services.Services;
 
 namespace MobyPark.Services;
 
 public class ParkingSessionService
 {
-    private readonly IDataAccess _dataAccess;
+    private readonly IParkingSessionRepository _sessions;
 
-    public ParkingSessionService(IDataAccess dataAccess)
+    public ParkingSessionService(IRepositoryStack repoStack)
     {
-        _dataAccess = dataAccess;
+        _sessions = repoStack.ParkingSessions;
     }
 
     public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
     {
-        if (string.IsNullOrWhiteSpace(session.LicensePlate) ||
-            session.ParkingLotId == 0 ||
-            session.Started == default ||
-            string.IsNullOrWhiteSpace(session.User))
-            throw new ArgumentException("Required fields not filled!");
+        Validator.ParkingSession(session);
 
-        (bool success, int id) = await _dataAccess.ParkingSessions.CreateWithId(session);
-        if (success) session.Id = id;
+        (bool createdSuccessfully, long id) = await _sessions.CreateWithId(session);
+        if (createdSuccessfully) session.Id = id;
         return session;
     }
 
-    public async Task<ParkingSessionModel> GetParkingSessionById(int id)
+    public async Task<ParkingSessionModel> GetParkingSessionById(long id)
     {
-        ParkingSessionModel? session = await _dataAccess.ParkingSessions.GetById(id);
+        ParkingSessionModel? session = await _sessions.GetById<ParkingSessionModel>(id);
         if (session is null) throw new KeyNotFoundException("Parking session not found");
 
         return session;
     }
 
-    public async Task<List<ParkingSessionModel>> GetParkingSessionsByParkingLotId(int lotId)
+    public async Task<List<ParkingSessionModel>> GetParkingSessionsByParkingLotId(long lotId)
     {
-        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByParkingLotId(lotId);
+        List<ParkingSessionModel> sessions = await _sessions.GetByParkingLotId(lotId);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
     }
 
-    public async Task<List<ParkingSessionModel>> GetParkingSessionsByUser(string user)
+    public async Task<List<ParkingSessionModel>> GetParkingSessionsByLicensePlate(string licensePlate)
     {
-        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByUser(user);
+        List<ParkingSessionModel> sessions = await _sessions.GetByLicensePlateNumber(licensePlate);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
@@ -53,28 +51,59 @@ public class ParkingSessionService
 
     public async Task<List<ParkingSessionModel>> GetParkingSessionsByPaymentStatus(string status)
     {
-        List<ParkingSessionModel> sessions = await _dataAccess.ParkingSessions.GetByPaymentStatus(status);
+        if (!Enum.TryParse<ParkingSessionStatus>(status, true, out var parsedStatus))
+            throw new ArgumentException("Invalid payment status", nameof(status));
+        List<ParkingSessionModel> sessions = await _sessions.GetByPaymentStatus(parsedStatus);
         if (sessions.Count == 0) throw new KeyNotFoundException("No sessions found");
 
         return sessions;
     }
 
-    public async Task<List<ParkingSessionModel>> GetAllParkingSessions() => await _dataAccess.ParkingSessions.GetAll();
-
-    public async Task<int> CountParkingSessions() => await _dataAccess.ParkingSessions.Count();
-
-    public async Task<bool> UpdateParkingSession(ParkingSessionModel session) => await _dataAccess.ParkingSessions.Update(session);
-
-    public async Task<bool> DeleteParkingSession(int id)
+    public async Task<List<ParkingSessionModel>> GetActiveParkingSessions()
     {
-        await GetParkingSessionById(id);
+        List<ParkingSessionModel> sessions = await _sessions.GetActiveSessions();
+        if (sessions.Count == 0) throw new KeyNotFoundException("No active sessions found");
 
-        bool success = await _dataAccess.ParkingSessions.Delete(id);
-        return success;
+        return sessions;
+    }
+
+    public async Task<ParkingSessionModel> GetActiveParkingSessionByLicensePlate(string licensePlate)
+    {
+        ParkingSessionModel? session = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
+        if (session is null) throw new KeyNotFoundException("No active session found for this license plate");
+
+        return session;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetAllParkingSessions() => await _sessions.GetAll();
+
+    public async Task<int> CountParkingSessions() => await _sessions.Count();
+
+    public async Task<bool> UpdateParkingSession(ParkingSessionModel session)
+    {
+        Validator.ParkingSession(session);
+
+        var existingSession = await GetParkingSessionById(session.Id);
+        if (existingSession is null) throw new KeyNotFoundException("Parking session not found");
+
+        bool updatedSuccessfully = await _sessions.Update(session);
+        return updatedSuccessfully;
+    }
+
+    public async Task<bool> DeleteParkingSession(long id)
+    {
+        var session = await GetParkingSessionById(id);
+        if (session is null) throw new KeyNotFoundException("Parking session not found");
+
+        bool deletedSuccessfully = await _sessions.Delete(session);
+        return deletedSuccessfully;
     }
 
     public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
     {
+        Validator.ParkingLot(parkingLot);
+        Validator.ParkingSession(session);
+
         decimal price;
         DateTime start = session.Started;
         DateTime end = session.Stopped ?? DateTime.Now;

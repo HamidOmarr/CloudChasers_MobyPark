@@ -26,7 +26,7 @@ public class SessionService
             new (ClaimTypes.NameIdentifier, user.Id.ToString()),
             new (ClaimTypes.Name, user.Username),
             new (ClaimTypes.Email, user.Email),
-            new (ClaimTypes.Role, ((UserRole)user.RoleId).ToString())
+            new (ClaimTypes.Role, user.Role.Name)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));

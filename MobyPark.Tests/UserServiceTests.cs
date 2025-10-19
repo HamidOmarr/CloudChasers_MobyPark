@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.DataService;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Models.Requests.User;
 using MobyPark.Services;
 using MobyPark.Services.Results.User;
@@ -12,8 +14,8 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class UserServiceTests
 {
-    private Mock<IDataAccess>? _mockDataService;
-    private Mock<IUserAccess>? _mockUserAccess;
+    private Mock<IRepositoryStack>? _mockRepositoryStack;
+    private Mock<IUserRepository>? _mockUserRepository;
     private Mock<SessionService>? _mockSessions;
     private UserService? _userService;
     private IPasswordHasher<UserModel>? _hasher;
@@ -22,12 +24,12 @@ public sealed class UserServiceTests
     [TestInitialize]
     public void TestInitialize()
     {
-        _mockDataService = new Mock<IDataAccess>();
-        _mockUserAccess = new Mock<IUserAccess>();
+        _mockRepositoryStack = new Mock<IRepositoryStack>();
+        _mockUserRepository = new Mock<IUserRepository>();
         _hasher = new PasswordHasher<UserModel>();
         _mockSessions = new Mock<SessionService>();
-        _mockDataService.Setup(ds => ds.Users).Returns(_mockUserAccess.Object);
-        _userService = new UserService(_mockDataService.Object, _hasher, _mockSessions.Object);
+        _mockRepositoryStack.Setup(ds => ds.Users).Returns(_mockUserRepository.Object);
+        _userService = new UserService(_mockRepositoryStack.Object, _hasher, _mockSessions.Object);
     }
 
     [TestMethod]
@@ -80,7 +82,7 @@ public sealed class UserServiceTests
         // Arrange
         var birthday = DateTime.Parse(birthdayString);
 
-        _mockUserAccess!
+        _mockUserRepository!
             .Setup(access => access.CreateWithId(It.IsAny<UserModel>()))
             .ReturnsAsync((true, 1));
 
@@ -121,7 +123,7 @@ public sealed class UserServiceTests
         Assert.AreEqual(PasswordVerificationResult.Success, verifyResult);
 
         // Verify persistence call
-        _mockUserAccess.Verify(u => u.CreateWithId(It.Is<UserModel>(usr =>
+        _mockUserRepository.Verify(u => u.CreateWithId(It.Is<UserModel>(usr =>
             usr.Username == username &&
             usr.Name == name &&
             usr.Role == "USER"
@@ -164,7 +166,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -199,7 +201,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -231,7 +233,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -272,7 +274,7 @@ public sealed class UserServiceTests
             Birthday = birthday
         };
 
-        _mockUserAccess!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
+        _mockUserRepository!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
 
         // Act
         var result = await _userService!.CreateUserAsync(request);
@@ -283,7 +285,7 @@ public sealed class UserServiceTests
         var createdUser = success!.User;
         Assert.IsNotNull(createdUser);
         Assert.AreEqual(expectedNormalized, createdUser.Email);
-        _mockUserAccess.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
+        _mockUserRepository.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
     }
 
     [TestMethod]
@@ -333,7 +335,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -409,9 +411,9 @@ public sealed class UserServiceTests
             Birthday = birthday
         };
 
-        _mockUserAccess!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
+        _mockUserRepository!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
 
-        _mockUserAccess!
+        _mockUserRepository!
             .Setup(access => access.Create(It.IsAny<UserModel>()))
             .ReturnsAsync(true).Verifiable();
 
@@ -424,7 +426,7 @@ public sealed class UserServiceTests
         var createdUser = success!.User;
         Assert.IsNotNull(createdUser);
         Assert.AreEqual(expected, createdUser.Phone);
-        _mockUserAccess.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Phone == expected)), Times.Once);
+        _mockUserRepository.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Phone == expected)), Times.Once);
     }
 
     [TestMethod]
@@ -453,7 +455,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -473,7 +475,7 @@ public sealed class UserServiceTests
             CreatedAt = DateTime.UtcNow
         };
 
-        _mockUserAccess!
+        _mockUserRepository!
             .Setup(access => access.Update(It.IsAny<UserModel>()))
             .ReturnsAsync(true).Verifiable();
 
@@ -482,7 +484,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.AreEqual(user, result);
-        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
+        _mockUserRepository.Verify(access => access.Update(user), Times.Once);
     }
 
     [TestMethod]
@@ -491,7 +493,7 @@ public sealed class UserServiceTests
         await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
             await _userService!.UpdateUser(null!));
 
-        _mockUserAccess!.Verify(access => access.Update(It.IsAny<UserModel>()), Times.Never);
+        _mockUserRepository!.Verify(access => access.Update(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
@@ -511,7 +513,7 @@ public sealed class UserServiceTests
 
         user.PasswordHash = _hasher!.HashPassword(user, password);
 
-        _mockUserAccess!
+        _mockUserRepository!
             .Setup(access => access.Update(It.IsAny<UserModel>()))
             .ThrowsAsync(new InvalidOperationException("DB error"));
 
@@ -539,7 +541,7 @@ public sealed class UserServiceTests
             CreatedAt = DateTime.MinValue
         };
 
-        _mockUserAccess!
+        _mockUserRepository!
             .Setup(access => access.Update(It.IsAny<UserModel>()))
             .ReturnsAsync(true).Verifiable();
 
@@ -548,7 +550,7 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.AreEqual(user, result);
-        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
+        _mockUserRepository.Verify(access => access.Update(user), Times.Once);
     }
 }
 

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.DTOs;
 using MobyPark.Models;
-using MobyPark.Models.Requests;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
@@ -11,7 +11,7 @@ public class VehiclesController : BaseController
 {
     private readonly ServiceStack _services;
 
-    public VehiclesController(ServiceStack services) : base(services.Sessions)
+    public VehiclesController(ServiceStack services) : base(services)
     {
         _services = services;
     }
@@ -19,7 +19,7 @@ public class VehiclesController : BaseController
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] VehicleRequest request)
     {
-        var user = GetCurrentUser();
+        var user = await GetCurrentUserAsync();
 
         if (string.IsNullOrEmpty(request.LicensePlate))
             return BadRequest(new { error = "Required field missing" });
