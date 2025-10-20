@@ -1,8 +1,5 @@
-using System.ComponentModel.DataAnnotations;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -10,15 +7,13 @@ public class ReservationService
 {
     private readonly IReservationRepository _reservations;
 
-    public ReservationService(IRepositoryStack repoStack)
+    public ReservationService(IReservationRepository reservations)
     {
-        _reservations = repoStack.Reservations;
+        _reservations = reservations;
     }
 
     public async Task<ReservationModel> CreateReservation(ReservationModel reservation)
     {
-        ServiceValidator.Reservation(reservation);
-
         (bool createdSuccessfully, long id) = await _reservations.CreateWithId(reservation);
         if (!createdSuccessfully) throw new Exception("Failed to create reservation");
 
@@ -69,8 +64,6 @@ public class ReservationService
 
     public async Task<bool> UpdateReservation(ReservationModel reservation)
     {
-        ServiceValidator.Reservation(reservation);
-
         var updatedSuccessfully = await _reservations.Update(reservation);
         return updatedSuccessfully;
     }

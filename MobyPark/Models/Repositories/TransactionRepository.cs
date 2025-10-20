@@ -30,7 +30,7 @@ public class TransactionRepository : Repository<TransactionModel>, ITransactionR
     public async Task<bool> DeleteTransaction(TransactionModel transaction)
     {
         var payment = await Context.Payments
-            .FirstOrDefaultAsync(payment => payment.TransactionDataId == transaction.Id);
+            .FirstOrDefaultAsync(payment => payment.TransactionId == transaction.Id);
 
         if (payment is not null)
             Context.Payments.Remove(payment);

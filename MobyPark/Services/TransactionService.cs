@@ -1,26 +1,39 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Validation;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Transaction;
 
 namespace MobyPark.Services;
 
-public class TransactionService
+public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactions;
 
-    public TransactionService(IRepositoryStack repoStack)
+    public TransactionService(ITransactionRepository transactions)
     {
-        _transactions = repoStack.Transactions;
+        _transactions = transactions;
     }
 
     public async Task<TransactionModel> CreateTransaction(TransactionModel transaction)
     {
-        ServiceValidator.Transaction(transaction);
-
         (bool createdSuccessfully, Guid id) = await _transactions.CreateWithId(transaction);
         if (createdSuccessfully) transaction.Id = id;
         return transaction;
+    }
+
+    public async Task<TransactionCreationResult> CreateTransactionConfirmation(TransactionModel transaction)
+    {
+        try
+        {
+            (bool success, Guid id) = await _transactions.CreateWithId(transaction);
+            if (!success)
+                return new TransactionCreationResult.Error("Database insertion failed.");
+
+            transaction.Id = id;
+            return new TransactionCreationResult.Success(id, transaction);
+        }
+        catch (Exception )
+        { return new TransactionCreationResult.Error("An error occurred while creating the transaction."); }
     }
 
     public async Task<TransactionModel?> GetTransactionById(Guid id) => await _transactions.GetByTransactionId(id);
@@ -46,19 +59,35 @@ public class TransactionService
 
     public async Task<int> CountTransactions() => await _transactions.Count();
 
-    public async Task<bool> UpdateTransaction(TransactionModel transaction)
+    public async Task<TransactionUpdateResult> UpdateTransaction(TransactionModel transaction)
     {
-        ServiceValidator.Transaction(transaction);
-        return await _transactions.Update(transaction);
+        try
+        {
+            var exists = await _transactions.GetByTransactionId(transaction.Id);
+            if (exists is null)
+                return new TransactionUpdateResult.NotFound();
+
+            if (!await _transactions.Update(transaction))
+                return new TransactionUpdateResult.Error("Database update failed.");
+            return new TransactionUpdateResult.Success(transaction);
+        }
+        catch (Exception ex)
+        { return new TransactionUpdateResult.Error(ex.Message); }
     }
 
-    public async Task<bool> DeleteTransaction(Guid transactionId)
+    public async Task<TransactionDeleteResult> DeleteTransaction(Guid transactionId)
     {
-        var transactionExists = await TransactionExists("id", transactionId.ToString());
-        if (!transactionExists) throw new KeyNotFoundException("Transaction not found");  // Check existence. Make custom return type.
+        try
+        {
+            var transaction = await _transactions.GetByTransactionId(transactionId);
+            if (transaction is null)
+                return new TransactionDeleteResult.NotFound();
 
-        var transaction = (await GetTransactionById(transactionId))!;
-
-        return await _transactions.DeleteTransaction(transaction);
+            if (!await _transactions.DeleteTransaction(transaction))
+                return new TransactionDeleteResult.Error("Failed to delete transaction from database.");
+            return new TransactionDeleteResult.Success();
+        }
+        catch (Exception ex)
+        { return new TransactionDeleteResult.Error(ex.Message); }
     }
 }

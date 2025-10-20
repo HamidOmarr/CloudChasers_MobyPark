@@ -1,7 +1,5 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -9,15 +7,13 @@ public class PermissionService
 {
     private readonly IPermissionRepository _permissions;
 
-    public PermissionService(IRepositoryStack repoStack)
+    public PermissionService(IPermissionRepository permissions)
     {
-        _permissions = repoStack.Permissions;
+        _permissions = permissions;
     }
 
     public async Task<bool> AddPermission(PermissionModel permission)
     {
-        ServiceValidator.Permission(permission);
-
         permission.Resource = permission.Resource.ToUpperInvariant();
         permission.Action = permission.Action.ToUpperInvariant();
 
@@ -32,8 +28,6 @@ public class PermissionService
     {
         resource = resource.ToUpperInvariant();
         action = action.ToUpperInvariant();
-
-        ServiceValidator.Permission(new PermissionModel{ Resource = resource, Action = action } );
 
         var permission = await _permissions.GetByResourceAndAction(resource, action);
 

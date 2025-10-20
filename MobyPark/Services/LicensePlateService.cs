@@ -1,6 +1,5 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
 
 namespace MobyPark.Services;
 
@@ -8,9 +7,9 @@ public class LicensePlateService
 {
     private readonly ILicensePlateRepository _licensePlates;
 
-    public LicensePlateService(IRepositoryStack repoStack)
+    public LicensePlateService(ILicensePlateRepository licensePlates)
     {
-        _licensePlates = repoStack.LicensePlates;
+        _licensePlates = licensePlates;
     }
 
     public async Task<LicensePlateModel> CreateLicensePlate(LicensePlateModel licensePlate)

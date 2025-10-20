@@ -2,11 +2,12 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
+using MobyPark.Services.Interfaces;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class UserPlateService
+public class UserPlateService : IUserPlateService
 {
     private readonly IUserPlateRepository _userPlates;
 
@@ -22,7 +23,6 @@ public class UserPlateService
         return userPlate;
     }
 
-    // Add plate to user
     public async Task<bool> AddLicensePlateToUser(long userId, string plate) => await _userPlates.AddPlateToUser(userId, plate);
 
     public async Task<UserPlateModel?> GetUserPlateById(long id) => await _userPlates.GetById<UserPlateModel>(id);
@@ -52,10 +52,9 @@ public class UserPlateService
         return primaryPlate;
     }
 
-    public async Task<UserPlateModel> GetUserPlateByUserIdAndPlate(long userId, string plate)
+    public async Task<UserPlateModel?> GetUserPlateByUserIdAndPlate(long userId, string plate)
     {
         var userPlate = await _userPlates.GetByUserIdAndPlate(userId, plate);
-        if (userPlate is null) throw new KeyNotFoundException($"No license plate '{plate}' found for user with ID {userId}.");
 
         return userPlate;
     }

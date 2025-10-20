@@ -67,6 +67,10 @@ public static class ServiceExtensions
             .AddPolicy("CanManageParkingSessions",
                 policy => { policy.RequireClaim("Permission", "SESSIONS:MANAGE"); });
 
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanProcessPayments",
+                policy => { policy.RequireClaim("Permission", "PAYMENTS:PROCESS"); });
+
 
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();

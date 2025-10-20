@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs;
-using MobyPark.Models;
+using MobyPark.DTOs.Payment.Request;
+using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Services;
-using MobyPark.Services.Services;
+using MobyPark.Services.Results.Payment;
 
 namespace MobyPark.Controllers;
 
@@ -15,100 +17,91 @@ public class PaymentsController : BaseController
 
     public PaymentsController(UserService users, PaymentService payments) : base(users)
     {
+        _users = users;
         _payments = payments;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] PaymentRequest request)
+    public async Task<IActionResult> Create([FromBody] PaymentCreateDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+        var result = await _payments.CreatePaymentAndTransaction(request);
 
-        var user = GetCurrentUserAsync();
-
-        if (request.Amount == null)
-            return BadRequest(new { error = "Required fields missing" });
-
-        var createTransactionDataId = Guid.NewGuid(); // Placeholder for transaction data ID generation, has to be done in payment service later, whilst creating the transaction alongside the payment
-
-        var payment = new PaymentModel
+        return result switch
         {
-            PaymentId = Guid.NewGuid(),
-            Amount = request.Amount.Value,
-            LicensePlateNumber = request.LicensePlateNumber,
-            CreatedAt = DateTime.UtcNow,
-            CompletedAt = null,
-            TransactionId = createTransactionDataId
+            PaymentCreationResult.Success success => CreatedAtAction(nameof(GetUserPayments),
+                new { id = success.Payment.PaymentId },
+                success.Payment),
+            PaymentCreationResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown payment creation error occurred." })
         };
-
-        try
-        {
-            var makePayment = await _payments.CreatePayment(payment);
-
-            return CreatedAtAction(nameof(GetUserPayments),
-                new { id = makePayment.TransactionId },
-                payment);
-        }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
     }
 
+    [Authorize(Policy = "CanProcessPayments")]
     [HttpPost("refund")]
     public async Task<IActionResult> Refund([FromBody] PaymentRefundRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var user = GetCurrentUserAsync();
-
-        if (user.Role != "ADMIN")
-            return Forbid();
+        var adminUser = (await GetCurrentUserAsync()).Username;
 
         if (request.Amount == null)
-            return BadRequest(new { error = "Required field missing: amount" });
+            return BadRequest(new { error = "Required field missing: Amount" });
 
-        try
+        // No more try...catch!
+        var result = await _payments.RefundPayment(
+            request.PaymentId,
+            request.Amount.Value,
+            adminUser
+        );
+
+        return result switch
         {
-            var refund = await _payments.RefundPayment(
-                request.CoupledTo,
-                request.Amount.Value,
-                user.Username
-            );
-
-            return StatusCode(201, new { status = "Success", refund });
-        }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
+            PaymentRefundResult.Success success => StatusCode(201, new { status = "Success", refund = success.RefundPayment }),
+            PaymentRefundResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            PaymentRefundResult.NotFound => NotFound(new { error = "Original payment not found." }),
+            PaymentRefundResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown refund error occurred." })
+        };
     }
 
-    [HttpPut("{transactionId}")]
-    public async Task<IActionResult> ValidatePayment(string transactionId, [FromBody] PaymentValidationRequest request)
+    [HttpPut("{paymentId}")]
+    public async Task<IActionResult> ValidatePayment(string paymentId, [FromBody] TransactionDataDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var payment = await _payments.GetPaymentByTransactionId(transactionId);
+        if (!Guid.TryParse(paymentId, out Guid pid))
+            return BadRequest(new { error = "Invalid Payment ID format" });
 
-        if (payment.Hash != request.Validation)
-            return Unauthorized(new { error = "Validation failed", info = "The security hash could not be validated." });
+        var result = await _payments.ValidatePayment(pid, request);
 
-        await _payments.ValidatePayment(transactionId, payment.Hash, request.TransactionData);
-        return Ok(new { status = "Success", payment });
+        return result switch
+        {
+            PaymentValidationResult.Success s => Ok(new { status = "Success", payment = s.Payment }),
+            PaymentValidationResult.NotFound => NotFound(new { error = "Payment not found." }),
+            PaymentValidationResult.InvalidData e => BadRequest(new { error = e.Message }),
+            PaymentValidationResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown validation error occurred." })
+        };
     }
 
     [HttpGet]
     public async Task<IActionResult> GetUserPayments()
     {
-        var user = GetCurrentUserAsync();
-        var payments = await _payments.GetPaymentsByUser(user.Username);
+        var user = await GetCurrentUserAsync();
+        var payments = await _payments.GetPaymentsByUser(user.Id);
         return Ok(payments);
     }
 
+    [Authorize(Policy = "CanProcessPayments")]
     [HttpGet("{username}")]
     public async Task<IActionResult> GetPaymentsForUser(string username)
     {
-        var user = GetCurrentUserAsync();
-        if (user.Role != "ADMIN")
-            return Forbid();
+        var targetUser = await _users.GetUserByUsername(username);
+        if (targetUser == null)
+            return NotFound(new { error = "User not found" });
 
-        var payments = await _payments.GetPaymentsByUser(username);
+        var payments = await _payments.GetPaymentsByUser(targetUser.Id);
         return Ok(payments);
     }
 }

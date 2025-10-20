@@ -7,12 +7,13 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.User;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public partial class UserService
+public partial class UserService : IUserService
 {
     private readonly IUserRepository _users;
     private readonly IUserPlateRepository _userPlates;
@@ -56,7 +57,6 @@ public partial class UserService
 
     private async Task<UserModel> CreateUser(UserModel user)
     {
-        // ServiceValidator.User(user);
         (bool createdSuccessfully, long id) = await _users.CreateWithId(user);
 
         if (!createdSuccessfully) throw new InvalidOperationException("Database insertion failed unexpectedly.");
@@ -178,7 +178,6 @@ public partial class UserService
         // Username
         if (!string.IsNullOrWhiteSpace(dto.Username))
         {
-            // Check for specific UsernameTaken business rule
             var existing = await _users.GetByUsername(dto.Username);
             if (existing is not null && existing.Id != user.Id)
                 return new UpdateProfileResult.UsernameTaken();
@@ -189,7 +188,6 @@ public partial class UserService
         // Password
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
-            // 🚨 ENHANCEMENT: Use a synchronous helper for complexity/format validation
             var passwordResult = ValidatePasswordIntegrity(dto.Password);
             if (passwordResult is UpdateProfileResult.InvalidData)
                 return passwordResult;
@@ -214,7 +212,6 @@ public partial class UserService
         // Phone
         if (!string.IsNullOrWhiteSpace(dto.Phone))
         {
-            // 🚨 ENHANCEMENT: Use a synchronous helper for cleaning and format validation
             var phoneResult = ValidateAndCleanPhone(dto.Phone, out string? cleanPhone);
             if (phoneResult is UpdateProfileResult.InvalidData)
                 return phoneResult;

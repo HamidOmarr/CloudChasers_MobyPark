@@ -1,54 +1,77 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Validation;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.ParkingLot;
 
 namespace MobyPark.Services;
 
-public class ParkingLotService
+public class ParkingLotService : IParkingLotService
 {
     private readonly IParkingLotRepository _parkingLots;
 
-    public ParkingLotService(IRepositoryStack repoStack)
+    public ParkingLotService(IParkingLotRepository parkingLots)
     {
-        _parkingLots = repoStack.ParkingLots;
+        _parkingLots = parkingLots;
     }
 
-    public async Task<ParkingLotModel> CreateParkingLot(ParkingLotModel lot)
+    public async Task<CreateLotResult> CreateParkingLot(ParkingLotModel lot)
     {
-        ServiceValidator.ParkingLot(lot);
+        try
+        {
+            (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
+            if (!createdSuccessfully)
+                return new CreateLotResult.Error("Database insertion failed.");
 
-        (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
-        if (createdSuccessfully) lot.Id = id;
-        return lot;
+            lot.Id = id;
+            return new CreateLotResult.Success(lot);
+        }
+        catch (Exception ex)
+        { return new CreateLotResult.Error(ex.Message); }
     }
 
-    public async Task<ParkingLotModel?> GetParkingLotById(long id) => await _parkingLots.GetById<ParkingLotModel>(id);
-
-    public async Task<ParkingLotModel?> GetParkingLotByName(string name)
+    public async Task<GetLotResult> GetParkingLotById(long id)
     {
-        ArgumentNullException.ThrowIfNull(name, nameof(name));
+        var lot = await _parkingLots.GetById<ParkingLotModel>(id);
+        if (lot is null)
+            return new GetLotResult.NotFound();
+
+        return new GetLotResult.Success(lot);
+    }
+
+    public async Task<GetLotResult> GetParkingLotByName(string name)
+    {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Name cannot be empty or whitespace.", nameof(name));
+            return new GetLotResult.InvalidInput("Name cannot be empty or whitespace.");
 
-        return await _parkingLots.GetByName(name);
+        var lot = await _parkingLots.GetByName(name);
+        if (lot is null)
+            return new GetLotResult.NotFound();
+
+        return new GetLotResult.Success(lot);
     }
 
-    public async Task<List<ParkingLotModel>> GetParkingLotsByLocation(string location)
+    public async Task<GetLotListResult> GetParkingLotsByLocation(string location)
     {
-        ArgumentNullException.ThrowIfNull(location, nameof(location));
         if (string.IsNullOrWhiteSpace(location))
-            throw new ArgumentException("Location cannot be empty or whitespace.", nameof(location));
+            return new GetLotListResult.InvalidInput("Location cannot be empty or whitespace.");
 
         var lots = await _parkingLots.GetByLocation(location);
 
         if (lots.Count == 0)
-            throw new KeyNotFoundException("No parking lots found for the specified location.");
+            return new GetLotListResult.NotFound();
 
-        return lots;
+        return new GetLotListResult.Success(lots);
     }
 
-    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _parkingLots.GetAll();
+    public async Task<GetLotListResult> GetAllParkingLots()
+    {
+        var lots = await _parkingLots.GetAll();
+
+        if (lots.Count == 0)
+            return new GetLotListResult.NotFound();
+
+        return new GetLotListResult.Success(lots);
+    }
 
     public async Task<bool> ParkingLotExists(string checkBy, string filterValue)
     {
@@ -68,23 +91,39 @@ public class ParkingLotService
 
     public async Task<int> CountParkingLots() => await _parkingLots.Count();
 
-    public async Task<bool> UpdateParkingLot(ParkingLotModel lot)
+    public async Task<UpdateLotResult> UpdateParkingLot(ParkingLotModel lot)
     {
-        var existingLot = await GetParkingLotById(lot.Id);
-        if (existingLot is null) throw new KeyNotFoundException("Parking lot not found");
+        var getResult = await GetParkingLotById(lot.Id);
+        if (getResult is GetLotResult.NotFound)
+            return new UpdateLotResult.NotFound();
 
-        ServiceValidator.ParkingLot(lot);
+        try
+        {
+            if (!await _parkingLots.Update(lot))
+                return new UpdateLotResult.Error("Database update failed.");
 
-        bool updatedSuccessfully = await _parkingLots.Update(lot);
-        return updatedSuccessfully;
+            return new UpdateLotResult.Success(lot);
+        }
+        catch (Exception ex)
+        { return new UpdateLotResult.Error(ex.Message); }
     }
 
-    public async Task<bool> DeleteParkingLot(long id)
+    public async Task<DeleteLotResult> DeleteParkingLot(long id)
     {
-        ParkingLotModel? lot = await GetParkingLotById(id);
-        if (lot is null) throw new KeyNotFoundException("Parking lot not found");
+        var getResult = await GetParkingLotById(id);
+        if (getResult is GetLotResult.NotFound)
+            return new DeleteLotResult.NotFound();
 
-        bool deletedSuccessfully = await _parkingLots.Delete(lot);
-        return deletedSuccessfully;
+        var lot = ((GetLotResult.Success)getResult).Lot;
+
+        try
+        {
+            if (!await _parkingLots.Delete(lot))
+                return new DeleteLotResult.Error("Database deletion failed.");
+
+            return new DeleteLotResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeleteLotResult.Error(ex.Message); }
     }
 }

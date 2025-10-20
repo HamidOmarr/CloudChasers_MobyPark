@@ -8,7 +8,7 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
 {
     public PaymentRepository(AppDbContext context) : base(context) { }
 
-    public new async Task<(bool success, Guid id)> CreateWithId(PaymentModel entity)
+    public async Task<(bool success, Guid id)> CreateWithId(PaymentModel entity)
     {
         await DbSet.AddAsync(entity);
         await Context.SaveChangesAsync();
@@ -36,7 +36,7 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
         await DbSet.FirstOrDefaultAsync(payment => payment.PaymentId == paymentId);
 
     public async Task<PaymentModel?> GetByTransactionId(Guid transactionId) =>
-        await DbSet.FirstOrDefaultAsync(payment => payment.TransactionDataId == transactionId);
+        await DbSet.FirstOrDefaultAsync(payment => payment.TransactionId == transactionId);
 
     public async Task<List<PaymentModel>> GetByLicensePlate(string licensePlateNumber) =>
         await DbSet.Where(payment => payment.LicensePlateNumber == licensePlateNumber).ToListAsync();
@@ -46,7 +46,7 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
         var payment = await GetByPaymentId(paymentId);
         if (payment is null) return false;
 
-        var transaction = await Context.Transactions.FindAsync(payment.TransactionDataId);
+        var transaction = await Context.Transactions.FindAsync(payment.TransactionId);
 
         if (transaction is not null)
             Context.Transactions.Remove(transaction);

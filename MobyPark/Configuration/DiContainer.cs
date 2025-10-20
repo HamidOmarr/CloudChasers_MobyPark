@@ -6,6 +6,7 @@ using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 
 namespace MobyPark.Configuration;
 
@@ -49,7 +50,7 @@ public static class DiContainer
         services.AddScoped<ReservationService>();
         services.AddScoped<RolePermissionService>();
         services.AddScoped<RoleService>();
-        services.AddScoped<TransactionService>();
+        services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<UserPlateService>();
         services.AddScoped<UserService>();
 
