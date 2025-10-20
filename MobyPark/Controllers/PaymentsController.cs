@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs;
 using MobyPark.Models;
+using MobyPark.Services;
 using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
@@ -9,35 +10,39 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class PaymentsController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly UserService _users;
+    private readonly PaymentService _payments;
 
-    public PaymentsController(ServiceStack services) : base(services.Sessions)
+    public PaymentsController(UserService users, PaymentService payments) : base(users)
     {
-        _services = services;
+        _payments = payments;
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PaymentRequest request)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var user = GetCurrentUserAsync();
 
         if (request.Amount == null)
             return BadRequest(new { error = "Required fields missing" });
 
+        var createTransactionDataId = Guid.NewGuid(); // Placeholder for transaction data ID generation, has to be done in payment service later, whilst creating the transaction alongside the payment
+
         var payment = new PaymentModel
         {
-            TransactionId = Guid.NewGuid().ToString("N"),
+            PaymentId = Guid.NewGuid(),
             Amount = request.Amount.Value,
-            Initiator = user.Username,
+            LicensePlateNumber = request.LicensePlateNumber,
             CreatedAt = DateTime.UtcNow,
-            Completed = null,
-            Hash = Guid.NewGuid().ToString("N"),
-            TransactionData = request.TransactionData
+            CompletedAt = null,
+            TransactionId = createTransactionDataId
         };
 
         try
         {
-            var makePayment = await _services.Payments.CreatePayment(payment);
+            var makePayment = await _payments.CreatePayment(payment);
 
             return CreatedAtAction(nameof(GetUserPayments),
                 new { id = makePayment.TransactionId },
@@ -50,7 +55,9 @@ public class PaymentsController : BaseController
     [HttpPost("refund")]
     public async Task<IActionResult> Refund([FromBody] PaymentRefundRequest request)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var user = GetCurrentUserAsync();
 
         if (user.Role != "ADMIN")
             return Forbid();
@@ -60,7 +67,7 @@ public class PaymentsController : BaseController
 
         try
         {
-            var refund = await _services.Payments.RefundPayment(
+            var refund = await _payments.RefundPayment(
                 request.CoupledTo,
                 request.Amount.Value,
                 user.Username
@@ -75,31 +82,33 @@ public class PaymentsController : BaseController
     [HttpPut("{transactionId}")]
     public async Task<IActionResult> ValidatePayment(string transactionId, [FromBody] PaymentValidationRequest request)
     {
-        var payment = await _services.Payments.GetPaymentByTransactionId(transactionId);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var payment = await _payments.GetPaymentByTransactionId(transactionId);
 
         if (payment.Hash != request.Validation)
             return Unauthorized(new { error = "Validation failed", info = "The security hash could not be validated." });
 
-        await _services.Payments.ValidatePayment(transactionId, payment.Hash, request.TransactionData);
+        await _payments.ValidatePayment(transactionId, payment.Hash, request.TransactionData);
         return Ok(new { status = "Success", payment });
     }
 
     [HttpGet]
     public async Task<IActionResult> GetUserPayments()
     {
-        var user = GetCurrentUser();
-        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
+        var user = GetCurrentUserAsync();
+        var payments = await _payments.GetPaymentsByUser(user.Username);
         return Ok(payments);
     }
 
     [HttpGet("{username}")]
     public async Task<IActionResult> GetPaymentsForUser(string username)
     {
-        var user = GetCurrentUser();
+        var user = GetCurrentUserAsync();
         if (user.Role != "ADMIN")
             return Forbid();
 
-        var payments = await _services.Payments.GetPaymentsByUser(username);
+        var payments = await _payments.GetPaymentsByUser(username);
         return Ok(payments);
     }
 }

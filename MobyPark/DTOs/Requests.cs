@@ -10,7 +10,7 @@ public record ParkingLotRequest(string Name, string Location, decimal Tariff, de
 public record ReservationRequest(string LicensePlate, DateTime StartDate, DateTime EndDate, int ParkingLotId, string? Username = null); // User meant only for admin override
 public record PaymentValidationRequest(string Validation);
 
-public record PaymentRequest(string TransactionId, decimal? Amount, TransactionDataModel TransactionData);
-public record PaymentRefundRequest(string? TransactionId, decimal? Amount, string? CoupledTo);
+public record PaymentRequest(decimal? Amount, string LicensePlateNumber);
+public record PaymentRefundRequest(string? PaymentId, decimal? Amount, string? CoupledTo);
 
 public record StartParkingSessionRequest(string LicensePlate, string CardToken, decimal EstimatedAmount, bool SimulateInsufficientFunds = false);

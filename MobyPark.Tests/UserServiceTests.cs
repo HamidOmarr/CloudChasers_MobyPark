@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Identity;
+using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
-using MobyPark.Models.Access;
-using MobyPark.Models.DataService;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Models.Requests.User;
 using MobyPark.Services;
 using MobyPark.Services.Results.User;
 using Moq;
@@ -14,8 +12,9 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class UserServiceTests
 {
-    private Mock<IRepositoryStack>? _mockRepositoryStack;
     private Mock<IUserRepository>? _mockUserRepository;
+    private Mock<IUserPlateRepository>? _mockUserPlateRepository;
+    private Mock<IParkingSessionRepository>? _mockParkingSessionRepository;
     private Mock<SessionService>? _mockSessions;
     private UserService? _userService;
     private IPasswordHasher<UserModel>? _hasher;
@@ -24,12 +23,12 @@ public sealed class UserServiceTests
     [TestInitialize]
     public void TestInitialize()
     {
-        _mockRepositoryStack = new Mock<IRepositoryStack>();
         _mockUserRepository = new Mock<IUserRepository>();
+        _mockUserPlateRepository = new Mock<IUserPlateRepository>();
+        _mockParkingSessionRepository = new Mock<IParkingSessionRepository>();
         _hasher = new PasswordHasher<UserModel>();
         _mockSessions = new Mock<SessionService>();
-        _mockRepositoryStack.Setup(ds => ds.Users).Returns(_mockUserRepository.Object);
-        _userService = new UserService(_mockRepositoryStack.Object, _hasher, _mockSessions.Object);
+        _userService = new UserService(_mockUserRepository.Object, _mockUserPlateRepository.Object, _mockParkingSessionRepository.Object, _hasher, _mockSessions.Object);
     }
 
     [TestMethod]
@@ -80,18 +79,19 @@ public sealed class UserServiceTests
     public async Task CreateUserAsync_ValidInput_CreatesUserModel(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
 
         _mockUserRepository!
             .Setup(access => access.CreateWithId(It.IsAny<UserModel>()))
             .ReturnsAsync((true, 1));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = username,
             Password = password,
             ConfirmPassword = password,
-            Name = name,
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
             Email = email,
             Phone = phone,
             Birthday = birthday
@@ -109,24 +109,25 @@ public sealed class UserServiceTests
 
         Assert.IsNotNull(createdUser);
         Assert.AreEqual(username, createdUser.Username);
-        Assert.AreEqual(name, createdUser.Name);
-        Assert.AreEqual("USER", createdUser.Role);
+        Assert.AreEqual(name, createdUser.FirstName);
+        Assert.AreEqual(name, createdUser.LastName);
+        Assert.AreEqual("USER", createdUser.Role.Name);  // Default role
         Assert.AreEqual(email.ToLowerInvariant(), createdUser.Email); // email is normalized
         Assert.AreEqual(phone, createdUser.Phone);                   // phone normalized in CleanPhone
-        Assert.AreEqual(birthday.Year, createdUser.BirthYear);
-        Assert.IsTrue(createdUser.Active);
+        Assert.AreEqual(birthday, createdUser.Birthday);
         Assert.IsFalse(string.IsNullOrWhiteSpace(createdUser.PasswordHash));
-        Assert.IsTrue(createdUser.CreatedAt <= DateTime.UtcNow);
+        Assert.IsTrue(createdUser.CreatedAt == DateOnly.FromDateTime(DateTime.UtcNow));
 
         // Verify hash matches password
         var verifyResult = _hasher!.VerifyHashedPassword(createdUser, createdUser.PasswordHash, password);
         Assert.AreEqual(PasswordVerificationResult.Success, verifyResult);
 
         // Verify persistence call
-        _mockUserRepository.Verify(u => u.CreateWithId(It.Is<UserModel>(usr =>
-            usr.Username == username &&
-            usr.Name == name &&
-            usr.Role == "USER"
+        _mockUserRepository.Verify(userRepo => userRepo.CreateWithId(It.Is<UserModel>(user =>
+            user.Username == username &&
+            user.FirstName == name &&
+            user.LastName == name &&
+            user.Role.Name == "USER"
         )), Times.Once);
     }
 
@@ -148,14 +149,15 @@ public sealed class UserServiceTests
     public async Task CreateUserAsync_InvalidInput_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = username,
             Password = password ?? "",
             ConfirmPassword = password ?? "",
-            Name = name,
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
             Email = email,
             Phone = phone,
             Birthday = birthday
@@ -183,14 +185,15 @@ public sealed class UserServiceTests
         string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = username,
             Password = password,
             ConfirmPassword = password,
-            Name = name,
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
             Email = email,
             Phone = phone,
             Birthday = birthday
@@ -216,13 +219,14 @@ public sealed class UserServiceTests
     public async Task CreateUserAsync_InvalidUsernameOrName_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
     {
         //arrange
-        var birthday = DateTime.Parse(birthdayString);
-        var request = new RegisterRequest
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
+        var request = new RegisterDto
         {
             Username = username,
             Password = password,
             ConfirmPassword = password,
-            Name = name,
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
             Email = email,
             Phone = phone,
             Birthday = birthday
@@ -261,14 +265,15 @@ public sealed class UserServiceTests
     {
         // Arrange
 
-        var birthday = DateTime.Parse("2000-01-01");
+        var birthday = DateOnly.FromDateTime(DateTime.Parse("2000-01-01"));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = "John.Doe",
             Password = "StrongPass1@",
             ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
+            FirstName = "John",
+            LastName = "Doe",
             Email = inputEmail,
             Phone = "+31612345678",
             Birthday = birthday
@@ -317,14 +322,15 @@ public sealed class UserServiceTests
     [DataRow("user@domain$%.com")]
     public async Task CreateUser_InvalidEmail_ReturnsInvalidDataResponse(string email)
     {
-        var birthday = DateTime.Parse("2000-01-01");
+        var birthday = DateOnly.FromDateTime(DateTime.Parse("2000-01-01"));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = "John.Doe",
             Password = "StrongPass1@",
             ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
+            FirstName = "John",
+            LastName = "Doe",
             Email = email,
             Phone = "+31612345678",
             Birthday = birthday
@@ -398,14 +404,15 @@ public sealed class UserServiceTests
     public async Task CreateUser_ValidPhoneFormats_CreatesUser(string phone, string expected)
     {
         // Arrange
-        var birthday = DateTime.Parse("2000-01-01");
+        var birthday = DateOnly.FromDateTime(DateTime.Parse("2000-01-01"));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = "John.Doe",
             Password = "StrongPass1@",
             ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
+            FirstName = "John",
+            LastName = "Doe",
             Email = "john@doe.com",
             Phone = phone,
             Birthday = birthday
@@ -438,14 +445,15 @@ public sealed class UserServiceTests
     [DataRow("+32 612345678")]
     public async Task CreateUser_InvalidPhoneFormats_ReturnsInvalidDataResponse(string phone)
     {
-        var birthday = DateTime.Parse("2000-01-01");
+        var birthday = DateOnly.FromDateTime(DateTime.Parse("2000-01-01"));
 
-        var request = new RegisterRequest
+        var request = new RegisterDto
         {
             Username = "John.Doe",
             Password = "StrongPass1@",
             ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
+            FirstName = "John",
+            LastName = "Doe",
             Email = "john@doe.com",
             Phone = phone,
             Birthday = birthday
@@ -459,28 +467,38 @@ public sealed class UserServiceTests
     }
 
     [TestMethod]
-    [DataRow("user1", "ValidPass1@", "Alice", "USER", true)]
-    [DataRow("user2", "Another1!", "Bob", "ADMIN", false)]
-    [DataRow("user3", "Complex#Pass2", "Charlie", "MANAGER", true)]
-    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(string username, string password, string name, string role, bool active)
+    [DataRow("user1", "ValidPass1@", "Alice", 6, true)]
+    [DataRow("user2", "Another1!", "Bob", 1, false)]
+    [DataRow("user3", "Complex#Pass2", "Charlie", 4, true)]
+    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(string username, string password, string name, long role, bool active)
     {
         // Arrange
         var user = new UserModel
         {
             Username = username,
             PasswordHash = password,
-            Name = name,
-            Role = role,
-            Active = active,
-            CreatedAt = DateTime.UtcNow
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
+            RoleId = role,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
         _mockUserRepository!
             .Setup(access => access.Update(It.IsAny<UserModel>()))
             .ReturnsAsync(true).Verifiable();
 
+        // Make dto
+        var dto = new UpdateProfileDto
+        {
+            Username = username,
+            FirstName = name,
+            LastName = name,
+            Password = password,
+            RoleId = role
+        }
+
         // Act
-        var result = await _userService!.UpdateUser(user);
+        var result = await _userService!.UpdateUserProfileAsync(user);
 
         // Assert
         Assert.AreEqual(user, result);
@@ -490,8 +508,19 @@ public sealed class UserServiceTests
     [TestMethod]
     public async Task UpdateUser_NullUser_ThrowsArgumentNullException()
     {
-        await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
-            await _userService!.UpdateUser(null!));
+        // Create the dto
+        var dto = new UpdateProfileDto
+        {
+            Birthday = DateOnly.FromDateTime(DateTime.UtcNow),
+            Email = "a@2.co",
+            FirstName = "First",
+            LastName = "Last",
+            Phone = "+310612345678",
+            Username = "username123"
+        };
+
+    await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
+            await _userService!.UpdateUserProfileAsync(null!, dto));
 
         _mockUserRepository!.Verify(access => access.Update(It.IsAny<UserModel>()), Times.Never);
     }
@@ -505,10 +534,9 @@ public sealed class UserServiceTests
         var user = new UserModel
         {
             Username = username,
-            Name = name,
-            Role = "USER",
-            Active = true,
-            CreatedAt = DateTime.UtcNow
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
         user.PasswordHash = _hasher!.HashPassword(user, password);
@@ -518,8 +546,8 @@ public sealed class UserServiceTests
             .ThrowsAsync(new InvalidOperationException("DB error"));
 
         // Act & Assert
-        var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
-            await _userService!.UpdateUser(user));
+        var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () => await _userService.
+            // await _userService!.UpdateUser(user));
 
         Assert.AreEqual("DB error", ex.Message);
     }
@@ -535,7 +563,8 @@ public sealed class UserServiceTests
         {
             Username = username,
             PasswordHash = password,
-            Name = name,
+            FirstName = name,
+            LastName = name,  // Using same value for simplicity
             Role = role,
             Active = active,
             CreatedAt = DateTime.MinValue

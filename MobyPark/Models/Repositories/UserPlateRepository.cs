@@ -16,13 +16,14 @@ public class UserPlateRepository : Repository<UserPlateModel>, IUserPlateReposit
                 && userPlate.LicensePlateNumber == plate);
         if (existingUserPlate is not null) return false;
 
-        bool isFirstPlate = userId != DeletedUserId && !await DbSet.Where(up => up.UserId == userId).AnyAsync();
+        bool isFirstPlate = userId != DeletedUserId && !await DbSet.Where(uPlate => uPlate.UserId == userId).AnyAsync();
 
         var userPlate = new UserPlateModel
         {
             UserId = userId,
             LicensePlateNumber = plate,
-            IsPrimary = isFirstPlate
+            IsPrimary = isFirstPlate,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
         };
         await DbSet.AddAsync(userPlate);
         await Context.SaveChangesAsync();

@@ -6,6 +6,7 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Services.Exceptions;
 using MobyPark.Services.Helpers;
+using MobyPark.Services.Results.Session;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
@@ -23,8 +24,6 @@ public class ParkingSessionService
 
     public async Task<ParkingSessionModel> CreateParkingSession(ParkingSessionModel session)
     {
-        ServiceValidator.ParkingSession(session);
-
         (bool createdSuccessfully, long id) = await _sessions.CreateWithId(session);
         if (createdSuccessfully) session.Id = id;
         return session;
@@ -92,8 +91,6 @@ public class ParkingSessionService
 
     public async Task<bool> UpdateParkingSession(ParkingSessionModel session)
     {
-        ServiceValidator.ParkingSession(session);
-
         var existingSession = await GetParkingSessionById(session.Id);
         if (existingSession is null) throw new KeyNotFoundException("Parking session not found");
 
@@ -112,9 +109,6 @@ public class ParkingSessionService
 
     public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
     {
-        ServiceValidator.ParkingLot(parkingLot);
-        ServiceValidator.ParkingSession(session);
-
         decimal price;
         DateTime start = session.Started;
         DateTime end = session.Stopped ?? DateTime.Now;
@@ -191,11 +185,8 @@ public class ParkingSessionService
             throw new InvalidOperationException("Failed to open gate");
     }
 
-
     public async Task<ParkingSessionModel> StartSession(ParkingSessionCreateDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
     {
-        DtoValidator.ParkingSessionCreate(sessionDto);
-
         var licensePlate = ValHelper.NormalizePlate(sessionDto.LicensePlate);
         var lot = await ValidateAndGetLot(sessionDto.ParkingLotId);
 
@@ -259,5 +250,44 @@ public class ParkingSessionService
             await _repo.UserPlates.AddPlateToUser(UserPlateModel.DefaultUserId, plate);
 
         return defaultUser!;
+    }
+
+    public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions)
+    {
+        var sessions = await GetParkingSessionsByParkingLotId(lotId);
+
+        if (canManageSessions) return sessions;
+
+        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
+
+        var filteredSessions = sessions
+            .Where(session =>
+                plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
+                session.Started >= earliestValidDate).ToList();
+
+        return filteredSessions;
+    }
+
+    public async Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, int lotId, int sessionId, bool canManageSessions)
+    {
+        var session = await GetParkingSessionById(sessionId);
+
+        if (session.ParkingLotId != lotId) return new GetSessionResult.NotFound();
+        if (canManageSessions) return new GetSessionResult.Success(session);
+
+        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
+        bool ownsSession =
+            plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
+            session.Started >= earliestValidDate;
+
+        if (!ownsSession) return new GetSessionResult.Forbidden();
+        return new GetSessionResult.Success(session);
+    }
+
+    private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)
+    {
+        var userPlates = await _repo.UserPlates.GetPlatesByUserId(userId);
+
+        return userPlates.ToDictionary(uPlate => uPlate.LicensePlateNumber, uPlate => uPlate.CreatedAt.ToDateTime(TimeOnly.MinValue));
     }
 }

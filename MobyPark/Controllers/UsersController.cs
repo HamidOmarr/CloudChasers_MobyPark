@@ -1,11 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.User.Request;
-using MobyPark.Models;
-using MobyPark.Models.DTOs.User;
-using MobyPark.Models.Responses.User;
+using MobyPark.DTOs.User.Response;
 using MobyPark.Services;
-using MobyPark.Services.Services;
 using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
@@ -14,26 +11,26 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly UserService _userService;
     private readonly SessionService _sessionService;
 
-    public UsersController(ServiceStack services) : base(services)
+    public UsersController(UserService users, SessionService sessions) : base(users)
     {
-        _userService = services.Users;
-        _sessionService = services.Sessions;
+        _sessionService = sessions;
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
-        var result = await _userService.CreateUserAsync(dto);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await UserService.CreateUserAsync(dto);
 
         return result switch
         {
             RegisterResult.Success s => CreatedAtAction(
                 nameof(GetUser),
                 new { id = s.User.Id },
-                new AuthResponse
+                new AuthDto
                 {
                     UserId = s.User.Id,
                     Username = s.User.Username,
@@ -50,7 +47,9 @@ public class UsersController : BaseController
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var result = await _userService.LoginAsync(dto);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await UserService.LoginAsync(dto);
 
         return result switch
         {
@@ -64,9 +63,11 @@ public class UsersController : BaseController
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         var user = await GetCurrentUserAsync();
 
-        var result = await _userService.UpdateUserProfileAsync(user, dto);
+        var result = await UserService.UpdateUserProfileAsync(user, dto);
 
         return result switch
         {
@@ -84,7 +85,7 @@ public class UsersController : BaseController
     {
         var user = await GetCurrentUserAsync();
 
-        return Ok( new UserProfileResponse
+        return Ok( new UserProfileDto
         {
             Id = user.Id,
             Username = user.Username,
@@ -100,7 +101,7 @@ public class UsersController : BaseController
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUser(int id)
     {
-        var user = await _userService.GetUserById(id);
+        var user = await UserService.GetUserById(id);
         if (user is null) return NotFound();
 
         return Ok(new { user.Id, user.Username, user.FirstName, user.LastName });
@@ -110,10 +111,10 @@ public class UsersController : BaseController
     [HttpGet("admin/users/{id:int}")]
     public async Task<IActionResult> GetUserAdmin(int id)
     {
-        var user = await _userService.GetUserById(id);
+        var user = await UserService.GetUserById(id);
         if (user is null) return NotFound();
 
-        return Ok(new AdminUserProfileResponse
+        return Ok(new AdminUserProfileDto
         {
             Id = user.Id,
             Username = user.Username,
@@ -122,7 +123,7 @@ public class UsersController : BaseController
             Email = user.Email,
             Phone = user.Phone,
             Birthday = user.Birthday,
-            Role = ((UserRole)user.RoleId).ToString(),
+            Role = user.Role.Name,
             CreatedAt = user.CreatedAt
         });
     }

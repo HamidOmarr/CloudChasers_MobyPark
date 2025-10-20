@@ -35,7 +35,7 @@ public class UserModel : IHasLongId
     [Required]
     public DateOnly CreatedAt { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
 
-    public DateOnly? Birthday { get; set; } = null;
+    public DateOnly Birthday { get; set; } = DateOnly.MinValue;  // TODO: Set up default value, update later
 
     public const long DefaultUserRoleId = 6;  // Defaults to 'User' role
 }

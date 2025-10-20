@@ -28,4 +28,6 @@ public class RegisterDto
 
     [Required, Phone]
     public string Phone { get; set; } = string.Empty;
+
+    public string? LicensePlate { get; set; } // Optional, allows linking license plate at register.
 }

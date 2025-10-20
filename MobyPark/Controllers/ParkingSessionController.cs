@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Services.Services;
-using MobyPark.Models.Requests;
+using MobyPark.DTOs;
+using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Services;
 using MobyPark.Services.Exceptions;
+using MobyPark.Services.Results.Session;
 
 namespace MobyPark.Controllers;
 
@@ -10,30 +12,42 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingSessionController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly ParkingSessionService _parkingSessions;
+    private readonly ParkingLotService _parkingLots;
 
-    public ParkingSessionController(ServiceStack services) : base(services.Sessions)
+    private readonly IAuthorizationService _authorizationService;
+
+    public ParkingSessionController(UserService users, ParkingSessionService parkingSessions, ParkingLotService lots, IAuthorizationService authorizationService) : base(users)
     {
-        _services = services;
+        _parkingSessions = parkingSessions;
+        _parkingLots = lots;
+        _authorizationService = authorizationService;
     }
 
-    [HttpPost("{lotId}/sessions:start")] // start endpoint unified
-    [HttpPost("{lotId}/sessions/start")] 
+    // [HttpPost("{lotId}/sessions:start")] // start endpoint unified // Commented out as it is unclear why this was added.
+    [HttpPost("{lotId}/sessions/start")]
     public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionRequest request)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
-            var session = await _services.ParkingSessions.StartSession(
-                lotId,
-                request.LicensePlate,
+            var sessionDto = new ParkingSessionCreateDto
+            {
+                ParkingLotId = lotId,
+                LicensePlate = request.LicensePlate
+            };
+
+            var session = await _parkingSessions.StartSession(
+                sessionDto,
                 request.CardToken,
                 request.EstimatedAmount,
-                GetCurrentUser()?.Username,
+                GetCurrentUserAsync().Result.Username,
                 request.SimulateInsufficientFunds
             );
 
-            var lot = await _services.ParkingLots.GetParkingLotById(lotId);
-            int? available = lot?.Capacity != null ? lot.Capacity - lot.Reserved : (int?)null;
+            var lot = await _parkingLots.GetParkingLotById(lotId);
+            int? available = lot?.Capacity != null ? lot.Capacity - lot.Reserved : null;
 
             return StatusCode(201, new
             {
@@ -46,6 +60,7 @@ public class ParkingSessionController : BaseController
                 availableSpots = available
             });
         }
+
         catch (ActiveSessionAlreadyExistsException ex)
         { return Conflict(new { error = ex.Message, code = "ACTIVE_SESSION_EXISTS" }); }
         catch (KeyNotFoundException)
@@ -58,46 +73,56 @@ public class ParkingSessionController : BaseController
         { return BadRequest(new { error = ex.Message }); }
     }
 
+    [Authorize(Policy = "CanManageParkingSessions")]
     [HttpDelete("{lotId}/sessions/{sessionId}")]
     public async Task<IActionResult> DeleteSession(int lotId, int sessionId)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var session = await _services.ParkingSessions.GetParkingSessionById(sessionId);
+        var session = await _parkingSessions.GetParkingSessionById(sessionId);
         if (session.ParkingLotId != lotId)
             return NotFound(new { error = "Session not found" });
 
-        await _services.ParkingSessions.DeleteParkingSession(sessionId);
+        await _parkingSessions.DeleteParkingSession(sessionId);
         return Ok(new { status = "Deleted" });
     }
 
+    [Authorize]
     [HttpGet("{lotId}/sessions")]
     public async Task<IActionResult> GetSessions(int lotId)
     {
-        var user = GetCurrentUser();
-        var sessions = await _services.ParkingSessions.GetParkingSessionsByParkingLotId(lotId);
+        var user = await GetCurrentUserAsync();
 
-        // Users can only view their own sessions
-        if (user.Role != "ADMIN")
-            sessions = sessions.Where(session => session.User == user.Username).ToList();
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingSessions");
+        bool canManageSessions = authorizationResult.Succeeded;
+        var sessions = await _parkingSessions.GetAuthorizedSessionsAsync(user.Id, lotId, canManageSessions);
 
         return Ok(sessions);
     }
 
+    [Authorize]
     [HttpGet("{lotId}/sessions/{sessionId}")]
     public async Task<IActionResult> GetSession(int lotId, int sessionId)
     {
-        var user = GetCurrentUser();
-        var session = await _services.ParkingSessions.GetParkingSessionById(sessionId);
+        var user = await GetCurrentUserAsync();
 
-        if (session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingSessions");
+        bool canManageSessions = authorizationResult.Succeeded;
 
-        if (user.Role != "ADMIN" && session.User != user.Username)
-            return Forbid();
+        var result = await _parkingSessions.GetAuthorizedSessionAsync(
+            user.Id,
+            lotId,
+            sessionId,
+            canManageSessions
+        );
 
-        return Ok(session);
+        return result switch
+        {
+            GetSessionResult.Success(var session) => Ok(session),
+            GetSessionResult.NotFound => NotFound(new { error = "Parking session not found in this lot." }),
+            GetSessionResult.Forbidden => Forbid(), // Standard response for authorization failure
+            _ => StatusCode(500, new { error = "An unexpected error occurred." })
+        };
     }
 
 }

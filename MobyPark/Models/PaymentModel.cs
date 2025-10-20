@@ -23,8 +23,8 @@ public class PaymentModel
     public DateTime? CompletedAt { get; set; }
 
     [Required]
-    public Guid TransactionDataId { get; set; }
+    public Guid TransactionId { get; set; }
 
-    [ForeignKey(nameof(TransactionDataId))]
+    [ForeignKey(nameof(TransactionId))]
     public TransactionModel Transaction { get; set; } = null!;
 }

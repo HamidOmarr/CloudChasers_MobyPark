@@ -17,12 +17,13 @@ public class UserPlateService
 
     public async Task<UserPlateModel> CreateUserPlate(UserPlateModel userPlate)
     {
-        ServiceValidator.UserPlate(userPlate);
-
         (bool createdSuccessfully, long id) = await _userPlates.CreateWithId(userPlate);
         if (createdSuccessfully) userPlate.Id = id;
         return userPlate;
     }
+
+    // Add plate to user
+    public async Task<bool> AddLicensePlateToUser(long userId, string plate) => await _userPlates.AddPlateToUser(userId, plate);
 
     public async Task<UserPlateModel?> GetUserPlateById(long id) => await _userPlates.GetById<UserPlateModel>(id);
 
@@ -110,21 +111,9 @@ public class UserPlateService
         return updatedCurrent && updatedNew;
     }
 
-    public async Task<bool> UpdateUserPlate(UserPlateModel userPlate)
-    {
-        ServiceValidator.UserPlate(userPlate);
+    public async Task<bool> UpdateUserPlate(UserPlateModel userPlate) => await _userPlates.Update(userPlate);
 
-        bool updatedSuccessfully = await _userPlates.Update(userPlate);
-        return updatedSuccessfully;
-    }
-
-    public async Task<bool> DeleteUserPlate(UserPlateModel userPlate)
-    {
-        ServiceValidator.UserPlate(userPlate);
-
-        bool deletedSuccessfully = await _userPlates.Delete(userPlate);
-        return deletedSuccessfully;
-    }
+    public async Task<bool> DeleteUserPlate(UserPlateModel userPlate) => await _userPlates.Delete(userPlate);
 
     public async Task<bool> RemoveUserPlate(long userId, string plate)
     {
