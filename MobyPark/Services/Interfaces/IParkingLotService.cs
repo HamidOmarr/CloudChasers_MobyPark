@@ -10,7 +10,7 @@ public interface IParkingLotService
     Task<GetLotResult> GetParkingLotByName(string name);
     Task<GetLotListResult> GetParkingLotsByLocation(string location);
     Task<GetLotListResult> GetAllParkingLots();
-    Task<bool> ParkingLotExists(string checkBy, string filterValue); // This can stay as-is or return a Result
+    Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue);
     Task<int> CountParkingLots();
     Task<UpdateLotResult> UpdateParkingLot(ParkingLotModel lot);
     Task<DeleteLotResult> DeleteParkingLot(long id);

@@ -5,15 +5,14 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Payment;
 using MobyPark.Services.Results.Transaction;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class PaymentService
+public class PaymentService : IPaymentService
 {
     private readonly IPaymentRepository _payments;
     private readonly ITransactionService _transactions;
-    // TransactionService is better here than TransactionRepository to encapsulate transaction logic.
-    // This is because payment operations always involve transactions, so using the service ensures consistency and proper handling.
 
     public PaymentService(IPaymentRepository payments, ITransactionService transactions)
     {
@@ -21,7 +20,7 @@ public class PaymentService
         _transactions = transactions;
     }
 
-    public async Task<PaymentCreationResult> CreatePaymentAndTransaction(PaymentCreateDto request)
+    public async Task<CreatePaymentResult> CreatePaymentAndTransaction(PaymentCreateDto request)
     {
         var transaction = new TransactionModel
         {
@@ -32,8 +31,8 @@ public class PaymentService
 
         var transactionResult = await _transactions.CreateTransactionConfirmation(transaction);
 
-        if (transactionResult is not TransactionCreationResult.Success success)
-            return new PaymentCreationResult.Error("Failed to create transaction record.");
+        if (transactionResult is not CreateTransactionResult.Success success)
+            return new CreatePaymentResult.Error("Failed to create transaction record.");
 
         var payment = new PaymentModel
         {
@@ -50,78 +49,126 @@ public class PaymentService
             if (!createdPaymentSuccessfully)
             {
                 await _transactions.DeleteTransaction(success.Id);
-                return new PaymentCreationResult.Error("Failed to create payment record after transaction.");
+                return new CreatePaymentResult.Error("Failed to create payment record after transaction.");
             }
 
             payment.PaymentId = paymentId;
             payment.Transaction = success.Transaction;
-            return new PaymentCreationResult.Success(payment);
+            return new CreatePaymentResult.Success(payment);
         }
         catch (Exception)
         {
             await _transactions.DeleteTransaction(success.Id);
-            return new PaymentCreationResult.Error("An error occurred while saving the payment.");
+            return new CreatePaymentResult.Error("An error occurred while saving the payment.");
         }
     }
 
-    public async Task<PaymentModel?> GetPaymentById(string paymentId)
+    public async Task<GetPaymentResult> GetPaymentById(string pId, long requestingUserId)
     {
-        var payment = await _payments.GetByPaymentId(Guid.Parse(paymentId));
+        if (!Guid.TryParse(pId, out Guid paymentId))
+            return new GetPaymentResult.InvalidInput("Invalid Payment ID format.");
+
+        var payment = await _payments.GetByPaymentId(paymentId, requestingUserId);
         if (payment is null)
-            throw new KeyNotFoundException("Payment not found");
-        return payment;
+            return new GetPaymentResult.NotFound();
+
+        return new GetPaymentResult.Success(payment);
     }
 
-    public async Task<PaymentModel?> GetPaymentByTransactionId(string transactionId)
+    public async Task<GetPaymentResult> GetPaymentByTransactionId(string tId, long requestingUserId)
     {
-        var payment = await _payments.GetByTransactionId(Guid.Parse(transactionId));
-        if (payment is null)
-            throw new KeyNotFoundException("Payment not found");
-        return payment;
+        if (!Guid.TryParse(tId, out Guid transactionId))
+            return new GetPaymentResult.InvalidInput("Invalid Transaction ID format.");
 
+        var payment = await _payments.GetByTransactionId(transactionId, requestingUserId);
+        if (payment is null)
+            return new GetPaymentResult.NotFound();
+
+        return new GetPaymentResult.Success(payment);
     }
 
-    public async Task<List<PaymentModel>> GetPaymentsByLicensePlate(string licensePlate)
+    public async Task<GetPaymentListResult> GetPaymentsByLicensePlate(string licensePlate, long requestingUserId)
     {
-        var payments = await _payments.GetByLicensePlate(licensePlate);
+        licensePlate = ValHelper.NormalizePlate(licensePlate);
+        var payments = await _payments.GetByLicensePlate(licensePlate, requestingUserId);
         if (payments.Count == 0)
-            throw new KeyNotFoundException("No payments found for the given license plate");
-        return payments;
+            return new GetPaymentListResult.NotFound();
+
+        return new GetPaymentListResult.Success(payments);
     }
 
-    public async Task<List<PaymentModel>> GetAllPayments() => await _payments.GetAll();
+    public async Task<GetPaymentListResult> GetAllPayments()
+    {
+        var payments = await _payments.GetAll();
+        if (payments.Count == 0)
+            return new GetPaymentListResult.NotFound();
 
-    public async Task<List<PaymentModel>> GetPaymentsByUser(long userId) => await _payments.GetByUserId(userId);
+        return new GetPaymentListResult.Success(payments);
+    }
+
+    public async Task<GetPaymentListResult> GetPaymentsByUser(long userId)
+    {
+        var payments = await _payments.GetByUserId(userId);
+        if (payments.Count == 0)
+            return new GetPaymentListResult.NotFound();
+
+        return new GetPaymentListResult.Success(payments);
+    }
 
     public async Task<int> CountPayments() => await _payments.Count();
 
-    private async Task<bool> UpdatePayment(PaymentModel payment)
+    public async Task<UpdatePaymentResult> UpdatePayment(PaymentModel payment, long requestingUserId)
     {
-        var existingPayment = await GetPaymentById(payment.PaymentId.ToString());
-        if (existingPayment is null) throw new KeyNotFoundException("Payment not found");
+        var getResult = await GetPaymentById(payment.PaymentId.ToString(), requestingUserId);
+        if (getResult is GetPaymentResult.NotFound)
+            return new UpdatePaymentResult.NotFound();
 
-        bool updatedSuccessfully = await _payments.Update(payment);
-        return updatedSuccessfully;
+        if (getResult is GetPaymentResult.InvalidInput err)
+            return new UpdatePaymentResult.Error(err.Message);
+
+        try
+        {
+            if (!await _payments.Update(payment))
+                return new UpdatePaymentResult.Error("Database update failed.");
+            return new UpdatePaymentResult.Success(payment);
+        }
+        catch (Exception ex)
+        { return new UpdatePaymentResult.Error(ex.Message); }
     }
 
-    public async Task<bool> DeletePayment(string paymentId)
+    public async Task<DeletePaymentResult> DeletePayment(string paymentId, long requestingUserId)
     {
-        var payment = await GetPaymentById(paymentId);
-        if (payment is null) throw new KeyNotFoundException("Payment not found");
+        if (!Guid.TryParse(paymentId, out Guid pid))
+            return new DeletePaymentResult.Error("Invalid Payment ID format.");
 
-        bool deletedSuccessfully = await _payments.DeletePayment(Guid.Parse(paymentId));
-        return deletedSuccessfully;
+        try
+        {
+            if (!await _payments.DeletePayment(pid, requestingUserId))
+                return new DeletePaymentResult.NotFound();
+
+            return new DeletePaymentResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeletePaymentResult.Error(ex.Message); }
     }
 
-    public async Task<PaymentValidationResult> ValidatePayment(Guid paymentId, TransactionDataDto dto)
+    public async Task<ValidatePaymentResult> ValidatePayment(Guid paymentId, TransactionDataDto dto, long requestingUserId)
     {
-        var payment = await _payments.GetByPaymentId(paymentId);
-        if (payment is null)
-            return new PaymentValidationResult.NotFound();
+        var getResult = await GetPaymentById(paymentId.ToString(), requestingUserId);
+         if (getResult is GetPaymentResult.NotFound)
+            return new ValidatePaymentResult.NotFound();
+
+         if (getResult is GetPaymentResult.InvalidInput)
+            return new ValidatePaymentResult.Error("Invalid Payment ID format.");
+
+        var payment = ((GetPaymentResult.Success)getResult).Payment;
+
+        if (payment.CompletedAt.HasValue)
+            return new ValidatePaymentResult.InvalidData("Payment has already been completed.");
 
         var transaction = await _transactions.GetTransactionById(payment.TransactionId);
         if (transaction is null)
-            return new PaymentValidationResult.InvalidData("Payment exists but its Transaction is missing.");
+            return new ValidatePaymentResult.InvalidData("Payment exists but its Transaction is missing.");
 
         payment.CompletedAt = DateTime.UtcNow;
         transaction.Method = dto.Method;
@@ -133,35 +180,50 @@ public class PaymentService
             await _payments.Update(payment);
             var updateTxResult = await _transactions.UpdateTransaction(transaction);
 
-            if (updateTxResult is not TransactionUpdateResult.Success)
-                return new PaymentValidationResult.Error("Failed to update transaction details.");
+            if (updateTxResult is not UpdateTransactionResult.Success)
+                return new ValidatePaymentResult.Error("Failed to update transaction details.");
 
             payment.Transaction = transaction;
-            return new PaymentValidationResult.Success(payment);
+            return new ValidatePaymentResult.Success(payment);
         }
         catch (Exception ex)
-        { return new PaymentValidationResult.Error(ex.Message); }
+        { return new ValidatePaymentResult.Error(ex.Message); }
     }
 
-    public async Task<PaymentRefundResult> RefundPayment(string originalPaymentId, decimal refundAmount, string adminUsername)
+    public async Task<RefundPaymentResult> RefundPayment(string originalPaymentId, decimal refundAmount, string adminUsername)
     {
         if (!Guid.TryParse(originalPaymentId, out Guid paymentId))
-            return new PaymentRefundResult.InvalidInput("Invalid original payment ID format.");
+            return new RefundPaymentResult.InvalidInput("Invalid original payment ID format.");
 
-        var originalPayment = await _payments.GetByPaymentId(paymentId);
+        var originalPayment = await _payments.GetByPaymentIdAdmin(paymentId);
         if (originalPayment is null)
-            return new PaymentRefundResult.NotFound();
+            return new RefundPaymentResult.NotFound();
 
         if (refundAmount <= 0 || refundAmount > originalPayment.Amount)
-            return new PaymentRefundResult.InvalidInput("Invalid refund amount.");
+            return new RefundPaymentResult.InvalidInput("Invalid refund amount.");
 
-        var refundTransaction = new TransactionModel { /* ... */ };
+        var refundTransaction = new TransactionModel
+        {
+            Id = Guid.NewGuid(),
+            Amount = -Math.Abs(refundAmount),
+            Method = "REFUND",
+            Issuer = "ADMIN",
+            Bank = adminUsername
+        };
 
         var transactionResult = await _transactions.CreateTransactionConfirmation(refundTransaction);
-        if (transactionResult is not TransactionCreationResult.Success success)
-            return new PaymentRefundResult.Error("Failed to create refund transaction.");
+        if (transactionResult is not CreateTransactionResult.Success success)
+            return new RefundPaymentResult.Error("Failed to create refund transaction.");
 
-        var refundPayment = new PaymentModel { /* ... */ };
+        var refundPayment = new PaymentModel
+        {
+            PaymentId = Guid.NewGuid(),
+            Amount = -Math.Abs(refundAmount),
+            LicensePlateNumber = originalPayment.LicensePlateNumber,
+            CreatedAt = DateTime.UtcNow,
+            CompletedAt = DateTime.UtcNow,
+            TransactionId = success.Id
+        };
 
         try
         {
@@ -169,23 +231,25 @@ public class PaymentService
             if (!createdPaymentSuccessfully)
             {
                 await _transactions.DeleteTransaction(success.Id);
-                return new PaymentRefundResult.Error("Failed to create refund payment record.");
+                return new RefundPaymentResult.Error("Failed to create refund payment record.");
             }
 
             refundPayment.PaymentId = confirmedPaymentId;
             refundPayment.Transaction = success.Transaction;
-            return new PaymentRefundResult.Success(refundPayment);
+            return new RefundPaymentResult.Success(refundPayment);
         }
         catch (Exception ex)
         {
             await _transactions.DeleteTransaction(success.Id);
-            return new PaymentRefundResult.Error(ex.Message);
+            return new RefundPaymentResult.Error(ex.Message);
         }
     }
 
-    public async Task<decimal> GetTotalAmountForTransaction(string paymentId)
+    public async Task<decimal?> GetTotalAmountForPayment(string paymentId, long requestingUserId)
     {
-        var payment = await GetPaymentById(paymentId);
-        return payment?.Amount ?? decimal.MinValue;
+        var result = await GetPaymentById(paymentId, requestingUserId);
+        if (result is GetPaymentResult.Success success)
+            return success.Payment.Amount;
+        return null;
     }
 }

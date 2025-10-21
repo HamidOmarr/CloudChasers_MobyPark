@@ -83,7 +83,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<PaymentModel>()
             .HasOne(payment => payment.Transaction)
             .WithMany()
-            .HasForeignKey(payment => payment.TransactionDataId)
+            .HasForeignKey(payment => payment.TransactionId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<UserPlateModel>()

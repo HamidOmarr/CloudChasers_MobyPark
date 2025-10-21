@@ -6,12 +6,12 @@ namespace MobyPark.Services.Interfaces;
 
 public interface IUserService
 {
-    Task<UserModel?> GetUserByUsername(string username);
-    Task<UserModel?> GetUserByEmail(string email);
-    Task<UserModel?> GetUserById(long userId);
-    Task<List<UserModel>> GetAllUsers();
+    Task<GetUserResult> GetUserByUsername(string username);
+    Task<GetUserResult> GetUserByEmail(string email);
+    Task<GetUserResult> GetUserById(long userId);
+    Task<GetUserListResult> GetAllUsers();
     Task<int> CountUsers();
-    Task<bool> DeleteUser(long id);
+    Task<DeleteUserResult> DeleteUser(long id);
     Task<RegisterResult> CreateUserAsync(RegisterDto dto);
     Task<LoginResult> LoginAsync(LoginDto dto);
     Task<UpdateProfileResult> UpdateUserProfileAsync(UserModel user, UpdateProfileDto dto);

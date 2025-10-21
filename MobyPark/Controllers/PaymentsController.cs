@@ -3,8 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs;
 using MobyPark.DTOs.Payment.Request;
 using MobyPark.DTOs.Transaction.Request;
-using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Payment;
+using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
 
@@ -12,10 +13,10 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class PaymentsController : BaseController
 {
-    private readonly UserService _users;
-    private readonly PaymentService _payments;
+    private readonly IUserService _users;
+    private readonly IPaymentService _payments;
 
-    public PaymentsController(UserService users, PaymentService payments) : base(users)
+    public PaymentsController(IUserService users, IPaymentService payments) : base(users)
     {
         _users = users;
         _payments = payments;
@@ -29,10 +30,10 @@ public class PaymentsController : BaseController
 
         return result switch
         {
-            PaymentCreationResult.Success success => CreatedAtAction(nameof(GetUserPayments),
-                new { id = success.Payment.PaymentId },
+            CreatePaymentResult.Success success => CreatedAtAction(nameof(GetPaymentById),
+                new { paymentId = success.Payment.PaymentId },
                 success.Payment),
-            PaymentCreationResult.Error e => StatusCode(500, new { error = e.Message }),
+            CreatePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
             _ => StatusCode(500, new { error = "An unknown payment creation error occurred." })
         };
     }
@@ -57,14 +58,15 @@ public class PaymentsController : BaseController
 
         return result switch
         {
-            PaymentRefundResult.Success success => StatusCode(201, new { status = "Success", refund = success.RefundPayment }),
-            PaymentRefundResult.InvalidInput e => BadRequest(new { error = e.Message }),
-            PaymentRefundResult.NotFound => NotFound(new { error = "Original payment not found." }),
-            PaymentRefundResult.Error e => StatusCode(500, new { error = e.Message }),
+            RefundPaymentResult.Success success => StatusCode(201, new { status = "Success", refund = success.RefundPayment }),
+            RefundPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            RefundPaymentResult.NotFound => NotFound(new { error = "Original payment not found." }),
+            RefundPaymentResult.Error e => StatusCode(500, new { error = e.Message }),
             _ => StatusCode(500, new { error = "An unknown refund error occurred." })
         };
     }
 
+    [Authorize]
     [HttpPut("{paymentId}")]
     public async Task<IActionResult> ValidatePayment(string paymentId, [FromBody] TransactionDataDto request)
     {
@@ -73,35 +75,98 @@ public class PaymentsController : BaseController
         if (!Guid.TryParse(paymentId, out Guid pid))
             return BadRequest(new { error = "Invalid Payment ID format" });
 
-        var result = await _payments.ValidatePayment(pid, request);
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.ValidatePayment(pid, request, user.Id);
 
         return result switch
         {
-            PaymentValidationResult.Success s => Ok(new { status = "Success", payment = s.Payment }),
-            PaymentValidationResult.NotFound => NotFound(new { error = "Payment not found." }),
-            PaymentValidationResult.InvalidData e => BadRequest(new { error = e.Message }),
-            PaymentValidationResult.Error e => StatusCode(500, new { error = e.Message }),
+            ValidatePaymentResult.Success s => Ok(new { status = "Success", payment = s.Payment }),
+            ValidatePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied." }),
+            ValidatePaymentResult.InvalidData e => BadRequest(new { error = e.Message }),
+            ValidatePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
             _ => StatusCode(500, new { error = "An unknown validation error occurred." })
         };
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetUserPayments()
-    {
-        var user = await GetCurrentUserAsync();
-        var payments = await _payments.GetPaymentsByUser(user.Id);
-        return Ok(payments);
     }
 
     [Authorize(Policy = "CanProcessPayments")]
     [HttpGet("{username}")]
     public async Task<IActionResult> GetPaymentsForUser(string username)
     {
-        var targetUser = await _users.GetUserByUsername(username);
-        if (targetUser == null)
+        var targetUserResult = await _users.GetUserByUsername(username);
+        if (targetUserResult is not GetUserResult.Success sUser)
             return NotFound(new { error = "User not found" });
 
-        var payments = await _payments.GetPaymentsByUser(targetUser.Id);
-        return Ok(payments);
+        var result = await _payments.GetPaymentsByUser(sUser.User.Id);
+
+        return result switch
+        {
+            GetPaymentListResult.Success s => Ok(s.Payments),
+            GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the user." }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("id/{paymentId}")]
+    public async Task<IActionResult> GetPaymentById(string paymentId)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentById(paymentId, user.Id);
+
+        return result switch
+        {
+            GetPaymentResult.Success s => Ok(s.Payment),
+            GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("transaction/{transactionId}")]
+    public async Task<IActionResult> GetPaymentByTransactionId(string transactionId)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentByTransactionId(transactionId, user.Id);
+
+        return result switch
+        {
+            GetPaymentResult.Success s => Ok(s.Payment),
+            GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("plate/{licensePlate}")]
+    public async Task<IActionResult> GetPaymentsByLicensePlate(string licensePlate)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentsByLicensePlate(licensePlate, user.Id);
+
+        return result switch
+        {
+            GetPaymentListResult.Success s => Ok(s.Payments),
+            GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the specified license plate or access denied." }),
+
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpDelete("{paymentId}")]
+    public async Task<IActionResult> DeletePayment(string paymentId)
+    {
+         var user = await GetCurrentUserAsync();
+        var result = await _payments.DeletePayment(paymentId, user.Id);
+
+        return result switch
+        {
+            DeletePaymentResult.Success => Ok(new { status = "Deleted" }),
+            DeletePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            DeletePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
     }
 }

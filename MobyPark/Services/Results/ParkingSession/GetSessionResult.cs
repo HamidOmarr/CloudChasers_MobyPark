@@ -1,6 +1,6 @@
 using MobyPark.Models;
 
-namespace MobyPark.Services.Results.Session;
+namespace MobyPark.Services.Results.ParkingSession;
 
 public abstract record GetSessionResult
 {

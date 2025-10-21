@@ -58,37 +58,71 @@ public partial class UserService : IUserService
     private async Task<UserModel> CreateUser(UserModel user)
     {
         (bool createdSuccessfully, long id) = await _users.CreateWithId(user);
-
         if (!createdSuccessfully) throw new InvalidOperationException("Database insertion failed unexpectedly.");
 
         user.Id = id;
         return user;
     }
 
-    public async Task<UserModel?> GetUserByUsername(string username) => await _users.GetByUsername(username);
+    public async Task<GetUserResult> GetUserByUsername(string username)
+    {
+        var user = await _users.GetByUsername(username);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
+    }
 
-    public async Task<UserModel?> GetUserByEmail(string email) => await _users.GetByEmail(email);
+    public async Task<GetUserResult> GetUserByEmail(string email)
+    {
+        var user = await _users.GetByEmail(email);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
+    }
 
-    public async Task<UserModel?> GetUserById(long id) => await _users.GetById<UserModel>(id);
+    public async Task<GetUserResult> GetUserById(long userId)
+    {
+        var user = await _users.GetById<UserModel>(userId);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
+    }
 
-    public async Task<List<UserModel>> GetAllUsers() => await _users.GetAll();
+    public async Task<GetUserListResult> GetAllUsers()
+    {
+        var users = await _users.GetAll();
+        if (users.Count == 0)
+            return new GetUserListResult.NotFound();
+        return new GetUserListResult.Success(users);
+    }
 
     public async Task<int> CountUsers() => await _users.Count();
 
     private async Task<bool> UpdateUser(UserModel user) => await _users.Update(user);
 
-    public async Task<bool> DeleteUser(long id)
+    public async Task<DeleteUserResult> DeleteUser(long id)
     {
-        var user = await GetUserById(id);
-        if (user is null) return false;  // User does not exist. Currently returning false, as there isn't a NotFound result type here yet.
+        var userResult = await GetUserById(id);
+        if (userResult is GetUserResult.NotFound)
+            return new DeleteUserResult.NotFound();
 
-        bool createdSuccessfully = await _users.Delete(user);
-        return createdSuccessfully;
+        var user = ((GetUserResult.Success)userResult).User;
+
+        try
+        {
+            if (!await _users.Delete(user))
+                return new DeleteUserResult.Error("Database deletion failed.");
+
+            return new DeleteUserResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeleteUserResult.Error(ex.Message); }
     }
 
     public async Task<RegisterResult> CreateUserAsync(RegisterDto dto)
     {
-        if (await GetUserByUsername(dto.Username) is not null)
+        var userResult = await GetUserByUsername(dto.Username);
+        if (userResult is GetUserResult.Success)
             return new RegisterResult.UsernameTaken();
 
         var emailResult = CleanEmail(dto.Email, out var cleanEmail);
@@ -117,7 +151,8 @@ public partial class UserService : IUserService
         try
         {
             UserModel createdUser = await CreateUser(user);
-            if (string.IsNullOrWhiteSpace(dto.LicensePlate)) return new RegisterResult.Success(createdUser);
+            if (string.IsNullOrWhiteSpace(dto.LicensePlate))
+                return new RegisterResult.Success(createdUser);
 
             var plateResult = await ValidateGuestLicensePlate(createdUser.Id, dto.LicensePlate);
             return plateResult ?? new RegisterResult.Success(createdUser);
@@ -131,15 +166,17 @@ public partial class UserService : IUserService
         if (string.IsNullOrWhiteSpace(licensePlate)) return null;
 
         licensePlate = ValHelper.NormalizePlate(licensePlate);
-
         var userPlates = await _userPlates.GetPlatesByPlate(licensePlate);
+
         foreach (var uPlate in userPlates)
         {
-            var user = await _users.GetById<UserModel>(uPlate.UserId);
-            if (user is null || user.Id == UserRepository.DeletedUserId) continue;
+            var userResult = await GetUserById(uPlate.UserId);
+            if (userResult is GetUserResult.NotFound) continue;
 
-            var userRecentSessions =
-                await _parkingSessions.GetAllRecentSessionsByLicensePlate(uPlate.LicensePlateNumber, TimeSpan.FromDays(30));
+            var user = ((GetUserResult.Success)userResult).User;
+            if (user.Id == UserRepository.DeletedUserId) continue;
+
+            var userRecentSessions = await _parkingSessions.GetAllRecentSessionsByLicensePlate(uPlate.LicensePlateNumber, TimeSpan.FromDays(30));
             if (userRecentSessions.Count > 0)
                 return new RegisterResult.InvalidData("License plate is already associated with another user.");
         }
@@ -153,7 +190,19 @@ public partial class UserService : IUserService
         if (string.IsNullOrWhiteSpace(dto.Identifier) || string.IsNullOrWhiteSpace(dto.Password))
             return new LoginResult.Error("Identifier and password are required.");
 
-        var user = await GetUserByEmail(dto.Identifier) ?? await GetUserByUsername(dto.Identifier);
+        // If else to check both email and username. If neither found, user remains null.
+        UserModel? user = null;
+        var emailResult = await GetUserByEmail(dto.Identifier);
+        if (emailResult is GetUserResult.Success sEmail)
+            user = sEmail.User;
+
+        else
+        {
+            var userResult = await GetUserByUsername(dto.Identifier);
+            if (userResult is GetUserResult.Success sUser)
+                user = sUser.User;
+        }
+
         if (user is null)
             return new LoginResult.InvalidCredentials();
 
@@ -178,8 +227,8 @@ public partial class UserService : IUserService
         // Username
         if (!string.IsNullOrWhiteSpace(dto.Username))
         {
-            var existing = await _users.GetByUsername(dto.Username);
-            if (existing is not null && existing.Id != user.Id)
+            var existingResult = await GetUserByUsername(dto.Username);
+            if (existingResult is GetUserResult.Success success && success.User.Id != user.Id)
                 return new UpdateProfileResult.UsernameTaken();
 
             user.Username = dto.Username.Trim();
@@ -202,8 +251,8 @@ public partial class UserService : IUserService
             if (emailResult is not UpdateProfileResult.Success)
                 return emailResult;
 
-            var existingEmail = await _users.GetByEmail(cleanEmail!);
-            if (existingEmail is not null && existingEmail.Id != user.Id)
+            var existingEmailResult = await GetUserByEmail(cleanEmail!);
+            if (existingEmailResult is GetUserResult.Success success && success.User.Id != user.Id)
                 return new UpdateProfileResult.EmailTaken();
 
             user.Email = cleanEmail!;
@@ -219,9 +268,7 @@ public partial class UserService : IUserService
             user.Phone = cleanPhone!;
         }
 
-        bool updatedSuccessfully = await UpdateUser(user);
-
-        if (!updatedSuccessfully)
+        if (!await UpdateUser(user))
             return new UpdateProfileResult.Error("Failed to update user profile.");
         return new UpdateProfileResult.Success(user);
     }
@@ -229,9 +276,10 @@ public partial class UserService : IUserService
     public async Task<UpdateProfileResult> UpdateUserIdentityAsync(long userId, string? newFirstName,
         string? newLastName, DateOnly? newBirthday)
     {
-        // Should only be callable by someone with USERS:MANAGE permission
-        var user = await GetUserById(userId);
-        if (user is null) return new UpdateProfileResult.NotFound();
+        // Should only be callable by someone with USERS:MANAGE permission from the controller
+        var userResult = await GetUserById(userId);
+        if (userResult is GetUserResult.NotFound) return new UpdateProfileResult.NotFound();
+        var user = ((GetUserResult.Success)userResult).User;
 
         bool wasModified = false;
 
@@ -267,20 +315,23 @@ public partial class UserService : IUserService
         if (!wasModified) return new UpdateProfileResult.Success(user);
 
         bool updatedSuccessfully = await UpdateUser(user);
-
-        if (!updatedSuccessfully) return new UpdateProfileResult.Error("Failed to save changes to the database (Admin Identity Update).");
-
+        if (!updatedSuccessfully)
+            return new UpdateProfileResult.Error("Failed to save changes to the database.");
         return new UpdateProfileResult.Success(user);
     }
 
     public async Task<UpdateProfileResult> UpdateUserRoleAsync(long userId, long roleId)
     {
         // Should only be callable by someone with USERS:MANAGE permission
-        var user = await GetUserById(userId);
-        if (user is null) return new UpdateProfileResult.NotFound();
+        var userResult = await GetUserById(userId);
+        if (userResult is GetUserResult.NotFound)
+            return new UpdateProfileResult.NotFound();
+
+        var user = ((GetUserResult.Success)userResult).User;
 
         var newRole = await _roles.GetById<RoleModel>(roleId);
-        if (newRole is null) return new UpdateProfileResult.InvalidData("Role does not exist.");
+        if (newRole is null)
+            return new UpdateProfileResult.InvalidData("Role does not exist.");
 
         if (user.Role.Name == "ADMIN" && newRole.Name != "ADMIN")
             return new UpdateProfileResult.InvalidData("Cannot change role of an Admin user.");
@@ -290,7 +341,6 @@ public partial class UserService : IUserService
         bool updated = await UpdateUser(user);
         if (!updated)
             return new UpdateProfileResult.Error("Failed to update user role.");
-
         return new UpdateProfileResult.Success(user);
     }
 

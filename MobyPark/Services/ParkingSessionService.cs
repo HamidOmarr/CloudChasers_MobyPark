@@ -6,12 +6,14 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Helpers;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingLot;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Results.ParkingSession;
+using MobyPark.Services.Results.User;
+using MobyPark.Services.Results.UserPlate;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class ParkingSessionService
+public class ParkingSessionService : IParkingSessionService
 {
     private readonly IParkingSessionRepository _sessions;
     private readonly IParkingLotService _parkingLots;
@@ -94,40 +96,45 @@ public class ParkingSessionService
         return new GetSessionListResult.Success(sessions);
     }
 
-    public async Task<List<ParkingSessionModel>> GetAllParkingSessions() => await _sessions.GetAll();
+    public async Task<GetSessionListResult> GetAllParkingSessions()
+    {
+        var sessions = await _sessions.GetAll();
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+
+        return new GetSessionListResult.Success(sessions);
+    }
 
     public async Task<int> CountParkingSessions() => await _sessions.Count();
 
-    public async Task<SessionUpdateResult> UpdateParkingSession(ParkingSessionModel session)
+    public async Task<UpdateSessionResult> UpdateParkingSession(ParkingSessionModel session)
     {
         var existingSession = await _sessions.GetById<ParkingSessionModel>(session.Id);
-        if (existingSession is null)
-            return new SessionUpdateResult.NotFound();
+        if (existingSession is null) return new UpdateSessionResult.NotFound();
 
         try
         {
             if (!await _sessions.Update(session))
-                return new SessionUpdateResult.Error("Database update failed.");
-            return new SessionUpdateResult.Success(session);
+                return new UpdateSessionResult.Error("Database update failed.");
+            return new UpdateSessionResult.Success(session);
         }
         catch(Exception ex)
-        { return new SessionUpdateResult.Error(ex.Message); }
+        { return new UpdateSessionResult.Error(ex.Message); }
     }
 
-    public async Task<SessionDeleteResult> DeleteParkingSession(long id)
+    public async Task<DeleteSessionResult> DeleteParkingSession(long id)
     {
         var session = await _sessions.GetById<ParkingSessionModel>(id);
-        if (session is null)
-            return new SessionDeleteResult.NotFound();
+        if (session is null) return new DeleteSessionResult.NotFound();
 
         try
         {
             if (!await _sessions.Delete(session))
-                return new SessionDeleteResult.Error("Database delete failed.");
-            return new SessionDeleteResult.Success();
+                return new DeleteSessionResult.Error("Database delete failed.");
+            return new DeleteSessionResult.Success();
         }
         catch (Exception ex)
-        { return new SessionDeleteResult.Error(ex.Message); }
+        { return new DeleteSessionResult.Error(ex.Message); }
     }
 
     public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
@@ -183,43 +190,53 @@ public class ParkingSessionService
 
     public string GenerateTransactionValidationHash() => Guid.NewGuid().ToString("N");
 
-    private async Task<ParkingSessionModel> PersistSession(ParkingSessionModel session, ParkingLotModel lot)
+    private async Task<PersistSessionResult> PersistSession(ParkingSessionModel session, ParkingLotModel lot)
     {
         lot.Reserved = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
 
         var lotUpdateResult = await _parkingLots.UpdateParkingLot(lot);
         if (lotUpdateResult is not UpdateLotResult.Success)
-            throw new InvalidOperationException("Failed to update parking lot capacity.");
+        {
+            var error = (lotUpdateResult as UpdateLotResult.Error)?.Message ?? "Failed to update parking lot capacity.";
+            return new PersistSessionResult.Error(error);
+        }
 
-        var createdSession = await CreateParkingSession(session);
-        if (createdSession.Id <= 0)
-            throw new InvalidOperationException("Failed to persist parking session");
+        try
+        {
+            ParkingSessionModel createdSession = await CreateParkingSession(session);
+            return new PersistSessionResult.Success(createdSession);
+        }
+        catch (Exception ex)
+        {
+            lot.Reserved = Math.Max(0, lot.Reserved - 1);
+            await _parkingLots.UpdateParkingLot(lot);
 
-        return createdSession;
+            return new PersistSessionResult.Error(ex.Message);
+        }
     }
 
     private async Task<bool> OpenSessionGate(ParkingSessionModel session, string licensePlate)
         => await GateService.OpenGateAsync(session.ParkingLotId, licensePlate);
 
-    public async Task<SessionStartResult> StartSession(ParkingSessionCreateDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
+    public async Task<StartSessionResult> StartSession(ParkingSessionCreateDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
     {
         var licensePlate = ValHelper.NormalizePlate(sessionDto.LicensePlate);
 
         var lotResult = await _parkingLots.GetParkingLotById(sessionDto.ParkingLotId);
-        if (lotResult is GetLotResult.NotFound)
-            return new SessionStartResult.LotNotFound();
+        if (lotResult is not GetLotResult.Success sLot)
+            return new StartSessionResult.LotNotFound();
 
-        var lot = ((GetLotResult.Success)lotResult).Lot;
+        var lot = sLot.Lot;
+        if (lot.AvailableSpots <= 0)
+            return new StartSessionResult.LotFull();
 
-        if (lot.Capacity - lot.Reserved <= 0)
-            return new SessionStartResult.LotFull();
-
-        if (await _sessions.GetActiveSessionByLicensePlate(licensePlate) is not null)
-            return new SessionStartResult.AlreadyActive();
+        var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
+        if (activeSessionResult is GetSessionResult.Success)
+            return new StartSessionResult.AlreadyActive();
 
         var preAuth = await PreAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
         if (!preAuth.Approved)
-            return new SessionStartResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+            return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
 
         var newSession = new ParkingSessionModel
         {
@@ -230,48 +247,62 @@ public class ParkingSessionService
             PaymentStatus = ParkingSessionStatus.PreAuthorized
         };
 
+        var persistResult = await PersistSession(newSession, lot);
+        if (persistResult is not PersistSessionResult.Success sPersist)
+        {
+            var error = (persistResult as PersistSessionResult.Error)!.Message;
+            return new StartSessionResult.Error(error);
+        }
+
+        newSession = sPersist.Session;
+
         try
         {
-            newSession = await PersistSession(newSession, lot);
             if (!await OpenSessionGate(newSession, licensePlate))
                 throw new InvalidOperationException("Failed to open gate");
         }
         catch (Exception ex)
         {
-            if (newSession.Id > 0) await _sessions.Delete(newSession);
-
+            if (newSession.Id > 0) await DeleteParkingSession(newSession.Id);
             lot.Reserved = Math.Max(0, lot.Reserved - 1);
             await _parkingLots.UpdateParkingLot(lot);
 
-            return new SessionStartResult.Error("Failed to start session: " + ex.Message);
+            return new StartSessionResult.Error("Failed to start session: " + ex.Message);
         }
 
-        return new SessionStartResult.Success(newSession);
+        return new StartSessionResult.Success(newSession, lot.AvailableSpots);
     }
 
     private async Task<UserModel> ResolveSessionUser(string plate, string? username)
     {
         plate = ValHelper.NormalizePlate(plate);
 
-        var existingLink = await _userPlates.GetUserPlatesByPlate(plate);
-        if (existingLink.Count > 0)
+        var plateListResult = await _userPlates.GetUserPlatesByPlate(plate);
+        if (plateListResult is GetUserPlateListResult.Success sPlateList)
         {
-            foreach (var link in existingLink)
+            foreach (var link in sPlateList.Plates)
             {
-                var user = await _users.GetUserById(link.UserId);
-                if (user is null) continue;
-                if (string.IsNullOrWhiteSpace(username) || user.Username.ToLower().Equals(username.ToLower()))
-                    return user;
+                var userResult = await _users.GetUserById(link.UserId);
+                if (userResult is GetUserResult.Success sUser)
+                {
+                    var user = sUser.User;
+                    if (string.IsNullOrWhiteSpace(username) || user.Username.ToLower().Equals(username.ToLower()))
+                        return user;
+                }
             }
         }
 
-        var defaultUser = await _users.GetUserById(UserPlateModel.DefaultUserId);
-        var deletedLink = await _userPlates.GetUserPlateByUserIdAndPlate(UserPlateModel.DefaultUserId, plate);
+        var defaultUserResult = await _users.GetUserById(UserPlateModel.DefaultUserId);
+        if (defaultUserResult is not GetUserResult.Success sDefaultUser)
+            throw new InvalidOperationException("Fatal error: Default user not found.");
 
-        if (deletedLink is null)
+        var defaultUser = sDefaultUser.User;
+
+        var deletedLinkResult = await _userPlates.GetUserPlateByUserIdAndPlate(UserPlateModel.DefaultUserId, plate);
+        if (deletedLinkResult is GetUserPlateResult.NotFound)
             await _userPlates.AddLicensePlateToUser(UserPlateModel.DefaultUserId, plate);
 
-        return defaultUser!;
+        return defaultUser;
     }
 
     public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions)
@@ -318,7 +349,16 @@ public class ParkingSessionService
 
     private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)
     {
-        var userPlates = await _userPlates.GetUserPlatesByUserId(userId);
-        return userPlates.ToDictionary(uPlate => uPlate.LicensePlateNumber, uPlate => uPlate.CreatedAt.ToDateTime(TimeOnly.MinValue));
+        var userPlatesResult = await _userPlates.GetUserPlatesByUserId(userId);
+
+        if (userPlatesResult is GetUserPlateListResult.Success s)
+        {
+            return s.Plates.ToDictionary(
+                uPlate => uPlate.LicensePlateNumber,
+                uPlate => uPlate.CreatedAt.ToDateTime(TimeOnly.MinValue)
+            );
+        }
+
+        return new Dictionary<string, DateTime>();
     }
 }

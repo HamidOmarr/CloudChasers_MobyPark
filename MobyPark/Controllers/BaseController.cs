@@ -1,25 +1,26 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Services;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
 
 [ApiController]
 public abstract class BaseController : ControllerBase
 {
-    protected readonly UserService UserService;
+    protected readonly IUserService UserService;
 
-    protected BaseController(UserService users)
+    protected BaseController(IUserService users)
     {
         UserService = users;
     }
 
-    protected int GetCurrentUserId()
+    protected long GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-        if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
+        if (userIdClaim is null || !long.TryParse(userIdClaim.Value, out long userId))
             throw new InvalidOperationException("User ID claim is missing or invalid in the token.");
 
         return userId;
@@ -28,11 +29,11 @@ public abstract class BaseController : ControllerBase
     protected async Task<UserModel> GetCurrentUserAsync()
     {
         var userId = GetCurrentUserId();
-        var user = await UserService.GetUserById(userId);
+        var userResult = await UserService.GetUserById(userId);
 
-        if (user is null)
+        if (userResult is not GetUserResult.Success success)
             throw new UnauthorizedAccessException("Authenticated user record not found.");
 
-        return user;
+        return success.User;
     }
 }

@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Services;
-using MobyPark.Services.Exceptions;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.ParkingSession;
 
 namespace MobyPark.Controllers;
 
@@ -12,15 +12,12 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingSessionController : BaseController
 {
-    private readonly ParkingSessionService _parkingSessions;
-    private readonly ParkingLotService _parkingLots;
-
+    private readonly IParkingSessionService _parkingSessions;
     private readonly IAuthorizationService _authorizationService;
 
-    public ParkingSessionController(UserService users, ParkingSessionService parkingSessions, ParkingLotService lots, IAuthorizationService authorizationService) : base(users)
+    public ParkingSessionController(UserService users, IParkingSessionService parkingSessions, IAuthorizationService authorizationService) : base(users)
     {
         _parkingSessions = parkingSessions;
-        _parkingLots = lots;
         _authorizationService = authorizationService;
     }
 
@@ -30,47 +27,41 @@ public class ParkingSessionController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        try
+        var user = await GetCurrentUserAsync();
+
+        var sessionDto = new ParkingSessionCreateDto
         {
-            var sessionDto = new ParkingSessionCreateDto
-            {
-                ParkingLotId = lotId,
-                LicensePlate = request.LicensePlate
-            };
+            ParkingLotId = lotId,
+            LicensePlate = request.LicensePlate
+        };
 
-            var session = await _parkingSessions.StartSession(
-                sessionDto,
-                request.CardToken,
-                request.EstimatedAmount,
-                GetCurrentUserAsync().Result.Username,
-                request.SimulateInsufficientFunds
-            );
+        var result = await _parkingSessions.StartSession(
+            sessionDto,
+            request.CardToken,
+            request.EstimatedAmount,
+            user.Username,
+            request.SimulateInsufficientFunds
+        );
 
-            var lot = await _parkingLots.GetParkingLotById(lotId);
-            int? available = lot?.Capacity != null ? lot.Capacity - lot.Reserved : null;
-
-            return StatusCode(201, new
+        return result switch
+        {
+            StartSessionResult.Success success => StatusCode(201, new
             {
                 status = "Started",
-                sessionId = session.Id,
-                licensePlate = session.LicensePlate,
-                parkingLotId = session.ParkingLotId,
-                startedAt = session.Started,
-                paymentStatus = session.PaymentStatus,
-                availableSpots = available
-            });
-        }
-
-        catch (ActiveSessionAlreadyExistsException ex)
-        { return Conflict(new { error = ex.Message, code = "ACTIVE_SESSION_EXISTS" }); }
-        catch (KeyNotFoundException)
-        { return NotFound(new { error = "Parking lot not found" }); }
-        catch (UnauthorizedAccessException ex)
-        { return StatusCode(402, new { error = ex.Message, code = "PAYMENT_DECLINED" }); }
-        catch (InvalidOperationException ex)
-        { return BadRequest(new { error = ex.Message }); }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                paymentStatus = success.Session.PaymentStatus,
+                availableSpots = success.AvailableSpots
+            }),
+            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
     }
 
     [Authorize(Policy = "CanManageParkingSessions")]
@@ -79,12 +70,19 @@ public class ParkingSessionController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var session = await _parkingSessions.GetParkingSessionById(sessionId);
-        if (session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
+        var getResult = await _parkingSessions.GetParkingSessionById(sessionId);
+        if (getResult is not GetSessionResult.Success success || success.Session.ParkingLotId != lotId)
+            return NotFound(new { error = "Session not found in this lot" });
 
-        await _parkingSessions.DeleteParkingSession(sessionId);
-        return Ok(new { status = "Deleted" });
+        var deleteResult = await _parkingSessions.DeleteParkingSession(sessionId);
+
+        return deleteResult switch
+        {
+            DeleteSessionResult.Success => Ok(new { status = "Deleted" }),
+            DeleteSessionResult.NotFound => NotFound(new { error = "Session not found" }),
+            DeleteSessionResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown delete error occurred." })
+        };
     }
 
     [Authorize]
@@ -124,5 +122,4 @@ public class ParkingSessionController : BaseController
             _ => StatusCode(500, new { error = "An unexpected error occurred." })
         };
     }
-
 }

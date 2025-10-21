@@ -73,20 +73,26 @@ public class ParkingLotService : IParkingLotService
         return new GetLotListResult.Success(lots);
     }
 
-    public async Task<bool> ParkingLotExists(string checkBy, string filterValue)
+    public async Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue)
     {
         if (string.IsNullOrWhiteSpace(filterValue))
-            throw new ArgumentException("Filter value cannot be empty or whitespace.", nameof(filterValue));
+            return new ParkingLotExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
 
-        bool exists = checkBy.ToLower() switch
+        ParkingLotExistsResult FromBool(bool exists) =>
+            exists ? new ParkingLotExistsResult.Exists() : new ParkingLotExistsResult.NotExists();
+
+        checkBy = checkBy.Trim().ToLowerInvariant();
+
+        return checkBy switch
         {
-            "id" => long.TryParse(filterValue, out long id) && await _parkingLots.Exists(lot => lot.Id == id),
-            "address" => await _parkingLots.Exists(lot => lot.Address == filterValue),
-            _ => throw new ArgumentException("Invalid checkBy parameter. Must be 'id', or 'address'.",
-                nameof(checkBy))
-        };
+            "id" => !long.TryParse(filterValue, out long id)
+                ? new ParkingLotExistsResult.InvalidInput("ID must be a valid long.")
+                : FromBool(await _parkingLots.Exists(lot => lot.Id == id)),
 
-        return exists;
+            "address" => FromBool(await _parkingLots.Exists(lot => lot.Address == filterValue)),
+
+            _ => new ParkingLotExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'address'.")
+        };
     }
 
     public async Task<int> CountParkingLots() => await _parkingLots.Count();

@@ -52,24 +52,68 @@ public static class ServiceExtensions
             });
 
         services.AddAuthorizationBuilder()
+            .AddPolicy("CanManageConfig",
+                policy => { policy.RequireClaim("Permission", "CONFIG:MANAGE"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanManageUsers",
+                policy => { policy.RequireClaim("Permission", "USERS:MANAGE"); });
+
+        services.AddAuthorizationBuilder()
             .AddPolicy("CanReadUsers",
                 policy => { policy.RequireClaim("Permission", "USERS:READ"); });
 
         services.AddAuthorizationBuilder()
-            .AddPolicy("CanReadParkingLots",
-                policy => { policy.RequireClaim("Permission", "LOTS:READ"); });
+            .AddPolicy("CanUserSelfManage",
+                policy => { policy.RequireClaim("Permission", "USERS:SELF_MANAGE"); });
 
         services.AddAuthorizationBuilder()
             .AddPolicy("CanManageParkingLots",
                 policy => { policy.RequireClaim("Permission", "LOTS:MANAGE"); });
 
         services.AddAuthorizationBuilder()
+            .AddPolicy("CanReadParkingLots",
+                policy => { policy.RequireClaim("Permission", "LOTS:READ"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanViewAllFinance",
+                policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_ALL"); });
+
+        services.AddAuthorizationBuilder()
             .AddPolicy("CanManageParkingSessions",
                 policy => { policy.RequireClaim("Permission", "SESSIONS:MANAGE"); });
 
         services.AddAuthorizationBuilder()
+            .AddPolicy("CanReadAllParkingSessions",
+                policy => { policy.RequireClaim("Permission", "SESSIONS:READ_ALL"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanManageReservations",
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:MANAGE"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanSelfManageReservations",
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:SELF_MANAGE"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanManagePlates",
+                policy => { policy.RequireClaim("Permission", "PLATES:MANAGE"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanSelfManagePlates",
+                policy => { policy.RequireClaim("Permission", "PLATES:SELF_MANAGE"); });
+
+        services.AddAuthorizationBuilder()
             .AddPolicy("CanProcessPayments",
                 policy => { policy.RequireClaim("Permission", "PAYMENTS:PROCESS"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanCancelReservations",
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:CANCEL"); });
+
+        services.AddAuthorizationBuilder()
+            .AddPolicy("CanViewSelfFinance",
+                policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); });
 
 
         services.AddMobyParkServices(configuration);

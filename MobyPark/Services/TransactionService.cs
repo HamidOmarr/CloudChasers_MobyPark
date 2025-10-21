@@ -21,19 +21,19 @@ public class TransactionService : ITransactionService
         return transaction;
     }
 
-    public async Task<TransactionCreationResult> CreateTransactionConfirmation(TransactionModel transaction)
+    public async Task<CreateTransactionResult> CreateTransactionConfirmation(TransactionModel transaction)
     {
         try
         {
             (bool success, Guid id) = await _transactions.CreateWithId(transaction);
             if (!success)
-                return new TransactionCreationResult.Error("Database insertion failed.");
+                return new CreateTransactionResult.Error("Database insertion failed.");
 
             transaction.Id = id;
-            return new TransactionCreationResult.Success(id, transaction);
+            return new CreateTransactionResult.Success(id, transaction);
         }
         catch (Exception )
-        { return new TransactionCreationResult.Error("An error occurred while creating the transaction."); }
+        { return new CreateTransactionResult.Error("An error occurred while creating the transaction."); }
     }
 
     public async Task<TransactionModel?> GetTransactionById(Guid id) => await _transactions.GetByTransactionId(id);
@@ -59,35 +59,35 @@ public class TransactionService : ITransactionService
 
     public async Task<int> CountTransactions() => await _transactions.Count();
 
-    public async Task<TransactionUpdateResult> UpdateTransaction(TransactionModel transaction)
+    public async Task<UpdateTransactionResult> UpdateTransaction(TransactionModel transaction)
     {
         try
         {
             var exists = await _transactions.GetByTransactionId(transaction.Id);
             if (exists is null)
-                return new TransactionUpdateResult.NotFound();
+                return new UpdateTransactionResult.NotFound();
 
             if (!await _transactions.Update(transaction))
-                return new TransactionUpdateResult.Error("Database update failed.");
-            return new TransactionUpdateResult.Success(transaction);
+                return new UpdateTransactionResult.Error("Database update failed.");
+            return new UpdateTransactionResult.Success(transaction);
         }
         catch (Exception ex)
-        { return new TransactionUpdateResult.Error(ex.Message); }
+        { return new UpdateTransactionResult.Error(ex.Message); }
     }
 
-    public async Task<TransactionDeleteResult> DeleteTransaction(Guid transactionId)
+    public async Task<DeleteTransactionResult> DeleteTransaction(Guid transactionId)
     {
         try
         {
             var transaction = await _transactions.GetByTransactionId(transactionId);
             if (transaction is null)
-                return new TransactionDeleteResult.NotFound();
+                return new DeleteTransactionResult.NotFound();
 
             if (!await _transactions.DeleteTransaction(transaction))
-                return new TransactionDeleteResult.Error("Failed to delete transaction from database.");
-            return new TransactionDeleteResult.Success();
+                return new DeleteTransactionResult.Error("Failed to delete transaction from database.");
+            return new DeleteTransactionResult.Success();
         }
         catch (Exception ex)
-        { return new TransactionDeleteResult.Error(ex.Message); }
+        { return new DeleteTransactionResult.Error(ex.Message); }
     }
 }

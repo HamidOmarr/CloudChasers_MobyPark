@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using MobyPark.Models.Repositories.Interfaces;
 using NpgsqlTypes;
 
@@ -33,6 +34,9 @@ public class ParkingLotModel : IHasLongId
 
     [Required]
     public int Reserved { get; set; } = 0;
+
+    [NotMapped]
+    public int AvailableSpots => Capacity - Reserved;
 
     [Required]
     public decimal Tariff { get; set; } = 0m;
