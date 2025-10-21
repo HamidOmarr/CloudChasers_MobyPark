@@ -137,49 +137,6 @@ public class ParkingSessionService : IParkingSessionService
         { return new DeleteSessionResult.Error(ex.Message); }
     }
 
-    public (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session)
-    {
-        decimal price;
-        DateTime start = session.Started;
-        DateTime end = session.Stopped ?? DateTime.Now;
-        TimeSpan diff = end - start;
-
-        int hours = (int)Math.Ceiling(diff.TotalSeconds / 3600);
-        int days = diff.Days; // only count full 24h periods
-
-        if (diff.TotalSeconds < 180)
-        {
-            price = 0;
-            hours = 0;
-            days = 0;
-        }
-        else if (days > 0)
-        {
-            // Round up partial leftover hours to another day
-            int billableDays = (int)Math.Ceiling(diff.TotalHours / 24.0);
-            if (parkingLot.DayTariff is null)
-            {
-                // day tariff not set up, just charge normal tariff per hour
-                price = parkingLot.Tariff * hours;
-                days = 0;
-                return (price, hours, days);
-            }
-
-            price = (decimal)parkingLot.DayTariff * billableDays;
-            days = billableDays;
-        }
-        else
-        {
-            price = parkingLot.Tariff * hours;
-            if (parkingLot.DayTariff is not null && price > parkingLot.DayTariff)
-                price = (decimal)parkingLot.DayTariff;
-        }
-
-        price = Math.Max(0, price);
-
-        return (price, hours, days);
-    }
-
     public string GeneratePaymentHash(string sessionId, string licensePlate)
     {
         using var md5 = MD5.Create();

@@ -101,9 +101,17 @@ public class UsersController : BaseController
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUser(int id)
     {
-        var user = await UserService.GetUserById(id);
-        if (user is null) return NotFound();
+        var result = await UserService.GetUserById(id);
+        if (result is not GetUserResult.Success success)
+        {
+            return result switch
+            {
+                GetUserResult.NotFound => NotFound(new { error = "User not found" }),
+                _ => StatusCode(500, new { error = "Unexpected error" })
+            };
+        }
 
+        var user = success.User;
         return Ok(new { user.Id, user.Username, user.FirstName, user.LastName });
     }
 
@@ -111,9 +119,17 @@ public class UsersController : BaseController
     [HttpGet("admin/users/{id:int}")]
     public async Task<IActionResult> GetUserAdmin(int id)
     {
-        var user = await UserService.GetUserById(id);
-        if (user is null) return NotFound();
+        var result = await UserService.GetUserById(id);
+        if (result is not GetUserResult.Success success)
+        {
+            return result switch
+            {
+                GetUserResult.NotFound => NotFound(new { error = "User not found" }),
+                _ => StatusCode(500, new { error = "Unexpected error" })
+            };
+        }
 
+        var user = success.User;
         return Ok(new AdminUserProfileDto
         {
             Id = user.Id,

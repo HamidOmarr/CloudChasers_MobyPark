@@ -1,9 +1,11 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.LicensePlate;
 
 namespace MobyPark.Services;
 
-public class LicensePlateService
+public class LicensePlateService : ILicensePlateService
 {
     private readonly ILicensePlateRepository _licensePlates;
 
@@ -12,16 +14,23 @@ public class LicensePlateService
         _licensePlates = licensePlates;
     }
 
-    public async Task<LicensePlateModel> CreateLicensePlate(LicensePlateModel licensePlate)
+    public async Task<CreateLicensePlateResult> CreateLicensePlate(LicensePlateModel licensePlate)
     {
+        var existingPlate = await _licensePlates.GetByNumber(licensePlate.LicensePlateNumber);
+        if (existingPlate is not null)
+            return new CreateLicensePlateResult.Error("License plate already exists");
+
         bool createdSuccessfully = await _licensePlates.Create(licensePlate);
-        if (!createdSuccessfully) throw new Exception("Failed to create license plate");
-        return licensePlate;
+        if (!createdSuccessfully)
+            return new CreateLicensePlateResult.Error("Failed to create license plate");
+        return new CreateLicensePlateResult.Success(licensePlate);
     }
 
-    public async Task<LicensePlateModel?> GetByLicensePlate(string licensePlate)
+    public async Task<GetLicensePlateResult> GetByLicensePlate(string licensePlate)
     {
-        LicensePlateModel? plate = await _licensePlates.GetByNumber(licensePlate);
-        return plate ?? throw new KeyNotFoundException("License plate not found");
+        var plate = await _licensePlates.GetByNumber(licensePlate);
+        if (plate is not null)
+            return new GetLicensePlateResult.Success(plate);
+        return new GetLicensePlateResult.NotFound("License plate not found");
     }
 }

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.DTOs;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
@@ -23,7 +22,7 @@ public class ParkingSessionController : BaseController
 
     // [HttpPost("{lotId}/sessions:start")] // start endpoint unified // Commented out as it is unclear why this was added.
     [HttpPost("{lotId}/sessions/start")]
-    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionRequest request)
+    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 

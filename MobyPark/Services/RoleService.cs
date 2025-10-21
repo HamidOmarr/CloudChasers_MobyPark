@@ -1,7 +1,5 @@
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
-using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -9,9 +7,9 @@ public class RoleService
 {
     private readonly IRoleRepository _roles;
 
-    public RoleService(IRepositoryStack repoStack)
+    public RoleService(IRoleRepository roles)
     {
-        _roles = repoStack.Roles;
+        _roles = roles;
     }
 
     public async Task<RoleModel> CreateRole(string roleName, string description)

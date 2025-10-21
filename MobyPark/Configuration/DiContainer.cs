@@ -4,7 +4,6 @@ using MobyPark.Models;
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Models.Repositories.RepositoryStack;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 
@@ -16,7 +15,6 @@ public static class DiContainer
     {
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-
 
         // Repository: Scoped. New instance per HTTP request.
         services.AddScoped<ILicensePlateRepository, LicensePlateRepository>();
@@ -31,10 +29,6 @@ public static class DiContainer
         services.AddScoped<IUserPlateRepository, UserPlateRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
 
-        // Repository stack: Scoped to align with database connection lifecycle.
-        services.AddScoped<IRepositoryStack, RepositoryStack>();
-
-
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<SessionService>();
 
@@ -42,19 +36,17 @@ public static class DiContainer
         services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
 
         // Business Logic Services: Scoped to manage state per request.
-        services.AddScoped<LicensePlateService>();
-        services.AddScoped<ParkingLotService>();
-        services.AddScoped<ParkingSessionService>();
-        services.AddScoped<PaymentService>();
+        services.AddScoped<ILicensePlateService, LicensePlateService>();
+        services.AddScoped<IParkingLotService, ParkingLotService>();
+        services.AddScoped<IParkingSessionService, ParkingSessionService>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<PermissionService>();
-        services.AddScoped<ReservationService>();
+        services.AddScoped<IPricingService, PricingService>();
+        services.AddScoped<IReservationService, ReservationService>();
         services.AddScoped<RolePermissionService>();
         services.AddScoped<RoleService>();
         services.AddScoped<ITransactionService, TransactionService>();
-        services.AddScoped<UserPlateService>();
-        services.AddScoped<UserService>();
-
-        // ServiceStack: Scoped as it bundles Scoped services together.
-        // services.AddScoped<ServiceStack>();
+        services.AddScoped<IUserPlateService, UserPlateService>();
+        services.AddScoped<IUserService, UserService>();
     }
 }

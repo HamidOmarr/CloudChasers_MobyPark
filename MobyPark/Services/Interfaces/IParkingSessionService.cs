@@ -18,7 +18,7 @@ public interface IParkingSessionService
     Task<int> CountParkingSessions();
     Task<UpdateSessionResult> UpdateParkingSession(ParkingSessionModel session);
     Task<DeleteSessionResult> DeleteParkingSession(long id);
-    (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session);
+    // (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session);
     string GeneratePaymentHash(string sessionId, string licensePlate);
     string GenerateTransactionValidationHash();
     Task<StartSessionResult> StartSession(ParkingSessionCreateDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false);

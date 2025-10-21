@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.DTOs;
+using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
-using MobyPark.Services.Services;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Reservation;
 
 namespace MobyPark.Controllers;
 
@@ -9,123 +11,117 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ReservationsController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly IReservationService _reservations;
+    private readonly IAuthorizationService _authorization;
 
-    public ReservationsController(ServiceStack services) : base(services.Sessions)
+    public ReservationsController(IUserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
     {
-        _services = services;
+        _reservations = reservations;
+        _authorization = authorizationService;
     }
 
+    [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ReservationRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateReservationDto request)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        if (request.StartDate == default || request.EndDate == default)
-            return BadRequest(new { error = "Required fields missing" });
+        if (request.StartDate == default || request.EndDate == default || request.StartDate >= request.EndDate)
+            return BadRequest(new { error = "Valid StartDate and EndDate are required, and StartDate must be before EndDate." });
 
-        var parkingLot = await _services.ParkingLots.GetParkingLotById(request.ParkingLotId);
-        var vehicle = await _services.Vehicles.GetVehicleByLicensePlate(request.LicensePlate);
+        var user = await GetCurrentUserAsync();
+        bool isAdminRequest = false;
 
-        if (parkingLot is null)
-            return NotFound(new { error = "Parking lot not found" });
-
-        UserModel? userRequested = null;
-
-        if (request.Username is not null)
-            userRequested = await _services.Users.GetUserByUsername(request.Username);
-
-        int userId = user.Role == "ADMIN" && userRequested is not null ? userRequested.Id : user.Id; // Ensures that if an admin makes a manual reservation, the admin user is not set as the user in reservation.
-
-        int cost;
-        if (request.EndDate - request.StartDate > TimeSpan.FromHours(24))
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
         {
-            var days = (int)((request.EndDate - request.StartDate).TotalDays);
-            if ((request.EndDate - request.StartDate).TotalHours % 24 > 0)
-                days += 1;
-            cost = (int)(days * parkingLot.DayTariff);
+            var authorizationResult = await _authorization.AuthorizeAsync(User, "CanManageReservations");
+            if (!authorizationResult.Succeeded)
+                return Forbid();
+            isAdminRequest = true;
         }
-        else
-            cost = (int)((request.EndDate - request.StartDate).TotalHours * (double)parkingLot.Tariff);
 
-        var reservation = new ReservationModel
+        var result = await _reservations.CreateReservationAsync(request, user.Id, isAdminRequest);
+
+        return result switch
         {
-            UserId = userId,
-            ParkingLotId = request.ParkingLotId,
-            VehicleId = vehicle.Id,
-            StartTime = request.StartDate,
-            EndTime = request.EndDate,
-            Status = "Active",
-            CreatedAt = DateTime.UtcNow,
-            Cost = cost
+            CreateReservationResult.Success s => CreatedAtAction(nameof(GetReservation),
+                                                                new { reservationId = s.Reservation.Id },
+                                                                s.Reservation),
+            CreateReservationResult.LotNotFound => NotFound(new { error = "Parking lot not found." }),
+            CreateReservationResult.PlateNotFound => NotFound(new { error = "License plate not found." }),
+            CreateReservationResult.UserNotFound notFound => NotFound(new { error = $"User '{notFound.Username}' not found." }),
+            CreateReservationResult.PlateNotOwned notOwned => Unauthorized(new { error = notOwned.Message }),
+            CreateReservationResult.Forbidden => Forbid(),
+            CreateReservationResult.InvalidInput i => BadRequest(new { error = i.Message }),
+            CreateReservationResult.AlreadyExists a => Conflict(new { error = a.Message }),
+            CreateReservationResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
         };
-
-        var fullReservation = await _services.Reservations.CreateReservation(reservation);
-
-        parkingLot.Reserved += 1;
-
-        return StatusCode(201, new { status = "Success", fullReservation });
     }
 
+    [Authorize]
     [HttpPut("{reservationId}")]
-    public async Task<IActionResult> UpdateReservation(int reservationId, [FromBody] ReservationModel request)
+    public async Task<IActionResult> UpdateReservation(long reservationId, [FromBody] UpdateReservationDto dto)
     {
-        var user = GetCurrentUser();
-        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        if (request.StartTime == default || request.EndTime == default || request.ParkingLotId == 0)
-            return BadRequest(new { error = "Required fields missing" });
+        var user = await GetCurrentUserAsync();
 
-        if (user.Role != "ADMIN")
-            request.UserId = user.Id;
+        var updateResult = await _reservations.UpdateReservation(reservationId, dto, user.Id);
 
-        if (request.ParkingLotId > 0)
-            reservation.ParkingLotId = request.ParkingLotId;
-        if (request.VehicleId > 0)
-            reservation.VehicleId = request.VehicleId;
-        if (request.StartTime != default)
-            reservation.StartTime = request.StartTime;
-        if (request.EndTime != default)
-            reservation.EndTime = request.EndTime;
-        if (!string.IsNullOrEmpty(request.Status))
-            reservation.Status = request.Status;
-
-
-        await _services.Reservations.UpdateReservation(reservation);
-        return Ok(new { status = "Updated", reservation });
+        return updateResult switch
+        {
+            UpdateReservationResult.Success s => Ok(s.Reservation),
+            UpdateReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
+            UpdateReservationResult.Forbidden => Forbid(),
+            UpdateReservationResult.Error e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred during update." })
+        };
     }
 
+    [Authorize]
     [HttpDelete("{reservationId}")]
-    public async Task<IActionResult> DeleteReservation(int reservationId)
+    public async Task<IActionResult> DeleteReservation(long reservationId)
     {
-        var user = GetCurrentUser();
-        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
+        var user = await GetCurrentUserAsync();
 
-        if (user.Role != "ADMIN" && reservation.UserId != user.Id)
-            return Forbid();
+        var result = await _reservations.DeleteReservation(reservationId, user.Id);
 
-        var parkingLot = await _services.ParkingLots.GetParkingLotById(reservation.ParkingLotId);
-        if (parkingLot is null)
-            return NotFound(new { error = "Parking lot not found" });
-        parkingLot.Reserved = Math.Max(0, parkingLot.Reserved - 1);
-
-        await _services.ParkingLots.UpdateParkingLot(parkingLot);
-
-        bool success = await _services.Reservations.DeleteReservation(reservationId);
-        return success
-            ? Ok(new { status = "Deleted" })
-            : StatusCode(500, new { status = "Error", message = "Failed to delete reservation" });
+        return result switch
+        {
+            DeleteReservationResult.Success => Ok(new { status = "Deleted" }),
+            DeleteReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
+            DeleteReservationResult.Forbidden => Forbid(),
+            DeleteReservationResult.Error e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred during deletion." })
+        };
     }
 
+    [Authorize]
     [HttpGet("{reservationId}")]
-    public async Task<IActionResult> GetReservation(int reservationId)
+    public async Task<IActionResult> GetReservation(long reservationId)
     {
-        var user = GetCurrentUser();
-        ReservationModel reservation = await _services.Reservations.GetReservationById(reservationId);
+        var user = await GetCurrentUserAsync();
 
-        if (user.Role != "ADMIN" && reservation.UserId != user.Id)
-            return Forbid();
+        var result = await _reservations.GetReservationById(reservationId, user.Id);
 
-        return Ok(reservation);
+        return result switch
+        {
+            GetReservationResult.Success s => Ok(s.Reservation),
+            GetReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize(Policy = "CanManageReservations")]
+    [HttpGet]
+    public async Task<IActionResult> GetAllReservations()
+    {
+         var result = await _reservations.GetAllReservations();
+         return result switch {
+            GetReservationListResult.Success s => Ok(s.Reservations),
+            GetReservationListResult.NotFound => Ok(new List<ReservationModel>()),
+             _ => StatusCode(500, new { error = "An unknown error occurred." })
+         };
     }
 }
