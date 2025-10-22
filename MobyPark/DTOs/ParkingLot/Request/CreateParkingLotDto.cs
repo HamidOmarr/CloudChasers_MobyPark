@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MobyPark.DTOs.ParkingLot.Request;
 
-public class ParkingLotCreateDto
+public class CreateParkingLotDto
 {
     [Required]
     public string Name { get; set; } = string.Empty;
@@ -20,5 +20,4 @@ public class ParkingLotCreateDto
     public decimal Tariff { get; set; } = 1.0m;
 
     public decimal? DayTariff { get; set; } = null;
-
 }

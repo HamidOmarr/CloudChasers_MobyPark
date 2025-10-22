@@ -27,7 +27,8 @@ public class ReservationService : IReservationService
         ILicensePlateService licensePlates,
         IUserService users,
         IUserPlateService userPlates,
-        IPricingService pricing)
+        IPricingService pricing
+        )
     {
         _reservations = reservations;
         _parkingLots = parkingLots;
@@ -37,16 +38,7 @@ public class ReservationService : IReservationService
         _pricing = pricing;
     }
 
-    public async Task<CreateReservationResult> CreateReservation(ReservationModel reservation)
-    {
-        (bool createdSuccessfully, long id) = await _reservations.CreateWithId(reservation);
-        if (!createdSuccessfully)
-            return new CreateReservationResult.Error("Failed to create reservation");
-        reservation.Id = id;
-        return new CreateReservationResult.Success(reservation);
-    }
-
-    public async Task<CreateReservationResult> CreateReservationAsync(CreateReservationDto dto, long requestingUserId, bool isAdminRequest = false)
+    public async Task<CreateReservationResult> CreateReservation(CreateReservationDto dto, long requestingUserId, bool isAdminRequest = false)
     {
         var lotValidationResult = await ValidateInputAndFetchLot(dto);
         if (lotValidationResult is not GetLotResult.Success lotSuccess)
@@ -54,13 +46,13 @@ public class ReservationService : IReservationService
             return lotValidationResult switch
             {
                 GetLotResult.NotFound => new CreateReservationResult.LotNotFound(),
-                GetLotResult.InvalidInput i => new CreateReservationResult.InvalidInput(i.Message), // For invalid dates
+                GetLotResult.InvalidInput i => new CreateReservationResult.InvalidInput(i.Message),
                 _ => new CreateReservationResult.Error("Failed to validate parking lot.")
             };
         }
         var lot = lotSuccess.Lot;
 
-        string normalizedPlate = ValHelper.NormalizePlate(dto.LicensePlate);
+        string normalizedPlate = dto.LicensePlate.Upper();
         var userPlateValidationResult = await ResolveTargetUserAndValidatePlate(dto, normalizedPlate, requestingUserId, isAdminRequest);
 
         if (userPlateValidationResult is not ResolveUserPlateResult.Success)
@@ -109,9 +101,11 @@ public class ReservationService : IReservationService
     }
 
     private async Task<ResolveUserPlateResult> ResolveTargetUserAndValidatePlate(
-        CreateReservationDto dto, string normalizedPlate, long requestingUserId, bool isAdminRequest)
+        CreateReservationDto dto, string licensePlate, long requestingUserId, bool isAdminRequest)
     {
-        var plateResult = await _licensePlates.GetByLicensePlate(normalizedPlate);
+        licensePlate = licensePlate.Upper();
+
+        var plateResult = await _licensePlates.GetByLicensePlate(licensePlate);
         if (plateResult is not GetLicensePlateResult.Success plateSuccess)
             return new ResolveUserPlateResult.PlateNotFound();
 
@@ -133,11 +127,11 @@ public class ReservationService : IReservationService
         if (user is not GetUserResult.Success getUserSuccess)
             return new ResolveUserPlateResult.UserNotFound($"User ID {targetUserId} not found.");
 
-        var ownershipResult = await _userPlates.GetUserPlateByUserIdAndPlate(targetUserId, normalizedPlate);
+        var ownershipResult = await _userPlates.GetUserPlateByUserIdAndPlate(targetUserId, licensePlate);
         return ownershipResult switch
         {
             GetUserPlateResult.NotFound => new ResolveUserPlateResult.PlateNotOwned(
-                $"User {getUserSuccess.User.Username} does not own license plate {normalizedPlate}."),
+                $"User {getUserSuccess.User.Username} does not own license plate {licensePlate}."),
             GetUserPlateResult.Error errorResult => new ResolveUserPlateResult.Error(
                 $"Error checking plate ownership: {errorResult.Message}"),
             _ => new ResolveUserPlateResult.Success(targetUserId, plateSuccess.Plate.LicensePlateNumber)
@@ -213,7 +207,7 @@ public class ReservationService : IReservationService
 
     public async Task<GetReservationListResult> GetReservationsByLicensePlate(string licensePlate, long requestingUserId)
     {
-        string normalizedPlate = ValHelper.NormalizePlate(licensePlate);
+        string normalizedPlate = licensePlate.Upper();
         var ownershipResult = await _userPlates.GetUserPlateByUserIdAndPlate(requestingUserId, normalizedPlate);
         if (ownershipResult is GetUserPlateResult.NotFound)
             return new GetReservationListResult.NotFound();
@@ -260,23 +254,16 @@ public class ReservationService : IReservationService
     public async Task<UpdateReservationResult> UpdateReservation(long reservationId, long requestingUserId, UpdateReservationDto dto)
     {
         var getResult = await GetReservationById(reservationId, requestingUserId);
-        if (getResult is not GetReservationResult.Success s)
+        if (getResult is not GetReservationResult.Success success)
             return new UpdateReservationResult.NotFound();
 
-        var existingReservation = s.Reservation;
+        var existingReservation = success.Reservation;
 
-        if ((dto.StartTime.HasValue && dto.StartTime.Value != existingReservation.StartTime) ||
-            (dto.EndTime.HasValue && dto.EndTime.Value != existingReservation.EndTime))
+        if (dto.Status.HasValue && dto.Status.Value != existingReservation.Status)
         {
-            if (existingReservation.StartTime < DateTime.UtcNow)
-                return new UpdateReservationResult.Error(
-                    "Cannot change dates of a reservation that has already started.");
+            if (existingReservation.Status == ReservationStatus.Completed)
+                return new UpdateReservationResult.Error("Cannot change the status of a completed reservation.");
         }
-
-        if (dto.EndTime.HasValue && dto.EndTime.Value <= (dto.StartTime ?? existingReservation.StartTime))
-            return new UpdateReservationResult.Error("End time must be after the start time.");
-        if (dto.Status.HasValue && existingReservation.Status == ReservationStatus.Completed)
-            return new UpdateReservationResult.Error("Cannot change the status of a completed reservation.");
 
         var applyResult = ApplyReservationUpdates(existingReservation, dto);
 
@@ -288,26 +275,29 @@ public class ReservationService : IReservationService
                     "Cannot change dates of a reservation that has already started."),
                 ApplyUpdateResult.EndTimeBeforeStartTime => new UpdateReservationResult.Error(
                     "End time must be after the start time."),
-                ApplyUpdateResult.CannotChangeStatus => new UpdateReservationResult.Error(
+                ApplyUpdateResult.CannotChangeCampletedStatus => new UpdateReservationResult.Error(
                     "Cannot change the status of a completed reservation."),
                 _ => new UpdateReservationResult.Error("An unknown error occurred while applying updates.")
             };
         }
 
-        existingReservation = applyUpdateSuccess.UpdatedReservation;
+        var updatedReservation = applyUpdateSuccess.UpdatedReservation;
         bool datesChanged = applyUpdateSuccess.DatesChanged;
+        bool modelChanged = applyUpdateSuccess.ModelChanged;
+
+        if (!modelChanged)
+            return new UpdateReservationResult.NoChangesMade();
 
         if (datesChanged)
         {
-            var lotResult = await _parkingLots.GetParkingLotById(existingReservation.ParkingLotId);
-            if (lotResult is GetLotResult.Success sLot)
+            var lotResult = await _parkingLots.GetParkingLotById(updatedReservation.ParkingLotId);
+            if (lotResult is GetLotResult.Success lotSuccess)
             {
-                var costResult = _pricing.CalculateParkingCost(sLot.Lot, existingReservation.StartTime, existingReservation.EndTime);
-                if (costResult is CalculatePriceResult.Success c)
-                    existingReservation.Cost = c.Price;
-
-                else if (costResult is CalculatePriceResult.Error e)
-                    return new UpdateReservationResult.Error($"Failed to recalculate cost: {e.Message}");
+                var costResult = _pricing.CalculateParkingCost(lotSuccess.Lot, updatedReservation.StartTime, updatedReservation.EndTime);
+                if (costResult is CalculatePriceResult.Success successPrice)
+                    updatedReservation.Cost = successPrice.Price;
+                else if (costResult is CalculatePriceResult.Error err)
+                    return new UpdateReservationResult.Error($"Failed to recalculate cost: {err.Message}");
             }
             else
                 return new UpdateReservationResult.Error("Failed to retrieve parking lot for cost recalculation.");
@@ -315,13 +305,14 @@ public class ReservationService : IReservationService
 
         try
         {
-            if (datesChanged || (dto.Status.HasValue && dto.Status.Value != s.Reservation.Status))
+            if (modelChanged)
             {
-                if (!await _reservations.Update(existingReservation))
+                bool saved = await _reservations.Update(existingReservation, dto);
+                if (!saved)
                     return new UpdateReservationResult.Error("Database update failed.");
             }
 
-            return new UpdateReservationResult.Success(existingReservation);
+            return new UpdateReservationResult.Success(updatedReservation);
         }
         catch (Exception ex)
         { return new UpdateReservationResult.Error(ex.Message); }
@@ -355,15 +346,13 @@ public class ReservationService : IReservationService
         if (dto.Status.HasValue && dto.Status.Value != existingReservation.Status)
         {
             if (existingReservation.Status == ReservationStatus.Completed)
-                return new ApplyUpdateResult.CannotChangeStatus();
+                return new ApplyUpdateResult.CannotChangeCampletedStatus();
 
             existingReservation.Status = dto.Status.Value;
             modelChanged = true;
         }
 
-        return modelChanged
-            ? new ApplyUpdateResult.Success(existingReservation, datesChanged)
-            : new ApplyUpdateResult.Success(existingReservation, false);
+        return new ApplyUpdateResult.Success(existingReservation, datesChanged, modelChanged);
     }
 
     public async Task<DeleteReservationResult> DeleteReservation(long id, long requestingUserId)

@@ -19,7 +19,7 @@ public enum ReservationStatus
     NoShow
 }
 
-public class ReservationModel : IHasLongId
+public class ReservationModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }

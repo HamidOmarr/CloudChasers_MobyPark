@@ -488,7 +488,7 @@ public sealed class UserServiceTests
             .ReturnsAsync(true).Verifiable();
 
         // Make dto
-        var dto = new UpdateProfileDto
+        var dto = new UpdateUserDto
         {
             Username = username,
             FirstName = name,
@@ -509,7 +509,7 @@ public sealed class UserServiceTests
     public async Task UpdateUser_NullUser_ThrowsArgumentNullException()
     {
         // Create the dto
-        var dto = new UpdateProfileDto
+        var dto = new UpdateUserDto
         {
             Birthday = DateOnly.FromDateTime(DateTime.UtcNow),
             Email = "a@2.co",

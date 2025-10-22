@@ -40,11 +40,11 @@ public static class DiContainer
         services.AddScoped<IParkingLotService, ParkingLotService>();
         services.AddScoped<IParkingSessionService, ParkingSessionService>();
         services.AddScoped<IPaymentService, PaymentService>();
-        services.AddScoped<PermissionService>();
+        services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IPricingService, PricingService>();
         services.AddScoped<IReservationService, ReservationService>();
-        services.AddScoped<RolePermissionService>();
-        services.AddScoped<RoleService>();
+        services.AddScoped<IRolePermissionService, RolePermissionService>();
+        services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserPlateService, UserPlateService>();
         services.AddScoped<IUserService, UserService>();

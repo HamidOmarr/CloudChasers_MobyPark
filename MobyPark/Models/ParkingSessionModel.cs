@@ -19,7 +19,7 @@ public enum ParkingSessionStatus
     Refunded
 }
 
-public class ParkingSessionModel : IHasLongId
+public class ParkingSessionModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }

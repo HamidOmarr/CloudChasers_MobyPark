@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.DTOs.LicensePlate.Request;
 
-public class UpdateLicensePlateRequest
+public class UpdateLicensePlateRequest : ICanBeEdited
 {
     [Required]
     public string OldLicensePlate { get; set; } = string.Empty;

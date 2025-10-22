@@ -3,7 +3,7 @@ using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class RoleModel : IHasLongId
+public class RoleModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }

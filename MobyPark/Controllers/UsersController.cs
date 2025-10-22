@@ -39,8 +39,8 @@ public class UsersController : BaseController
                 }),
             RegisterResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
             RegisterResult.InvalidData e => BadRequest(new { error = e.Message }),
-            RegisterResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "Unknown result" })
+            RegisterResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unknown result" })
         };
     }
 
@@ -49,33 +49,35 @@ public class UsersController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await UserService.LoginAsync(dto);
+        var result = await UserService.Login(dto);
 
         return result switch
         {
             LoginResult.Success s => Ok(s.Response),
             LoginResult.InvalidCredentials or LoginResult.Error => Unauthorized(new { error = "Invalid credentials" }),
-            _ => StatusCode(500, new { error = "Unexpected error" })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
         };
     }
 
     [Authorize]
     [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUserAsync();
 
-        var result = await UserService.UpdateUserProfileAsync(user, dto);
+        var result = await UserService.UpdateUserProfile(user.Id, dto);
 
         return result switch
         {
-            UpdateProfileResult.Success s => Ok(new { message = "User updated successfully", user = s.User }),
-            UpdateProfileResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
-            UpdateProfileResult.InvalidData e => BadRequest(new { error = e.Message }),
-            UpdateProfileResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "Unexpected error" })
+            UpdateUserResult.Success success => Ok(new { message = "User updated successfully", user = success.User }),
+            UpdateUserResult.NoChangesMade => Ok(new { message = "No changes made to the user profile" }),
+            UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+            UpdateUserResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
+            UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
         };
     }
 
@@ -97,7 +99,7 @@ public class UsersController : BaseController
         });
     }
 
-    [Authorize]
+    [Authorize(Policy = "CanReadUsers")]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUser(int id)
     {
@@ -107,7 +109,7 @@ public class UsersController : BaseController
             return result switch
             {
                 GetUserResult.NotFound => NotFound(new { error = "User not found" }),
-                _ => StatusCode(500, new { error = "Unexpected error" })
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
             };
         }
 
@@ -125,7 +127,7 @@ public class UsersController : BaseController
             return result switch
             {
                 GetUserResult.NotFound => NotFound(new { error = "User not found" }),
-                _ => StatusCode(500, new { error = "Unexpected error" })
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
             };
         }
 
@@ -142,6 +144,107 @@ public class UsersController : BaseController
             Role = user.Role.Name,
             CreatedAt = user.CreatedAt
         });
+    }
+
+    [Authorize(Policy = "CanManageUsers")]
+    [HttpPut("admin/users/{id:long}/identity")]
+    public async Task<IActionResult> UpdateUserIdentity(long id, [FromBody] UpdateUserIdentityDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await UserService.UpdateUserIdentity(id, dto);
+
+        return result switch
+        {
+             UpdateUserResult.Success success => Ok(new { message = "User identity updated successfully",
+                 user = new AdminUserProfileDto
+                 {
+                     Id = success.User.Id,
+                     Username = success.User.Username,
+                     FirstName = success.User.FirstName,
+                     LastName = success.User.LastName,
+                     Email = success.User.Email,
+                     Phone = success.User.Phone,
+                     Birthday = success.User.Birthday,
+                     Role = success.User.Role.Name,
+                     CreatedAt = success.User.CreatedAt
+                 } }),
+             UpdateUserResult.NoChangesMade => Ok(new { message = "No identity changes applied to the user." }),
+             UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+             UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+             UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user identity." })
+        };
+    }
+
+    [Authorize(Policy = "CanManageUsers")]
+    [HttpPut("admin/users/{id:long}/role")]
+    public async Task<IActionResult> UpdateUserRole(long id, [FromBody] UpdateUserRoleDto dto)
+    {
+         if (!ModelState.IsValid) return BadRequest(ModelState);
+
+         var result = await UserService.UpdateUserRole(id, dto);
+         return result switch
+         {
+              UpdateUserResult.Success success => Ok(new { message = "User role updated successfully",
+                  user = new AdminUserProfileDto
+                  {
+                      Id = success.User.Id,
+                      Username = success.User.Username,
+                      FirstName = success.User.FirstName,
+                      LastName = success.User.LastName,
+                      Email = success.User.Email,
+                      Phone = success.User.Phone,
+                      Birthday = success.User.Birthday,
+                      Role = success.User.Role.Name,
+                      CreatedAt = success.User.CreatedAt
+                  } }),
+              UpdateUserResult.NoChangesMade => Ok(new { message = "User already has the specified role." }),
+              UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+              UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+              UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+              _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user role." })
+         };
+    }
+
+    [Authorize(Policy="CanManageUsers")]
+    [HttpDelete("admin/users/{id:long}")]
+    public async Task<IActionResult> DeleteUser(long id)
+    {
+        var result = await UserService.DeleteUser(id);
+
+        return result switch {
+            DeleteUserResult.Success => Ok(new { status = "Deleted" }),
+            DeleteUserResult.NotFound => NotFound(new { error = "User not found" }),
+            DeleteUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error during deletion." })
+        };
+    }
+
+    [Authorize(Policy="CanReadUsers")]
+    [HttpGet("admin/users")]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var result = await UserService.GetAllUsers();
+
+        return result switch {
+            GetUserListResult.Success success => Ok(success.Users.Select(
+                user => new AdminUserProfileDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    Phone = user.Phone,
+                    Birthday = user.Birthday,
+                    Role = user.Role.Name,
+                    CreatedAt = user.CreatedAt
+                }
+            )),
+            GetUserListResult.NotFound => NotFound(new { error = "No users found." }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error retrieving users." })
+        };
     }
 
     [Authorize]

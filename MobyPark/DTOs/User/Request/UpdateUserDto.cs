@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.DTOs.User.Request;
 
-public class UpdateProfileDto
+public class UpdateUserDto : ICanBeEdited
 {
     public string? Username { get; set; }
     public string? Password { get; set; }

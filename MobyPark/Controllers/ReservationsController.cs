@@ -40,7 +40,7 @@ public class ReservationsController : BaseController
             isAdminRequest = true;
         }
 
-        var result = await _reservations.CreateReservationAsync(request, user.Id, isAdminRequest);
+        var result = await _reservations.CreateReservation(request, user.Id, isAdminRequest);
 
         return result switch
         {
@@ -54,8 +54,8 @@ public class ReservationsController : BaseController
             CreateReservationResult.Forbidden => Forbid(),
             CreateReservationResult.InvalidInput i => BadRequest(new { error = i.Message }),
             CreateReservationResult.AlreadyExists a => Conflict(new { error = a.Message }),
-            CreateReservationResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            CreateReservationResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -67,15 +67,26 @@ public class ReservationsController : BaseController
 
         var user = await GetCurrentUserAsync();
 
-        var updateResult = await _reservations.UpdateReservation(reservationId, dto, user.Id);
+        if (dto.Status.HasValue)
+        {
+            var authResult = await _authorization.AuthorizeAsync(User, "CanManageReservations");
+            if (!authResult.Succeeded)
+            {
+                var getResult = await _reservations.GetReservationById(reservationId, user.Id);
+                if (getResult is GetReservationResult.Success s && s.Reservation.Status != dto.Status.Value)
+                    return Forbid();
+            }
+        }
+
+        var updateResult = await _reservations.UpdateReservation(reservationId, user.Id, dto);
 
         return updateResult switch
         {
             UpdateReservationResult.Success s => Ok(s.Reservation),
+            UpdateReservationResult.NoChangesMade => Ok(new { status = "No changes made to the reservation." }),
             UpdateReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
-            UpdateReservationResult.Forbidden => Forbid(),
             UpdateReservationResult.Error e => BadRequest(new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred during update." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred during update." })
         };
     }
 
@@ -93,7 +104,7 @@ public class ReservationsController : BaseController
             DeleteReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
             DeleteReservationResult.Forbidden => Forbid(),
             DeleteReservationResult.Error e => BadRequest(new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred during deletion." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred during deletion." })
         };
     }
 
@@ -107,9 +118,9 @@ public class ReservationsController : BaseController
 
         return result switch
         {
-            GetReservationResult.Success s => Ok(s.Reservation),
+            GetReservationResult.Success success => Ok(success.Reservation),
             GetReservationResult.NotFound => NotFound(new { error = "Reservation not found or access denied." }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -121,7 +132,7 @@ public class ReservationsController : BaseController
          return result switch {
             GetReservationListResult.Success s => Ok(s.Reservations),
             GetReservationListResult.NotFound => Ok(new List<ReservationModel>()),
-             _ => StatusCode(500, new { error = "An unknown error occurred." })
+             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
          };
     }
 }

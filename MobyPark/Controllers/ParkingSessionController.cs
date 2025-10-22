@@ -28,7 +28,7 @@ public class ParkingSessionController : BaseController
 
         var user = await GetCurrentUserAsync();
 
-        var sessionDto = new ParkingSessionCreateDto
+        var sessionDto = new CreateParkingSessionDto
         {
             ParkingLotId = lotId,
             LicensePlate = request.LicensePlate
@@ -58,8 +58,8 @@ public class ParkingSessionController : BaseController
             StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
             StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
             StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
-            StartSessionResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -79,8 +79,8 @@ public class ParkingSessionController : BaseController
         {
             DeleteSessionResult.Success => Ok(new { status = "Deleted" }),
             DeleteSessionResult.NotFound => NotFound(new { error = "Session not found" }),
-            DeleteSessionResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown delete error occurred." })
+            DeleteSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown delete error occurred." })
         };
     }
 
@@ -118,7 +118,7 @@ public class ParkingSessionController : BaseController
             GetSessionResult.Success(var session) => Ok(session),
             GetSessionResult.NotFound => NotFound(new { error = "Parking session not found in this lot." }),
             GetSessionResult.Forbidden => Forbid(), // Standard response for authorization failure
-            _ => StatusCode(500, new { error = "An unexpected error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unexpected error occurred." })
         };
     }
 }

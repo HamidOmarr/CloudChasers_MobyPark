@@ -10,6 +10,6 @@ public interface IRepository<T> where T : class
     Task<List<T>> GetAll();
     Task<bool> Exists(Expression<Func<T, bool>> predicate);
     Task<int> Count();
-    Task<bool> Update(T entity);
+    Task<bool> Update<TEdit>(T entity, TEdit edit) where TEdit : class, ICanBeEdited;
     Task<bool> Delete(T entity);
 }

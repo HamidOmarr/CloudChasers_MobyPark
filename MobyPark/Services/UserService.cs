@@ -97,7 +97,29 @@ public partial class UserService : IUserService
 
     public async Task<int> CountUsers() => await _users.Count();
 
-    private async Task<bool> UpdateUser(UserModel user) => await _users.Update(user);
+    private async Task<UpdateUserResult> UpdateUser(UserModel user)
+    {
+        var getResult = await GetUserById(user.Id);
+
+        if (getResult is not GetUserResult.Success success)
+            return getResult switch
+            {
+                GetUserResult.NotFound => new UpdateUserResult.NotFound(),
+                _ => new UpdateUserResult.Error("Unknown error occurred while retrieving the user.")
+            };
+
+        try
+        {
+            var existingUser = success.User;
+
+            bool updated = await _users.Update(existingUser, user);
+            if (!updated)
+                return new UpdateUserResult.Error("Database update failed.");
+            return new UpdateUserResult.Success(existingUser);
+        }
+        catch (Exception ex)
+        { return new UpdateUserResult.Error(ex.Message); }
+    }
 
     public async Task<DeleteUserResult> DeleteUser(long id)
     {
@@ -164,7 +186,7 @@ public partial class UserService : IUserService
     {
         if (string.IsNullOrWhiteSpace(licensePlate)) return null;
 
-        licensePlate = ValHelper.NormalizePlate(licensePlate);
+        licensePlate = licensePlate.Upper();
         var userPlates = await _userPlates.GetPlatesByPlate(licensePlate);
 
         foreach (var uPlate in userPlates)
@@ -184,7 +206,7 @@ public partial class UserService : IUserService
         return null;
     }
 
-    public async Task<LoginResult> LoginAsync(LoginDto dto)
+    public async Task<LoginResult> Login(LoginDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Identifier) || string.IsNullOrWhiteSpace(dto.Password))
             return new LoginResult.Error("Identifier and password are required.");
@@ -221,23 +243,27 @@ public partial class UserService : IUserService
         return new LoginResult.Success(response);
     }
 
-    public async Task<UpdateProfileResult> UpdateUserProfileAsync(UserModel user, UpdateProfileDto dto)
+    public async Task<UpdateUserResult> UpdateUserProfile(long userId, UpdateUserDto dto)
     {
+        var user = await _users.GetById<UserModel>(userId);
+        if (user is null)
+            return new UpdateUserResult.NotFound();
+
         // Username
         if (!string.IsNullOrWhiteSpace(dto.Username))
         {
             var existingResult = await GetUserByUsername(dto.Username);
             if (existingResult is GetUserResult.Success success && success.User.Id != user.Id)
-                return new UpdateProfileResult.UsernameTaken();
+                return new UpdateUserResult.UsernameTaken();
 
-            user.Username = dto.Username.Trim();
+            user.Username = dto.Username.TrimSafe();
         }
 
         // Password
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
             var passwordResult = ValidatePasswordIntegrity(dto.Password);
-            if (passwordResult is UpdateProfileResult.InvalidData)
+            if (passwordResult is UpdateUserResult.InvalidData)
                 return passwordResult;
 
             user.PasswordHash = _hasher.HashPassword(user, dto.Password);
@@ -247,12 +273,12 @@ public partial class UserService : IUserService
         if (!string.IsNullOrWhiteSpace(dto.Email))
         {
             var emailResult = ValidateAndCleanEmail(dto.Email, out string? cleanEmail);
-            if (emailResult is not UpdateProfileResult.Success)
+            if (emailResult is not UpdateUserResult.Success)
                 return emailResult;
 
             var existingEmailResult = await GetUserByEmail(cleanEmail!);
             if (existingEmailResult is GetUserResult.Success success && success.User.Id != user.Id)
-                return new UpdateProfileResult.EmailTaken();
+                return new UpdateUserResult.EmailTaken();
 
             user.Email = cleanEmail!;
         }
@@ -261,122 +287,113 @@ public partial class UserService : IUserService
         if (!string.IsNullOrWhiteSpace(dto.Phone))
         {
             var phoneResult = ValidateAndCleanPhone(dto.Phone, out string? cleanPhone);
-            if (phoneResult is UpdateProfileResult.InvalidData)
+            if (phoneResult is UpdateUserResult.InvalidData)
                 return phoneResult;
 
             user.Phone = cleanPhone!;
         }
 
-        if (!await UpdateUser(user))
-            return new UpdateProfileResult.Error("Failed to update user profile.");
-        return new UpdateProfileResult.Success(user);
+        return await UpdateUser(user);
     }
 
-    public async Task<UpdateProfileResult> UpdateUserIdentityAsync(long userId, string? newFirstName,
-        string? newLastName, DateOnly? newBirthday)
+    public async Task<UpdateUserResult> UpdateUserIdentity(long userId, UpdateUserIdentityDto dto)
     {
         // Should only be callable by someone with USERS:MANAGE permission from the controller
         var userResult = await GetUserById(userId);
-        if (userResult is GetUserResult.NotFound) return new UpdateProfileResult.NotFound();
+        if (userResult is GetUserResult.NotFound)
+            return new UpdateUserResult.NotFound();
         var user = ((GetUserResult.Success)userResult).User;
 
         bool wasModified = false;
 
-        if (!string.IsNullOrWhiteSpace(newFirstName))
+        if (!string.IsNullOrWhiteSpace(dto.FirstName))
         {
-            user.FirstName = Capitalize(newFirstName);
+            user.FirstName = dto.FirstName.Capitalize();
             wasModified = true;
         }
-        if (!string.IsNullOrWhiteSpace(newLastName))
+        if (!string.IsNullOrWhiteSpace(dto.LastName))
         {
-            user.LastName = Capitalize(newLastName);
+            user.LastName = dto.LastName.Capitalize();
             wasModified = true;
         }
 
-        if (newBirthday.HasValue)
+        if (dto.Birthday.HasValue)
         {
-            if (newBirthday.Value > DateOnly.FromDateTime(DateTime.Now))
-                return new UpdateProfileResult.InvalidData("Birthday cannot be in the future.");
+            if (dto.Birthday.Value > DateOnly.FromDateTime(DateTime.Now))
+                return new UpdateUserResult.InvalidData("Birthday cannot be in the future.");
 
-            if (newBirthday.Value.Year < 1900)
-                return new UpdateProfileResult.InvalidData("Birthday is not valid.");
+            if (dto.Birthday.Value.Year < 1900)
+                return new UpdateUserResult.InvalidData("Birthday is not valid.");
 
             var today = DateOnly.FromDateTime(DateTime.Now);
-            int age = today.Year - newBirthday.Value.Year;
-            if (newBirthday.Value > today.AddYears(-age)) age--;
+            int age = today.Year - dto.Birthday.Value.Year;
+            if (dto.Birthday.Value > today.AddYears(-age)) age--;
             // Minimum age requirement; provisional license considered to be valid from 16 years old
-            if (age < 16) return new UpdateProfileResult.InvalidData("User must be at least 16 years old.");
+            if (age < 16) return new UpdateUserResult.InvalidData("User must be at least 16 years old.");
 
-            user.Birthday = newBirthday.Value;
+            user.Birthday = dto.Birthday.Value;
             wasModified = true;
         }
 
-        if (!wasModified) return new UpdateProfileResult.Success(user);
+        if (!wasModified) return new UpdateUserResult.Success(user);
 
-        bool updatedSuccessfully = await UpdateUser(user);
-        if (!updatedSuccessfully)
-            return new UpdateProfileResult.Error("Failed to save changes to the database.");
-        return new UpdateProfileResult.Success(user);
+        return await UpdateUser(user);
     }
 
-    public async Task<UpdateProfileResult> UpdateUserRoleAsync(long userId, long roleId)
+    public async Task<UpdateUserResult> UpdateUserRole(long userId, UpdateUserRoleDto dto)
     {
         // Should only be callable by someone with USERS:MANAGE permission
         var userResult = await GetUserById(userId);
         if (userResult is GetUserResult.NotFound)
-            return new UpdateProfileResult.NotFound();
-
+            return new UpdateUserResult.NotFound();
         var user = ((GetUserResult.Success)userResult).User;
 
-        var newRole = await _roles.GetById<RoleModel>(roleId);
+        if (user.RoleId == dto.RoleId)
+            return new UpdateUserResult.NoChangesMade();
+
+        var newRole = await _roles.GetById<RoleModel>(dto.RoleId);
         if (newRole is null)
-            return new UpdateProfileResult.InvalidData("Role does not exist.");
+            return new UpdateUserResult.InvalidData($"Role with ID {dto.RoleId} does not exist.");
 
-        if (user.Role.Name == "ADMIN" && newRole.Name != "ADMIN")
-            return new UpdateProfileResult.InvalidData("Cannot change role of an Admin user.");
+        if (user.Role.Name.Equals("ADMIN", StringComparison.OrdinalIgnoreCase)
+            && !newRole.Name.Equals("ADMIN", StringComparison.OrdinalIgnoreCase))
+            return new UpdateUserResult.InvalidData("Cannot change role of an ADMIN user.");
 
-        user.RoleId = roleId;
+        user.RoleId = dto.RoleId;
 
-        bool updated = await UpdateUser(user);
-        if (!updated)
-            return new UpdateProfileResult.Error("Failed to update user role.");
-        return new UpdateProfileResult.Success(user);
+        return await UpdateUser(user);
     }
 
-    private static UpdateProfileResult ValidatePasswordIntegrity(string password)
+    private static UpdateUserResult ValidatePasswordIntegrity(string password)
     {
         if (!PasswordRegex().IsMatch(password))
-            return new UpdateProfileResult.InvalidData("Password does not meet complexity requirements.");
-        return new UpdateProfileResult.Success(null!);
+            return new UpdateUserResult.InvalidData("Password does not meet complexity requirements.");
+        return new UpdateUserResult.Success(null!);
     }
 
-    private static UpdateProfileResult ValidateAndCleanEmail(string email, out string? cleanEmail)
+    private static UpdateUserResult ValidateAndCleanEmail(string email, out string? cleanEmail)
     {
+        email = email.TrimSafe();
         var registerResult = CleanEmail(email, out cleanEmail);
 
         if (registerResult is RegisterResult.InvalidData invalidData)
-            return new UpdateProfileResult.InvalidData($"Email format error: {invalidData.Message}");
-        return new UpdateProfileResult.Success(null!);
+            return new UpdateUserResult.InvalidData($"Email format error: {invalidData.Message}");
+        return new UpdateUserResult.Success(null!);
     }
 
-    private static UpdateProfileResult ValidateAndCleanPhone(string phone, out string? cleanPhone)
+    private static UpdateUserResult ValidateAndCleanPhone(string phone, out string? cleanPhone)
     {
+        phone = phone.TrimSafe();
         var registerResult = CleanPhone(phone, out cleanPhone);
 
         if (registerResult is RegisterResult.InvalidData invalidData)
-            return new UpdateProfileResult.InvalidData($"Phone format error: {invalidData.Message}");
-        return new UpdateProfileResult.Success(null!);
-    }
-
-    private static string Capitalize(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return input;
-        input = input.Trim().ToLower(CultureInfo.InvariantCulture);
-        return char.ToUpper(input[0], CultureInfo.InvariantCulture) + input[1..];
+            return new UpdateUserResult.InvalidData($"Phone format error: {invalidData.Message}");
+        return new UpdateUserResult.Success(null!);
     }
 
     private static RegisterResult CleanPhone(string phone, out string? cleanPhone)
     {
+        phone = phone.TrimSafe();
         if (string.IsNullOrWhiteSpace(phone))
         {
             cleanPhone = null;
@@ -413,6 +430,7 @@ public partial class UserService : IUserService
 
     private static RegisterResult CleanEmail(string email, out string? cleanEmail)
     {
+        email = email.TrimSafe();
         if (string.IsNullOrWhiteSpace(email))
         {
             cleanEmail = null;

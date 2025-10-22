@@ -1,7 +1,9 @@
+using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingLot;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -14,8 +16,24 @@ public class ParkingLotService : IParkingLotService
         _parkingLots = parkingLots;
     }
 
-    public async Task<CreateLotResult> CreateParkingLot(ParkingLotModel lot)
+    public async Task<CreateLotResult> CreateParkingLot(CreateParkingLotDto dto)
     {
+        var exists = await ParkingLotExists("address", dto.Address);
+        if (exists is ParkingLotExistsResult.Exists)
+            return new CreateLotResult.Error("Parking lot with the same address already exists.");
+
+        var lot = new ParkingLotModel
+        {
+            Name = dto.Name,
+            Location = dto.Location,
+            Address = dto.Address,
+            Capacity = dto.Capacity,
+            Reserved = 0,
+            Tariff = dto.Tariff,
+            DayTariff = dto.DayTariff,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
+        };
+
         try
         {
             (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
@@ -81,7 +99,7 @@ public class ParkingLotService : IParkingLotService
         ParkingLotExistsResult FromBool(bool exists) =>
             exists ? new ParkingLotExistsResult.Exists() : new ParkingLotExistsResult.NotExists();
 
-        checkBy = checkBy.Trim().ToLowerInvariant();
+        checkBy = checkBy.Lower();
 
         return checkBy switch
         {
@@ -97,18 +115,29 @@ public class ParkingLotService : IParkingLotService
 
     public async Task<int> CountParkingLots() => await _parkingLots.Count();
 
-    public async Task<UpdateLotResult> UpdateParkingLot(ParkingLotModel lot)
+    public async Task<UpdateLotResult> UpdateParkingLot(long id, UpdateParkingLotDto dto)
     {
-        var getResult = await GetParkingLotById(lot.Id);
-        if (getResult is GetLotResult.NotFound)
-            return new UpdateLotResult.NotFound();
+        var getResult = await GetParkingLotById(id);
+        if (getResult is not GetLotResult.Success success)
+        {
+            return getResult switch
+            {
+                GetLotResult.NotFound => new UpdateLotResult.NotFound(),
+                GetLotResult.InvalidInput invalid => new UpdateLotResult.InvalidInput(invalid.Message),
+                _ => new UpdateLotResult.Error("Failed to retrieve parking lot for update.")
+            };
+        }
+
+        var existingLot = success.Lot;
+        if (dto.Capacity.HasValue && dto.Capacity.Value < existingLot.Reserved)
+            return new UpdateLotResult.InvalidInput($"Capacity cannot be less than the number of reserved spots ({existingLot.Reserved}).");
 
         try
         {
-            if (!await _parkingLots.Update(lot))
-                return new UpdateLotResult.Error("Database update failed.");
-
-            return new UpdateLotResult.Success(lot);
+            bool updated = await _parkingLots.Update(existingLot, dto);
+            if (!updated)
+                return new UpdateLotResult.NoChangesMade();
+            return new UpdateLotResult.Success(existingLot);
         }
         catch (Exception ex)
         { return new UpdateLotResult.Error(ex.Message); }

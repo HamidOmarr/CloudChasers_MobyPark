@@ -1,7 +1,9 @@
+using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Transaction;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -14,14 +16,7 @@ public class TransactionService : ITransactionService
         _transactions = transactions;
     }
 
-    public async Task<TransactionModel> CreateTransaction(TransactionModel transaction)
-    {
-        (bool createdSuccessfully, Guid id) = await _transactions.CreateWithId(transaction);
-        if (createdSuccessfully) transaction.Id = id;
-        return transaction;
-    }
-
-    public async Task<CreateTransactionResult> CreateTransactionConfirmation(TransactionModel transaction)
+    public async Task<CreateTransactionResult> CreateTransaction(TransactionModel transaction)
     {
         try
         {
@@ -36,40 +31,84 @@ public class TransactionService : ITransactionService
         { return new CreateTransactionResult.Error("An error occurred while creating the transaction."); }
     }
 
-    public async Task<TransactionModel?> GetTransactionById(Guid id) => await _transactions.GetByTransactionId(id);
-
-    public async Task<TransactionModel?> GetTransactionByPaymentId(Guid paymentId) => await _transactions.GetByPaymentId(paymentId);
-
-    public async Task<List<TransactionModel>> GetAllTransactions() => await _transactions.GetAll();
-
-    public async Task<bool> TransactionExists(string checkBy, string filterValue)
+    public async Task<GetTransactionResult> GetTransactionById(Guid id)
     {
-        if (string.IsNullOrWhiteSpace(filterValue))
-            throw new ArgumentException("Filter value cannot be empty or whitespace.", nameof(filterValue));
+        var transaction = await _transactions.GetByTransactionId(id);
+        if (transaction is null)
+            return new GetTransactionResult.NotFound();
 
-        bool exists = checkBy.ToLower() switch
+        return new GetTransactionResult.Success(transaction);
+    }
+
+    public async Task<GetTransactionResult> GetTransactionByPaymentId(Guid paymentId)
+    {
+        var transaction = await _transactions.GetByPaymentId(paymentId);
+        if (transaction is null)
+            return new GetTransactionResult.NotFound();
+
+        return new GetTransactionResult.Success(transaction);
+    }
+
+    public async Task<GetTransactionListResult> GetAllTransactions()
+    {
+        var transactions = await _transactions.GetAll();
+        if (transactions.Count == 0)
+            return new GetTransactionListResult.NotFound();
+        return new GetTransactionListResult.Success(transactions);
+    }
+
+    public async Task<TransactionExistsResult> TransactionExists(string checkBy, string filterValue)
+    {
+        checkBy = checkBy.Lower();
+        filterValue = filterValue.TrimSafe();
+
+        if (string.IsNullOrEmpty(filterValue))
+            return new TransactionExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
+
+        Guid id = Guid.Empty;
+        if (checkBy == "id" && !Guid.TryParse(filterValue, out id))
+            return new TransactionExistsResult.InvalidInput("ID must be a valid GUID when checking by 'id'.");
+        if (checkBy != "id")
+            return new TransactionExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id'.");
+
+        bool exists = checkBy switch
         {
-            "id" => Guid.TryParse(filterValue, out Guid id) && await _transactions.Exists(transaction => transaction.Id == id),
-            _ => throw new ArgumentException("Invalid checkBy parameter. Must be 'id'.",
-                nameof(checkBy))
+            "id" => await _transactions.Exists(transaction => transaction.Id == id),
+            _ => false
         };
 
-        return exists;
+        return exists ? new TransactionExistsResult.Exists() : new TransactionExistsResult.NotExists();
     }
 
     public async Task<int> CountTransactions() => await _transactions.Count();
 
-    public async Task<UpdateTransactionResult> UpdateTransaction(TransactionModel transaction)
+    public async Task<UpdateTransactionResult> UpdateTransaction(Guid transactionId, TransactionDataDto dto)
     {
+        var getResult = await GetTransactionById(transactionId);
+        if (getResult is not GetTransactionResult.Success success)
+        {
+            return getResult switch
+            {
+                GetTransactionResult.NotFound => new UpdateTransactionResult.NotFound(),
+                _ => new UpdateTransactionResult.Error("Failed to retrieve transaction for update.")
+            };
+        }
+
+        var existingTransaction = success.Transaction;
+
+        bool changed = dto.Method != existingTransaction.Method
+                       || dto.Issuer != existingTransaction.Issuer
+                       || dto.Bank != existingTransaction.Bank;
+
+        if (!changed)
+             return new UpdateTransactionResult.NoChangesMade();
+
         try
         {
-            var exists = await _transactions.GetByTransactionId(transaction.Id);
-            if (exists is null)
-                return new UpdateTransactionResult.NotFound();
-
-            if (!await _transactions.Update(transaction))
-                return new UpdateTransactionResult.Error("Database update failed.");
-            return new UpdateTransactionResult.Success(transaction);
+            bool updated = await _transactions.Update(existingTransaction, dto);
+            if (!updated)
+                return new UpdateTransactionResult.Error("Database update failed or reported no changes.");
+            return new UpdateTransactionResult.Success(existingTransaction);
         }
         catch (Exception ex)
         { return new UpdateTransactionResult.Error(ex.Message); }

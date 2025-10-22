@@ -4,7 +4,7 @@ using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class UserModel : IHasLongId
+public class UserModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }
@@ -37,5 +37,6 @@ public class UserModel : IHasLongId
 
     public DateOnly Birthday { get; set; } = DateOnly.MinValue;  // TODO: Set up default value, update later
 
+    public const long AdminRoleId = 1;
     public const long DefaultUserRoleId = 6;  // Defaults to 'User' role
 }

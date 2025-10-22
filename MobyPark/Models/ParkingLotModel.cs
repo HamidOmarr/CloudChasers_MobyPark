@@ -15,7 +15,7 @@ public enum ParkingLotStatus
     Maintenance
 }
 
-public class ParkingLotModel : IHasLongId
+public class ParkingLotModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }

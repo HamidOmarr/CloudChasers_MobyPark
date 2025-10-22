@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class RolePermissionModel
+public class RolePermissionModel : ICanBeEdited
 {
     [Key]
     public long RoleId { get; set; }

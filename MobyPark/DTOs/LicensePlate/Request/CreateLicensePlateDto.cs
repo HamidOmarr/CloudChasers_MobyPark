@@ -7,7 +7,3 @@ public class CreateLicensePlateDto
     [Required]
     public string LicensePlate { get; set; } = string.Empty;
 }
-
-public class CreateLicensePlateDtoImpl : CreateLicensePlateDto
-{
-}

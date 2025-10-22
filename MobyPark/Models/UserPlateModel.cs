@@ -4,7 +4,7 @@ using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class UserPlateModel : IHasLongId
+public class UserPlateModel : IHasLongId, ICanBeEdited
 {
     [Key]
     public long Id { get; set; }

@@ -33,9 +33,9 @@ public class UserPlateService : IUserPlateService
 
     public async Task<CreateUserPlateResult> AddLicensePlateToUser(long userId, string plate)
     {
-        string normalizedPlate = ValHelper.NormalizePlate(plate);
+        plate = plate.Upper();
 
-        var existingResult = await GetUserPlateByUserIdAndPlate(userId, normalizedPlate);
+        var existingResult = await GetUserPlateByUserIdAndPlate(userId, plate);
         if (existingResult is GetUserPlateResult.Success)
             return new CreateUserPlateResult.AlreadyExists();
 
@@ -45,7 +45,7 @@ public class UserPlateService : IUserPlateService
         var userPlate = new UserPlateModel
         {
             UserId = userId,
-            LicensePlateNumber = normalizedPlate,
+            LicensePlateNumber = plate,
             CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow),
             IsPrimary = isFirstPlate
         };
@@ -71,7 +71,7 @@ public class UserPlateService : IUserPlateService
 
     public async Task<GetUserPlateListResult> GetUserPlatesByPlate(string plate)
     {
-        plate = ValHelper.NormalizePlate(plate);
+        plate = plate.Upper();
         var userPlates = await _userPlates.GetPlatesByPlate(plate);
         if (userPlates.Count == 0)
             return new GetUserPlateListResult.NotFound();
@@ -170,16 +170,24 @@ public class UserPlateService : IUserPlateService
     public async Task<UpdateUserPlateResult> UpdateUserPlate(UserPlateModel userPlate)
     {
         var getResult = await GetUserPlateById(userPlate.Id);
-        if (getResult is GetUserPlateResult.NotFound)
-            return new UpdateUserPlateResult.NotFound();
+
+        if (getResult is not GetUserPlateResult.Success success)
+            return getResult switch
+            {
+                GetUserPlateResult.NotFound => new UpdateUserPlateResult.NotFound(),
+                _ => new UpdateUserPlateResult.Error("Unknown error occurred while retrieving the user plate.")
+            };
 
         try
         {
-            if (!await _userPlates.Update(userPlate))
+            var existingPlate = success.Plate;
+
+            bool updated = await _userPlates.Update(existingPlate, userPlate);
+            if (!updated)
                 return new UpdateUserPlateResult.Error("Database update failed.");
-            return new UpdateUserPlateResult.Success(userPlate);
+            return new UpdateUserPlateResult.Success(existingPlate);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         { return new UpdateUserPlateResult.Error(ex.Message); }
     }
 

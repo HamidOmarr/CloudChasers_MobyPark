@@ -23,7 +23,7 @@ public class PaymentsController : BaseController
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] PaymentCreateDto request)
+    public async Task<IActionResult> Create([FromBody] CreatePaymentDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var result = await _payments.CreatePaymentAndTransaction(request);
@@ -33,8 +33,8 @@ public class PaymentsController : BaseController
             CreatePaymentResult.Success success => CreatedAtAction(nameof(GetPaymentById),
                 new { paymentId = success.Payment.PaymentId },
                 success.Payment),
-            CreatePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown payment creation error occurred." })
+            CreatePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown payment creation error occurred." })
         };
     }
 
@@ -61,8 +61,8 @@ public class PaymentsController : BaseController
             RefundPaymentResult.Success success => StatusCode(201, new { status = "Success", refund = success.RefundPayment }),
             RefundPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
             RefundPaymentResult.NotFound => NotFound(new { error = "Original payment not found." }),
-            RefundPaymentResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown refund error occurred." })
+            RefundPaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown refund error occurred." })
         };
     }
 
@@ -83,8 +83,8 @@ public class PaymentsController : BaseController
             ValidatePaymentResult.Success s => Ok(new { status = "Success", payment = s.Payment }),
             ValidatePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied." }),
             ValidatePaymentResult.InvalidData e => BadRequest(new { error = e.Message }),
-            ValidatePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown validation error occurred." })
+            ValidatePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown validation error occurred." })
         };
     }
 
@@ -102,7 +102,7 @@ public class PaymentsController : BaseController
         {
             GetPaymentListResult.Success s => Ok(s.Payments),
             GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the user." }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -118,7 +118,7 @@ public class PaymentsController : BaseController
             GetPaymentResult.Success s => Ok(s.Payment),
             GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
             GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -134,7 +134,7 @@ public class PaymentsController : BaseController
             GetPaymentResult.Success s => Ok(s.Payment),
             GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
             GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -150,7 +150,7 @@ public class PaymentsController : BaseController
             GetPaymentListResult.Success s => Ok(s.Payments),
             GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the specified license plate or access denied." }),
 
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 
@@ -165,8 +165,8 @@ public class PaymentsController : BaseController
         {
             DeletePaymentResult.Success => Ok(new { status = "Deleted" }),
             DeletePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
-            DeletePaymentResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+            DeletePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
 }

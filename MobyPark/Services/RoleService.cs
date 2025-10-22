@@ -1,9 +1,13 @@
+using MobyPark.DTOs.Role.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Role;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class RoleService
+public class RoleService : IRoleService
 {
     private readonly IRoleRepository _roles;
 
@@ -12,84 +16,159 @@ public class RoleService
         _roles = roles;
     }
 
-    public async Task<RoleModel> CreateRole(string roleName, string description)
+    public async Task<CreateRoleResult> CreateRole(CreateRoleDto dto)
     {
-        var role = new RoleModel { Name = roleName.ToUpperInvariant(), Description = description };
+        dto.Name = dto.Name.Capitalize();
 
-        (bool createdSuccessfully, long id) = await _roles.CreateWithId(role);
-        if (createdSuccessfully) role.Id = id;
-        return role;
+        var existsResult = await RoleExists("name", dto.Name);
+        if (existsResult is not RoleExistsResult.NotExists)
+        {
+            return existsResult switch
+            {
+                RoleExistsResult.Exists => new CreateRoleResult.AlreadyExists(),
+                RoleExistsResult.InvalidInput err => new CreateRoleResult.Error(err.Message),
+                RoleExistsResult.Error err => new CreateRoleResult.Error(err.Message),
+                _ => new CreateRoleResult.Error("Unknown error occurred while checking role existence.")
+            };
+        }
+
+        var role = new RoleModel { Name = dto.Name, Description = dto.Description };
+
+        try
+        {
+            (bool createdSuccessfully, long id) = await _roles.CreateWithId(role);
+            if (!createdSuccessfully)
+                return new CreateRoleResult.Error("Role creation failed.");
+
+            role.Id = id;
+            return new CreateRoleResult.Success(role);
+        }
+        catch (Exception ex)
+        { return new CreateRoleResult.Error("An error occurred while creating the role: " + ex.Message); }
     }
 
-    public async Task<RoleModel?> GetRoleById(long roleId)
+    public async Task<GetRoleResult> GetRoleById(long roleId)
     {
-        if (!await RoleExists("id", roleId.ToString())) return null;
-        return await _roles.GetById<RoleModel>(roleId);
+        var role = await _roles.GetById<RoleModel>(roleId);
+        if (role is null)
+            return new GetRoleResult.NotFound();
+        return new GetRoleResult.Success(role);
     }
 
-    public async Task<List<string>> GetAllRoleNames()
+    public async Task<GetRoleResult> GetRoleByName(string roleName)
+    {
+        var role = await _roles.GetByName(roleName);
+        if (role is null)
+            return new GetRoleResult.NotFound();
+        return new GetRoleResult.Success(role);
+    }
+
+    public async Task<GetRoleListResult> GetAllRoles()
     {
         var roles = await _roles.GetAll();
-        return roles.Select(role => role.Name).ToList();
+        if (roles.Count == 0)
+            return new GetRoleListResult.NotFound();
+        return new GetRoleListResult.Success(roles);
     }
 
-    public async Task<bool> RoleExists(string checkBy, string filterValue)
+    public async Task<RoleExistsResult> RoleExists(string checkBy, string filterValue)
     {
-        if (string.IsNullOrWhiteSpace(filterValue))
-            throw new ArgumentException("Filter value cannot be empty or whitespace.", nameof(filterValue));
+        checkBy = checkBy.Lower();
+        filterValue = filterValue.TrimSafe();
 
-        bool exists = checkBy.ToLower() switch
+        if (string.IsNullOrEmpty(filterValue))
+            return new RoleExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
+
+        long id = 0;
+        if (checkBy == "id" && !long.TryParse(filterValue, out id))
+            return new RoleExistsResult.InvalidInput("ID must be a valid long integer when checking by 'id'.");
+        if (checkBy != "id" && checkBy != "name")
+            return new RoleExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'name'.");
+
+
+        bool exists = checkBy switch
         {
-            "id" => long.TryParse(filterValue, out long id) && await _roles.Exists(role => role.Id == id),
-            "name" => await _roles.Exists(role => role.Name == filterValue),
-            _ => throw new ArgumentException("Invalid checkBy parameter. Must be 'id' or 'name'.", nameof(checkBy))
+            "id" => await _roles.Exists(role => role.Id == id),
+            "name" => await _roles.Exists(role => role.Name.Equals(filterValue, StringComparison.OrdinalIgnoreCase)),
+            _ => false
         };
 
-        return exists;
+        return exists ? new RoleExistsResult.Exists() : new RoleExistsResult.NotExists();
     }
 
     public async Task<int> CountRoles() => await _roles.Count();
 
-    private async Task<bool> UpdateRole(long roleId, string newRoleName = "", string newDescription = "")
+    public async Task<UpdateRoleResult> UpdateRole(long roleId, UpdateRoleDto dto)
     {
-        var role = await GetRoleById(roleId);
-        if (role is null) return false;
+        var getResult = await GetRoleById(roleId);
+        if (getResult is not GetRoleResult.Success success)
+            return new UpdateRoleResult.NotFound();
+        var existingRole = success.Role;
 
-        role.Name = string.IsNullOrWhiteSpace(newRoleName) ? role.Name : newRoleName.ToUpperInvariant();
-        role.Description = string.IsNullOrWhiteSpace(newDescription) ? role.Description : newDescription;
+        bool changed = false;
+        if (dto.Description != null && dto.Description != existingRole.Description)
+        {
+            existingRole.Description = dto.Description;
+            changed = true;
+        }
 
-        bool updatedSuccessfully = await _roles.Update(role);
-        return updatedSuccessfully;
+        if (!changed)
+            return new UpdateRoleResult.NoChangesMade();
+
+        try
+        {
+            bool saved = await _roles.Update(existingRole, dto);
+            if (!saved)
+                 return new UpdateRoleResult.Error("Database update failed or reported no changes.");
+
+            return new UpdateRoleResult.Success(existingRole);
+        }
+        catch (Exception ex)
+        { return new UpdateRoleResult.Error(ex.Message); }
     }
 
-    public async Task<bool> UpdateRoleName(long roleId, string newRoleName) => await UpdateRole(roleId, newRoleName: newRoleName);
-
-    public async Task<bool> UpdateRoleDescription(long roleId, string newDescription) => await UpdateRole(roleId, newDescription: newDescription);
-
-    private async Task<bool> DeleteRole(RoleModel role)
+    public async Task<DeleteRoleResult> DeleteRoleById(long roleId)
     {
-        if (role.Name.ToLower() == "admin")
-            throw new InvalidOperationException("Cannot delete the admin role.");
+        var getResult = await GetRoleById(roleId);
+        if (getResult is GetRoleResult.NotFound)
+            return new DeleteRoleResult.NotFound();
 
-        if (await _roles.AnyUsersAssigned(role.Id))
-            throw new InvalidOperationException("Cannot delete a role that has users assigned to it.");
-
-        return await _roles.DeleteRole(role);
-    }
-
-    public async Task<bool> DeleteRoleByName(string roleName)
-    {
-        if (!await RoleExists("name", roleName)) return false;
-
-        var role = (await _roles.GetByName(roleName))!;
+        var role = ((GetRoleResult.Success)getResult).Role;
         return await DeleteRole(role);
     }
 
-    public async Task<bool> DeleteRoleById(long roleId)
+    public async Task<DeleteRoleResult> DeleteRoleByName(string roleName)
     {
-        if (!await RoleExists("id", roleId.ToString())) return false;
+        var getResult = await GetRoleByName(roleName);
+        if (getResult is not GetRoleResult.Success success)
+        {
+            return getResult switch {
+                GetRoleResult.NotFound => new DeleteRoleResult.NotFound(),
+                GetRoleResult.InvalidInput invalid => new DeleteRoleResult.Error(invalid.Message),
+                _ => new DeleteRoleResult.Error("Failed to find role.")
+            };
+        }
 
-        var role = (await GetRoleById(roleId))!;
+        var role = success.Role;
         return await DeleteRole(role);
+    }
+
+    private async Task<DeleteRoleResult> DeleteRole(RoleModel role)
+    {
+        if (role.Name.Equals("ADMIN", StringComparison.OrdinalIgnoreCase))
+            return new DeleteRoleResult.Forbidden("Cannot delete the ADMIN role.");
+
+        try
+        {
+            if (await _roles.AnyUsersAssigned(role.Id))
+                return new DeleteRoleResult.Conflict("Cannot delete a role that has users assigned to it.");
+
+            if (!await _roles.DeleteRole(role))
+                return new DeleteRoleResult.Error("Database deletion failed.");
+
+            return new DeleteRoleResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeleteRoleResult.Error(ex.Message); }
     }
 }

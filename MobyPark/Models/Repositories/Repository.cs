@@ -44,9 +44,19 @@ public class Repository<T> : IRepository<T> where T : class
 
     public virtual async Task<int> Count() => await DbSet.CountAsync();
 
-    public virtual async Task<bool> Update(T entity)
+    public virtual async Task<bool> Update<TEdit>(T entity, TEdit edit) where TEdit : class, ICanBeEdited
     {
-        DbSet.Update(entity);
+        var entry = Context.Entry(entity);
+        var editProperties = typeof(TEdit).GetProperties();
+
+        foreach (var property in editProperties)
+        {
+            var newValue = property.GetValue(edit);
+            if (newValue is null) continue;
+            var entityProperty = entry.Property(property.Name);
+            entityProperty.CurrentValue = newValue;
+        }
+
         int entriesWritten = await Context.SaveChangesAsync();
         return entriesWritten > 0;
     }

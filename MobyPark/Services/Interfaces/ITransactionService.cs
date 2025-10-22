@@ -1,3 +1,4 @@
+using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
 using MobyPark.Services.Results.Transaction;
 
@@ -5,13 +6,12 @@ namespace MobyPark.Services.Interfaces;
 
 public interface ITransactionService
 {
-    Task<TransactionModel> CreateTransaction(TransactionModel transaction);
-    Task<CreateTransactionResult> CreateTransactionConfirmation(TransactionModel transaction);
-    Task<TransactionModel?> GetTransactionById(Guid id);
-    Task<TransactionModel?> GetTransactionByPaymentId(Guid paymentId);
-    Task<List<TransactionModel>> GetAllTransactions();
-    Task<bool> TransactionExists(string checkBy, string filterValue);
+    Task<CreateTransactionResult> CreateTransaction(TransactionModel transaction);
+    Task<GetTransactionResult> GetTransactionById(Guid id);
+    Task<GetTransactionResult> GetTransactionByPaymentId(Guid paymentId);
+    Task<GetTransactionListResult> GetAllTransactions();
+    Task<TransactionExistsResult> TransactionExists(string checkBy, string filterValue);
     Task<int> CountTransactions();
-    Task<UpdateTransactionResult> UpdateTransaction(TransactionModel transaction);
+    Task<UpdateTransactionResult> UpdateTransaction(Guid transactionId, TransactionDataDto dto);
     Task<DeleteTransactionResult> DeleteTransaction(Guid transactionId);
 }

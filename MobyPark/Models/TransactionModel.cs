@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class TransactionModel
+public class TransactionModel : ICanBeEdited
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();

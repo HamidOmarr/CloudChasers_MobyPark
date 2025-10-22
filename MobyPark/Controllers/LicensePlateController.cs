@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.LicensePlate.Request;
-using MobyPark.Models;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.ParkingLot;
@@ -47,11 +46,9 @@ public class LicensePlateController : BaseController
         if (existingLicensePlate is not GetLicensePlateResult.NotFound)
             return Conflict( new { error = "License plate already exists" });
 
-        var licensePlateModel = new LicensePlateModel { LicensePlateNumber = request.LicensePlate };
-
-        var licensePlate = await _licensePlates.CreateLicensePlate(licensePlateModel);
+        var licensePlate = await _licensePlates.CreateLicensePlate(request);
         if (licensePlate is not CreateLicensePlateResult.Success success)
-            return StatusCode(500, new { error = "Failed to create license plate" });
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to create license plate" });
 
         await _userPlates.AddLicensePlateToUser(user.Id, success.plate.LicensePlateNumber);
 
@@ -98,7 +95,7 @@ public class LicensePlateController : BaseController
         var updateResult = await _userPlates.UpdateUserPlate(existingPlate);
 
         return updateResult is not UpdateUserPlateResult.Success
-            ? StatusCode(500, new { error = "Failed to update license plate" })
+            ? StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to update license plate" })
             : Ok(new { status = "Success", updatedPlate = existingPlate });
     }
 
@@ -119,8 +116,8 @@ public class LicensePlateController : BaseController
             DeleteUserPlateResult.Success => Ok(new { status = "Deleted" }),
             DeleteUserPlateResult.NotFound => NotFound(new { error = "License plate not found" }),
             DeleteUserPlateResult.InvalidOperation op => BadRequest(new { error = op.Message }),
-            DeleteUserPlateResult.Error err => StatusCode(500, new { error = err.Message }),
-            _ => StatusCode(500, new { error = "Unexpected error" })
+            DeleteUserPlateResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
         };
     }
 
