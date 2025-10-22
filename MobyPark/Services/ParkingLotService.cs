@@ -154,7 +154,7 @@ public class ParkingLotService : IParkingLotService
         try
         {
             if (!await _parkingLots.Delete(lot))
-                return new DeleteLotResult.Error("Database deletion failed.");
+                return new DeleteLotResult.Error("Failed to delete the parking lot.");
 
             return new DeleteLotResult.Success();
         }
