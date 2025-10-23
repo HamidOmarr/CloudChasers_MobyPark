@@ -3,9 +3,7 @@ using MobyPark.DTOs.Permission.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
-using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Permission;
-using MobyPark.Services.Results.RolePermission;
 using Moq;
 
 namespace MobyPark.Tests;
@@ -14,15 +12,15 @@ public sealed class PermissionServiceTests
 {
     #region Setup
     private Mock<IPermissionRepository> _mockPermissionsRepo = null!;
-    private Mock<IRolePermissionService> _mockRolePermissionService = null!;
+    private Mock<IRolePermissionRepository> _mockRolePermissionRepo = null!;
     private PermissionService _permissionService = null!;
 
     [TestInitialize]
     public void TestInitialize()
     {
         _mockPermissionsRepo = new Mock<IPermissionRepository>();
-        _mockRolePermissionService = new Mock<IRolePermissionService>();
-        _permissionService = new PermissionService(_mockPermissionsRepo.Object, _mockRolePermissionService.Object);
+        _mockRolePermissionRepo = new Mock<IRolePermissionRepository>();
+        _permissionService = new PermissionService(_mockPermissionsRepo.Object, _mockRolePermissionRepo.Object);
     }
 
     #endregion
@@ -31,7 +29,7 @@ public sealed class PermissionServiceTests
 
     [TestMethod]
     [DataRow("USERS", "READ")]
-    [DataRow("PARKINGLOTS", "MANAGE")]
+    [DataRow("LOTS", "MANAGE")]
     public async Task CreatePermission_ValidNewPermission_ReturnsSuccess(string resource, string action)
     {
         // Arrange
@@ -149,7 +147,7 @@ public sealed class PermissionServiceTests
 
     [TestMethod]
     [DataRow("USERS", "READ")]
-    [DataRow("parkinglots", "manage")]
+    [DataRow("lots", "manage")]
     public async Task GetPermissionByResourceAndAction_Found_ReturnsSuccess(string resource, string action)
     {
         // Arrange
@@ -320,7 +318,7 @@ public sealed class PermissionServiceTests
 
     [TestMethod]
     [DataRow("id", "abc")]
-    [DataRow("resource+action", "USERSREAD")]
+    [DataRow("resource+action", "USERS.READ")]
     [DataRow("resource+action", "USERS:")]
     [DataRow("resource+action", ":READ")]
     [DataRow("unknown", "value")]
@@ -363,8 +361,7 @@ public sealed class PermissionServiceTests
         // Arrange
         var permission = new PermissionModel { Id = id, Resource = "R", Action = "A" };
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.GetById<PermissionModel>(id)).ReturnsAsync(permission);
-        _mockRolePermissionService.Setup(rps => rps.GetRolesByPermissionId(id))
-            .ReturnsAsync(new GetRolePermissionListResult.NotFound());
+        _mockRolePermissionRepo.Setup(rp => rp.GetRolesByPermissionId(id)).ReturnsAsync(new List<RolePermissionModel>());
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.Delete(permission)).ReturnsAsync(true);
 
         // Act
@@ -398,8 +395,7 @@ public sealed class PermissionServiceTests
         var permission = new PermissionModel { Id = id };
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.GetById<PermissionModel>(id)).ReturnsAsync(permission);
         var links = new List<RolePermissionModel> { new() };
-        _mockRolePermissionService.Setup(rps => rps.GetRolesByPermissionId(id))
-            .ReturnsAsync(new GetRolePermissionListResult.Success(links));
+        _mockRolePermissionRepo.Setup(rp => rp.GetRolesByPermissionId(id)).ReturnsAsync(links);
 
         // Act
         var result = await _permissionService.DeletePermission(id);
@@ -416,8 +412,7 @@ public sealed class PermissionServiceTests
         // Arrange
         var permission = new PermissionModel { Id = id };
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.GetById<PermissionModel>(id)).ReturnsAsync(permission);
-        _mockRolePermissionService.Setup(rps => rps.GetRolesByPermissionId(id))
-            .ReturnsAsync(new GetRolePermissionListResult.NotFound());
+        _mockRolePermissionRepo.Setup(rp => rp.GetRolesByPermissionId(id)).ReturnsAsync(new List<RolePermissionModel>());
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.Delete(permission)).ReturnsAsync(false);
 
         // Act
@@ -435,8 +430,7 @@ public sealed class PermissionServiceTests
         // Arrange
         var permission = new PermissionModel { Id = id };
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.GetById<PermissionModel>(id)).ReturnsAsync(permission);
-        _mockRolePermissionService.Setup(rps => rps.GetRolesByPermissionId(id))
-            .ReturnsAsync(new GetRolePermissionListResult.NotFound());
+        _mockRolePermissionRepo.Setup(rp => rp.GetRolesByPermissionId(id)).ReturnsAsync(new List<RolePermissionModel>());
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.Delete(permission))
             .ThrowsAsync(new InvalidOperationException("DB Boom"));
 

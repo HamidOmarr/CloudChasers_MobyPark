@@ -11,12 +11,16 @@ namespace MobyPark.Services;
 public class PermissionService : IPermissionService
 {
     private readonly IPermissionRepository _permissions;
-    private readonly IRolePermissionService _rolePermissionService;
+    private readonly IRolePermissionRepository _rolePermissions;
 
-    public PermissionService(IPermissionRepository permissions, IRolePermissionService rPermissions)
+    public PermissionService(
+        IPermissionRepository permissions,
+        IRolePermissionRepository rolePermissions
+        // , IRolePermissionService rPermissions
+        )
     {
         _permissions = permissions;
-        _rolePermissionService = rPermissions;
+        _rolePermissions = rolePermissions;
     }
 
     public async Task<CreatePermissionResult> CreatePermission(CreatePermissionDto dto)
@@ -142,9 +146,8 @@ public class PermissionService : IPermissionService
         }
         var permissionToDelete = success.Permission;
 
-        var roleLinks = await _rolePermissionService.GetRolesByPermissionId(id);
-        if (roleLinks is GetRolePermissionListResult.Success)
-             return new DeletePermissionResult.Conflict("Cannot delete permission: It is assigned to one or more roles.");
+        if (await _rolePermissions.RoleHasPermission(id, permissionToDelete.Id))
+            return new DeletePermissionResult.Conflict("Cannot delete permission: It is assigned to one or more roles.");
 
         try
         {
