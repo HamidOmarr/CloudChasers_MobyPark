@@ -28,6 +28,8 @@ public static class DiContainer
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IUserPlateRepository, UserPlateRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IGateService, GateService>();
+        services.AddScoped<IPreAuthService, PreAuthService>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<SessionService>();

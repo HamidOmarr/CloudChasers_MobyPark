@@ -4,12 +4,10 @@ using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Services.Helpers;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Services.Results.Price;
-using MobyPark.Services.Results.User;
 using MobyPark.Services.Results.UserPlate;
 using MobyPark.Validation;
 
@@ -20,17 +18,25 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IParkingSessionRepository _sessions;
     private readonly IParkingLotService _parkingLots;
     private readonly IUserPlateService _userPlates;
-    private readonly IUserService _users;
     private readonly IPricingService _pricing;
+    private readonly IGateService _gate;
+    private readonly IPreAuthService _preAuth;
 
     public ParkingSessionService(
-        IParkingSessionRepository parkingSessions, IParkingLotService parkingLots, IUserPlateService userPlates, IUserService users, IPricingService pricing)
+        IParkingSessionRepository parkingSessions,
+        IParkingLotService parkingLots,
+        IUserPlateService userPlates,
+        IPricingService pricing,
+        IGateService gate,
+        IPreAuthService preAuth
+        )
     {
         _sessions = parkingSessions;
         _parkingLots = parkingLots;
         _userPlates = userPlates;
-        _users = users;
         _pricing = pricing;
+        _gate = gate;
+        _preAuth = preAuth;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
@@ -306,7 +312,7 @@ public class ParkingSessionService : IParkingSessionService
     }
 
     private async Task<bool> OpenSessionGate(ParkingSessionModel session, string licensePlate)
-        => await GateService.OpenGateAsync(session.ParkingLotId, licensePlate);
+        => await _gate.OpenGateAsync(session.ParkingLotId, licensePlate);
 
     public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
     {
@@ -324,7 +330,7 @@ public class ParkingSessionService : IParkingSessionService
         if (activeSessionResult is GetSessionResult.Success)
             return new StartSessionResult.AlreadyActive();
 
-        var preAuth = await PreAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
+        var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
         if (!preAuth.Approved)
             return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
 

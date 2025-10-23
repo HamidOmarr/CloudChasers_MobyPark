@@ -1,12 +1,12 @@
 using MobyPark.DTOs.PreAuth.Response;
+using MobyPark.Services.Interfaces;
 
-namespace MobyPark.Services.Helpers;
+namespace MobyPark.Services;
 
-// Placeholder. Not yet in DiContainer. Add if class receives dependencies (i.e. IRepositoryStack).
-public static class PreAuth
+public class PreAuthService : IPreAuthService
 {
     // Placeholder: approve unless amount <= 0
-    public static Task<PreAuthDto> PreauthorizeAsync(string cardToken, decimal estimatedAmount, bool simulateInsufficientFunds = false)
+    public Task<PreAuthDto> PreauthorizeAsync(string cardToken, decimal estimatedAmount, bool simulateInsufficientFunds = false)
     {
         if (simulateInsufficientFunds)
             return Task.FromResult(new PreAuthDto { Approved = false, Reason = "Insufficient funds" });
