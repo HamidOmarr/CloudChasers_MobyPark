@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
+using MobyPark.Models;
 using MobyPark.Services;
+using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
@@ -27,21 +29,34 @@ public class UsersController : BaseController
 
         return result switch
         {
-            RegisterResult.Success s => CreatedAtAction(
-                nameof(GetUser),
-                new { id = s.User.Id },
-                new AuthDto
-                {
-                    UserId = s.User.Id,
-                    Username = s.User.Username,
-                    Email = s.User.Email,
-                    Token = _sessionService.CreateSession(s.User)
-                }),
+            RegisterResult.Success success => HandleRegistrationSuccess(success.User),
             RegisterResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
-            RegisterResult.InvalidData e => BadRequest(new { error = e.Message }),
-            RegisterResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            RegisterResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            RegisterResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unknown result" })
         };
+
+        IActionResult HandleRegistrationSuccess(UserModel user)
+        {
+            var tokenResult = _sessionService.CreateSession(user);
+
+            if (tokenResult is not CreateJwtResult.Success tokenSuccess)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Server configuration error generating token." });
+            }
+
+            return CreatedAtAction(
+                nameof(GetUser),
+                new { id = user.Id },
+                new AuthDto
+                {
+                    UserId = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    Token = tokenSuccess.JwtToken
+                });
+        }
     }
 
     [HttpPost("login")]

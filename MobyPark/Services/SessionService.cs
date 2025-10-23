@@ -3,10 +3,12 @@ using System.Text;
 using MobyPark.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Session;
 
 namespace MobyPark.Services;
 
-public class SessionService
+public class SessionService : ISessionService
 {
     private readonly IConfiguration _config;
 
@@ -15,11 +17,14 @@ public class SessionService
         _config = config;
     }
 
-    public string CreateSession(UserModel user)
+    public CreateJwtResult CreateSession(UserModel user)
     {
-        var secretKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
-        var issuer = _config["Jwt:Issuer"] ?? "MobyParkAPI";
-        var audience = _config["Jwt:Audience"] ?? "MobyParkUsers";
+        string? secretKey = _config["Jwt:Key"];
+        string issuer = _config["Jwt:Issuer"] ?? "MobyParkAPI";
+        string audience = _config["Jwt:Audience"] ?? "MobyParkUsers";
+
+        if (string.IsNullOrEmpty(secretKey))
+            return new CreateJwtResult.ConfigError("JWT secret key is not configured.");
 
         var claims = new List<Claim>
         {
@@ -39,6 +44,6 @@ public class SessionService
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: credentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return new CreateJwtResult.Success(new JwtSecurityTokenHandler().WriteToken(token));
     }
 }

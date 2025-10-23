@@ -18,7 +18,7 @@ public class RoleService : IRoleService
 
     public async Task<CreateRoleResult> CreateRole(CreateRoleDto dto)
     {
-        dto.Name = dto.Name.Capitalize();
+        dto.Name = dto.Name.Upper();
 
         var existsResult = await RoleExists("name", dto.Name);
         if (existsResult is not RoleExistsResult.NotExists)

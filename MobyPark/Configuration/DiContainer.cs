@@ -32,7 +32,7 @@ public static class DiContainer
         services.AddScoped<IPreAuthService, PreAuthService>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
-        services.AddSingleton<SessionService>();
+        services.AddSingleton<ISessionService, SessionService>();
 
         // Password Hasher: Must be Singleton as it is stateless and resource-intensive.
         services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();

@@ -7,6 +7,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
 using MobyPark.Validation;
 
@@ -19,12 +20,12 @@ public partial class UserService : IUserService
     private readonly IParkingSessionRepository _parkingSessions;
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher<UserModel> _hasher;
-    private readonly SessionService _sessions;
+    private readonly ISessionService _sessions;
 
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
     private const string PhonePattern = @"^\+?[0-9]+$";
-    private const string PhoneDigitPattern = @"^\d{9,10}$";
+    private const string PhoneDigitPattern = @"^\d{10}$";
     private const string EmailPattern = @"^(?!\.)(?!.*\.\.)[A-Za-z0-9._%+-]+(?<!\.)@(?:(?:xn--)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$";
 
     [GeneratedRegex(PasswordPattern)]
@@ -44,7 +45,7 @@ public partial class UserService : IUserService
         IParkingSessionRepository parkingSessions,
         IRoleRepository roles,
         IPasswordHasher<UserModel> hasher,
-        SessionService sessions)
+        ISessionService sessions)
     {
         _users = users;
         _userPlates = userPlates;
@@ -231,13 +232,17 @@ public partial class UserService : IUserService
         if (verification == PasswordVerificationResult.Failed)
             return new LoginResult.InvalidCredentials();
 
-        var token = _sessions.CreateSession(user);
+        var tokenResult = _sessions.CreateSession(user);
+
+        if (tokenResult is not CreateJwtResult.Success success)
+            return new LoginResult.Error("Failed to create authentication token.");
+
         var response = new AuthDto
         {
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email,
-            Token = token
+            Token = success.JwtToken
         };
 
         return new LoginResult.Success(response);
@@ -402,7 +407,7 @@ public partial class UserService : IUserService
 
         bool hasLeadingPlus = phone.StartsWith('+');
         phone = PhoneTrim().Replace(phone, "");
-        if (hasLeadingPlus)
+        if (hasLeadingPlus && !phone.StartsWith('+'))
             phone = "+" + phone;
 
         if (!Phone().IsMatch(phone))
@@ -411,20 +416,18 @@ public partial class UserService : IUserService
             return new RegisterResult.InvalidData("Phone number contains invalid characters.");
         }
 
-        // Normalize to +31
         if (phone.StartsWith("00")) phone = phone[2..];
         if (phone.StartsWith('+')) phone = phone[1..];
         if (phone.StartsWith("31")) phone = phone[2..];
+        if (!phone.StartsWith('0')) phone = '0' + phone;
 
         if (!PhoneDigits().IsMatch(phone))
         {
             cleanPhone = null;
-            return new RegisterResult.InvalidData("Invalid Dutch phone number digits.");
+            return new RegisterResult.InvalidData("Phone number is not a Dutch number.");
         }
 
-        if (phone.StartsWith('0')) phone = phone[1..];
-
-        cleanPhone = "+31" + phone;
+        cleanPhone = "+31" + phone[1..];
         return new RegisterResult.Success(null!);
     }
 
