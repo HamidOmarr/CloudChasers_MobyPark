@@ -70,70 +70,7 @@ public class ParkingSessionService : IParkingSessionService
         return new GetSessionResult.Success(session);
     }
 
-    public async Task<GetSessionListResult> GetParkingSessionsByParkingLotId(long lotId)
-    {
-        var sessions = await _sessions.GetByParkingLotId(lotId);
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<GetSessionListResult> GetParkingSessionsByLicensePlate(string licensePlate)
-    {
-        var sessions = await _sessions.GetByLicensePlateNumber(licensePlate);
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<GetSessionListResult> GetParkingSessionsByPaymentStatus(string status)
-    {
-        if (!Enum.TryParse<ParkingSessionStatus>(status, true, out var parsedStatus))
-            return new GetSessionListResult.InvalidInput($"'{status}' is not a valid payment status.");
-
-        var sessions = await _sessions.GetByPaymentStatus(parsedStatus);
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<GetSessionListResult> GetActiveParkingSessions()
-    {
-        var sessions = await _sessions.GetActiveSessions();
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<GetSessionResult> GetActiveParkingSessionByLicensePlate(string licensePlate)
-    {
-        var session = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
-        if (session is null)
-            return new GetSessionResult.NotFound();
-        return new GetSessionResult.Success(session);
-    }
-
-    public async Task<GetSessionListResult> GetAllRecentParkingSessionsByLicensePlate(string licensePlate, TimeSpan recentDuration)
-    {
-        licensePlate = licensePlate.Upper();
-        var sessions = await _sessions.GetAllRecentSessionsByLicensePlate(licensePlate, recentDuration);
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<GetSessionListResult> GetAllParkingSessions()
-    {
-        var sessions = await _sessions.GetAll();
-        if (sessions.Count == 0)
-            return new GetSessionListResult.NotFound();
-
-        return new GetSessionListResult.Success(sessions);
-    }
-
-    public async Task<int> CountParkingSessions() => await _sessions.Count();
-
-    public async Task<UpdateSessionResult> UpdateParkingSession(long id, UpdateParkingSessionDto dto)  // better to use a dto
+    public async Task<UpdateSessionResult> UpdateParkingSession(long id, UpdateParkingSessionDto dto)
     {
         var getResult = await GetParkingSessionById(id);
         if (getResult is not GetSessionResult.Success success)
@@ -212,6 +149,111 @@ public class ParkingSessionService : IParkingSessionService
         catch (Exception ex)
         { return new DeleteSessionResult.Error(ex.Message); }
     }
+
+    public async Task<GetSessionListResult> GetParkingSessionsByParkingLotId(long lotId)
+    {
+        var sessions = await _sessions.GetByParkingLotId(lotId);
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<GetSessionListResult> GetParkingSessionsByLicensePlate(string licensePlate)
+    {
+        var sessions = await _sessions.GetByLicensePlateNumber(licensePlate);
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<GetSessionListResult> GetParkingSessionsByPaymentStatus(string status)
+    {
+        if (!Enum.TryParse<ParkingSessionStatus>(status, true, out var parsedStatus))
+            return new GetSessionListResult.InvalidInput($"'{status}' is not a valid payment status.");
+
+        var sessions = await _sessions.GetByPaymentStatus(parsedStatus);
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<GetSessionListResult> GetAllParkingSessions()
+    {
+        var sessions = await _sessions.GetAll();
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<GetSessionListResult> GetActiveParkingSessions()
+    {
+        var sessions = await _sessions.GetActiveSessions();
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<GetSessionResult> GetActiveParkingSessionByLicensePlate(string licensePlate)
+    {
+        var session = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
+        if (session is null)
+            return new GetSessionResult.NotFound();
+        return new GetSessionResult.Success(session);
+    }
+
+    public async Task<GetSessionListResult> GetAllRecentParkingSessionsByLicensePlate(string licensePlate, TimeSpan recentDuration)
+    {
+        licensePlate = licensePlate.Upper();
+        var sessions = await _sessions.GetAllRecentSessionsByLicensePlate(licensePlate, recentDuration);
+        if (sessions.Count == 0)
+            return new GetSessionListResult.NotFound();
+        return new GetSessionListResult.Success(sessions);
+    }
+
+    public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions)
+    {
+        var sessionsResult = await GetParkingSessionsByParkingLotId(lotId);
+        if (sessionsResult is not GetSessionListResult.Success success)
+            return new List<ParkingSessionModel>();
+
+        var sessions = success.Sessions;
+
+        if (canManageSessions) return sessions;
+
+        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
+
+        var filteredSessions = sessions
+            .Where(session =>
+                plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
+                session.Started >= earliestValidDate).ToList();
+
+        return filteredSessions;
+    }
+
+    public async Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, int lotId, int sessionId, bool canManageSessions)
+    {
+        var sessionResult = await GetParkingSessionById(sessionId);
+        if (sessionResult is not GetSessionResult.Success s)
+            return new GetSessionResult.NotFound();
+
+        var session = s.Session;
+        if (session.ParkingLotId != lotId)
+            return new GetSessionResult.NotFound();
+
+        if (canManageSessions)
+            return new GetSessionResult.Success(session);
+
+        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
+        bool ownsSession =
+            plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
+            session.Started >= earliestValidDate;
+
+        if (!ownsSession) return new GetSessionResult.Forbidden();
+        return new GetSessionResult.Success(session);
+    }
+
+    public async Task<int> CountParkingSessions() => await _sessions.Count();
 
     public string GeneratePaymentHash(string sessionId, string licensePlate)
     {
@@ -325,80 +367,6 @@ public class ParkingSessionService : IParkingSessionService
         }
 
         return new StartSessionResult.Success(newSession, lot.AvailableSpots);
-    }
-
-    private async Task<UserModel> ResolveSessionUser(string plate, string? username)
-    {
-        plate = plate.Upper();
-
-        var plateListResult = await _userPlates.GetUserPlatesByPlate(plate);
-        if (plateListResult is GetUserPlateListResult.Success sPlateList)
-        {
-            foreach (var link in sPlateList.Plates)
-            {
-                var userResult = await _users.GetUserById(link.UserId);
-                if (userResult is GetUserResult.Success sUser)
-                {
-                    var user = sUser.User;
-                    if (string.IsNullOrWhiteSpace(username) || user.Username.ToLower().Equals(username.ToLower()))
-                        return user;
-                }
-            }
-        }
-
-        var defaultUserResult = await _users.GetUserById(UserPlateModel.DefaultUserId);
-        if (defaultUserResult is not GetUserResult.Success sDefaultUser)
-            throw new InvalidOperationException("Fatal error: Default user not found.");
-
-        var defaultUser = sDefaultUser.User;
-
-        var deletedLinkResult = await _userPlates.GetUserPlateByUserIdAndPlate(UserPlateModel.DefaultUserId, plate);
-        if (deletedLinkResult is GetUserPlateResult.NotFound)
-            await _userPlates.AddLicensePlateToUser(UserPlateModel.DefaultUserId, plate);
-
-        return defaultUser;
-    }
-
-    public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions)
-    {
-        var sessionsResult = await GetParkingSessionsByParkingLotId(lotId);
-        if (sessionsResult is not GetSessionListResult.Success success)
-            return new List<ParkingSessionModel>();
-
-        var sessions = success.Sessions;
-
-        if (canManageSessions) return sessions;
-
-        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
-
-        var filteredSessions = sessions
-            .Where(session =>
-                plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
-                session.Started >= earliestValidDate).ToList();
-
-        return filteredSessions;
-    }
-
-    public async Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, int lotId, int sessionId, bool canManageSessions)
-    {
-        var sessionResult = await GetParkingSessionById(sessionId);
-        if (sessionResult is not GetSessionResult.Success s)
-            return new GetSessionResult.NotFound();
-
-        var session = s.Session;
-        if (session.ParkingLotId != lotId)
-            return new GetSessionResult.NotFound();
-
-        if (canManageSessions)
-            return new GetSessionResult.Success(session);
-
-        var plateOwnershipMap = await GetPlateOwnershipMapAsync(userId);
-        bool ownsSession =
-            plateOwnershipMap.TryGetValue(session.LicensePlateNumber, out var earliestValidDate) &&
-            session.Started >= earliestValidDate;
-
-        if (!ownsSession) return new GetSessionResult.Forbidden();
-        return new GetSessionResult.Success(session);
     }
 
     private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)

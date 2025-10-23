@@ -12,6 +12,8 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class ParkingLotServiceTests
 {
+    #region Setup
+
     private Mock<IParkingLotRepository>? _mockParkingLotRepository;
     private ParkingLotService? _parkingLotService;
 
@@ -21,6 +23,10 @@ public sealed class ParkingLotServiceTests
         _mockParkingLotRepository = new Mock<IParkingLotRepository>();
         _parkingLotService = new ParkingLotService(_mockParkingLotRepository.Object);
     }
+
+    #endregion
+
+    #region Create
 
     [TestMethod]
     [DataRow("Lot A", "Location A", "Address A", 100, 5.0, 20.0)]
@@ -77,7 +83,6 @@ public sealed class ParkingLotServiceTests
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()), Times.Once);
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Once);
     }
-
 
     [TestMethod]
     [DataRow("Address 1")]
@@ -182,6 +187,10 @@ public sealed class ParkingLotServiceTests
         StringAssert.Contains(((CreateLotResult.Error)result).Message, "DB Boom!");
     }
 
+    #endregion
+
+    #region GetById
+
     [TestMethod]
     [DataRow(1, "1", "Wijnhaven", "Wijnhaven 1", 100, 10, 5.0, 20.0)]
     [DataRow(2, "2", "Kralingse Zoom", "Kralingse Zoom 1", 200, 50, 10.0, 25.0)]
@@ -243,6 +252,10 @@ public sealed class ParkingLotServiceTests
         Assert.IsInstanceOfType(result, typeof(GetLotResult.NotFound));
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetById<ParkingLotModel>(id), Times.Once);
     }
+
+    #endregion
+
+    #region Update
 
     [TestMethod]
     [DataRow(1, "New Name", null, null, null, null, null)]
@@ -445,6 +458,10 @@ public sealed class ParkingLotServiceTests
         StringAssert.Contains(((UpdateLotResult.Error)result).Message, "DB Timeout");
     }
 
+    #endregion
+
+    #region Delete
+
     [TestMethod]
     [DataRow(1, "Lot A")]
     [DataRow(2, "Lot B")]
@@ -519,6 +536,10 @@ public sealed class ParkingLotServiceTests
         Assert.IsInstanceOfType(result, typeof(DeleteLotResult.Error));
         StringAssert.Contains(((DeleteLotResult.Error)result).Message, "Concurrency conflict");
     }
+
+    #endregion
+
+    #region GetByVariousCriteria
 
     [TestMethod]
     [DataRow("Valid Lot Name")]
@@ -648,6 +669,10 @@ public sealed class ParkingLotServiceTests
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
     }
 
+    #endregion
+
+    #region Exists
+
     [TestMethod]
     [DataRow("id", "123")]
     [DataRow("address", "123 Main St")]
@@ -712,6 +737,10 @@ public sealed class ParkingLotServiceTests
         StringAssert.Contains(((ParkingLotExistsResult.Error)result).Message, "Concurrency conflict");
     }
 
+    #endregion
+
+    #region Count
+
     [TestMethod]
     [DataRow(0)]
     [DataRow(5)]
@@ -728,4 +757,6 @@ public sealed class ParkingLotServiceTests
         Assert.AreEqual(expectedCount, result);
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.Count(), Times.Once);
     }
+
+    #endregion
 }
