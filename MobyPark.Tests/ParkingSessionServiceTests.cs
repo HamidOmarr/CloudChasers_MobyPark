@@ -481,6 +481,8 @@ public sealed class ParkingSessionServiceTests
 
     #region GetByVariousCriteria
 
+    #region GetByParkingLotId
+
     [TestMethod]
     [DataRow(1, 5)]
     [DataRow(5, 2)]
@@ -530,6 +532,10 @@ public sealed class ParkingSessionServiceTests
         Assert.IsInstanceOfType(result, typeof(GetSessionListResult.NotFound));
     }
 
+    #endregion
+
+    #region GetByLicensePlate
+
     [TestMethod]
     [DataRow("AB-12-CD", 1)]
     [DataRow("WX-99-YZ", 5)]
@@ -565,6 +571,10 @@ public sealed class ParkingSessionServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(GetSessionListResult.NotFound));
     }
+
+    #endregion
+
+    #region GetByPaymentStatus
 
     [TestMethod]
     [DataRow("Paid", ParkingSessionStatus.Paid, 2)]
@@ -617,6 +627,10 @@ public sealed class ParkingSessionServiceTests
         Assert.IsInstanceOfType(result, typeof(GetSessionListResult.InvalidInput));
         _mockSessionsRepo.Verify(sessionRepo => sessionRepo.GetByPaymentStatus(It.IsAny<ParkingSessionStatus>()), Times.Never);
     }
+
+    #endregion
+
+    #region GetAll
 
     [TestMethod]
     [DataRow(1)]
@@ -1000,6 +1014,8 @@ public sealed class ParkingSessionServiceTests
         Assert.IsNotNull(result);
         Assert.AreEqual(0, result.Count);
     }
+
+    #endregion
 
     #endregion
 

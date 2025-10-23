@@ -541,6 +541,8 @@ public sealed class ParkingLotServiceTests
 
     #region GetByVariousCriteria
 
+    #region GetByName
+
     [TestMethod]
     [DataRow("Valid Lot Name")]
     public async Task GetParkingLotByName_ValidName_ReturnsSuccessResult(string name)
@@ -586,6 +588,10 @@ public sealed class ParkingLotServiceTests
         Assert.IsInstanceOfType(result, typeof(GetLotResult.InvalidInput));
         _mockParkingLotRepository!.Verify(lotRepo => lotRepo.GetByName(It.IsAny<string>()), Times.Never);
     }
+
+    #endregion
+
+    #region GetByLocation
 
     [TestMethod]
     [DataRow("Test Location")]
@@ -633,6 +639,10 @@ public sealed class ParkingLotServiceTests
         _mockParkingLotRepository!.Verify(lotRepo => lotRepo.GetByLocation(It.IsAny<string>()), Times.Never);
     }
 
+    #endregion
+
+    #region GetAll
+
     [TestMethod]
     public async Task GetAllParkingLots_ReturnsAllLots()
     {
@@ -668,6 +678,8 @@ public sealed class ParkingLotServiceTests
         Assert.IsInstanceOfType(result, typeof(GetLotListResult.NotFound));
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
     }
+
+    #endregion
 
     #endregion
 

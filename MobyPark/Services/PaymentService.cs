@@ -76,6 +76,22 @@ public class PaymentService : IPaymentService
         return new GetPaymentResult.Success(payment);
     }
 
+    public async Task<DeletePaymentResult> DeletePayment(string paymentId, long requestingUserId)
+    {
+        if (!Guid.TryParse(paymentId, out Guid pid))
+            return new DeletePaymentResult.Error("Invalid Payment ID format.");
+
+        try
+        {
+            if (!await _payments.DeletePayment(pid, requestingUserId))
+                return new DeletePaymentResult.NotFound();
+
+            return new DeletePaymentResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeletePaymentResult.Error(ex.Message); }
+    }
+
     public async Task<GetPaymentResult> GetPaymentByTransactionId(string tId, long requestingUserId)
     {
         if (!Guid.TryParse(tId, out Guid transactionId))
@@ -146,22 +162,6 @@ public class PaymentService : IPaymentService
         }
         catch (Exception ex)
         { return new UpdatePaymentResult.Error($"Error saving payment completion: {ex.Message}"); }
-    }
-
-    public async Task<DeletePaymentResult> DeletePayment(string paymentId, long requestingUserId)
-    {
-        if (!Guid.TryParse(paymentId, out Guid pid))
-            return new DeletePaymentResult.Error("Invalid Payment ID format.");
-
-        try
-        {
-            if (!await _payments.DeletePayment(pid, requestingUserId))
-                return new DeletePaymentResult.NotFound();
-
-            return new DeletePaymentResult.Success();
-        }
-        catch (Exception ex)
-        { return new DeletePaymentResult.Error(ex.Message); }
     }
 
     public async Task<ValidatePaymentResult> ValidatePayment(Guid paymentId, TransactionDataDto dto, long requestingUserId)
