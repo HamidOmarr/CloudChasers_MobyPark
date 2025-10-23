@@ -23,6 +23,166 @@ public sealed class ParkingLotServiceTests
     }
 
     [TestMethod]
+    [DataRow("Lot A", "Location A", "Address A", 100, 5.0, 20.0)]
+    [DataRow("Lot B", "Location B", "Address B", 200, 10.0, null)]
+    [DataRow("Lot C", "Location C", "Address C", 50, 7.5, 15.0)]
+    public async Task CreateParkingLot_ValidData_ReturnsSuccessResult(
+        string name, string location, string address,
+        int capacity, double tariffDouble, double? dayTariffDouble)
+    {
+        // Arrange
+        decimal tariff = (decimal)tariffDouble;
+        decimal? dayTariff = dayTariffDouble.HasValue ? (decimal)dayTariffDouble.Value : null;
+
+        var createDto = new CreateParkingLotDto
+        {
+            Name = name,
+            Location = location,
+            Address = address,
+            Capacity = capacity,
+            Tariff = tariff,
+            DayTariff = dayTariff
+        };
+
+         _mockParkingLotRepository!
+             .Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+             .ReturnsAsync(false);
+
+        long expectedNewId = 123;
+        _mockParkingLotRepository!
+            .Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()))
+            .ReturnsAsync((true, expectedNewId))
+            .Callback<ParkingLotModel>(createdLot => {
+                 Assert.AreEqual(createDto.Name, createdLot.Name);
+                 Assert.AreEqual(createDto.Address, createdLot.Address);
+                 Assert.AreEqual(0, createdLot.Reserved);
+                 Assert.AreEqual(createDto.Capacity, createdLot.Capacity);
+                 Assert.AreEqual(createDto.Tariff, createdLot.Tariff);
+                 Assert.AreEqual(createDto.DayTariff, createdLot.DayTariff);
+                 Assert.AreNotEqual(default, createdLot.CreatedAt);
+             });
+
+        // Act
+        var result = await _parkingLotService!.CreateParkingLot(createDto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Success));
+        var successResult = (CreateLotResult.Success)result;
+        var createdLot = successResult.Lot;
+
+        Assert.AreEqual(expectedNewId, createdLot.Id);
+        Assert.AreEqual(createDto.Name, createdLot.Name);
+        Assert.AreEqual(createDto.Address, createdLot.Address);
+
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()), Times.Once);
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Once);
+    }
+
+
+    [TestMethod]
+    [DataRow("Address 1")]
+    [DataRow("Address 2")]
+    public async Task CreateParkingLot_AddressExists_ReturnsErrorResult(string existingAddress)
+    {
+        // Arrange
+        var createDto = new CreateParkingLotDto
+        {
+            Name = "New Lot",
+            Location = "New Location",
+            Address = existingAddress,
+            Capacity = 50,
+            Tariff = 1
+        };
+
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(true);
+
+        // Act
+        var result = await _parkingLotService!.CreateParkingLot(createDto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Never);
+    }
+
+    [TestMethod]
+    [DataRow("Lot A", "Location A", "Address A", 100, 5.0, 20.0)]
+    [DataRow("Lot B", "Location B", "Address B", 200, 10.0, null)]
+    public async Task CreateParkingLot_DatabaseInsertionFails_ReturnsErrorResult(
+        string name, string location, string address,
+        int capacity, double tariffDouble, double? dayTariffDouble)
+    {
+        // Arrange
+        decimal tariff = (decimal)tariffDouble;
+        decimal? dayTariff = dayTariffDouble.HasValue ? (decimal)dayTariffDouble.Value : null;
+
+        var createDto = new CreateParkingLotDto
+        {
+            Name = name,
+            Location = location,
+            Address = address,
+            Capacity = capacity,
+            Tariff = tariff,
+            DayTariff = dayTariff
+        };
+
+         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(false);
+
+         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>())).ReturnsAsync((false, 0L));
+
+         // Act
+         var result = await _parkingLotService!.CreateParkingLot(createDto);
+
+         // Assert
+         Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
+         var errorResult = (CreateLotResult.Error)result;
+         Assert.AreEqual("Database insertion failed.", errorResult.Message);
+         _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Once);
+    }
+
+    [TestMethod]
+    [DataRow(null, "Location", "Address", 100, 5.0, 10.0, 45.0, 90.0)]
+    [DataRow("Name", null, "Address", 100, 5.0, 10.0, 45.0, 90.0)]
+    [DataRow("Name", "Location", null, 100, 5.0, 10.0, 45.0, 90.0)]
+    public async Task CreateParkingLot_NullValues_ReturnsErrorResult(
+        string name, string location, string address, int capacity,
+        double tariff, double dayTariff, double latitude, double longitude)
+    {
+        // Arrange
+        var lot = new CreateParkingLotDto
+        {
+            Name = name,
+            Location = location,
+            Address = address,
+            Capacity = capacity,
+            Tariff = (decimal)tariff,
+            DayTariff = (decimal)dayTariff
+        };
+
+        // Act
+        var result = await _parkingLotService!.CreateParkingLot(lot);
+        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
+
+        // Assert
+        _mockParkingLotRepository!.Verify(access => access.Create(It.IsAny<ParkingLotModel>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task CreateParkingLot_RepositoryThrows_ReturnsErrorResult()
+    {
+        // Arrange
+        var createDto = new CreateParkingLotDto { Name="Fail", Address="Fail Address", Capacity=10, Tariff=1, Location="Fail" };
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(false);
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>())).ThrowsAsync(new InvalidOperationException("DB Boom!")); // Db exception
+
+        // Act
+        var result = await _parkingLotService!.CreateParkingLot(createDto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
+        StringAssert.Contains(((CreateLotResult.Error)result).Message, "DB Boom!");
+    }
+
+    [TestMethod]
     [DataRow(1, "1", "Wijnhaven", "Wijnhaven 1", 100, 10, 5.0, 20.0)]
     [DataRow(2, "2", "Kralingse Zoom", "Kralingse Zoom 1", 200, 50, 10.0, 25.0)]
     [DataRow(3, "3", "Centrum", "Centrum 1", 300, 100, 7.5, 15.0)]
@@ -158,31 +318,40 @@ public sealed class ParkingLotServiceTests
     }
 
     [TestMethod]
-    [DataRow(null, "Location", "Address", 100, 5.0, 10.0, 45.0, 90.0)]
-    [DataRow("Name", null, "Address", 100, 5.0, 10.0, 45.0, 90.0)]
-    [DataRow("Name", "Location", null, 100, 5.0, 10.0, 45.0, 90.0)]
-    public async Task CreateParkingLot_NullValues_ReturnsErrorResult(
-        string name, string location, string address, int capacity,
-        double tariff, double dayTariff, double latitude, double longitude)
+    [DataRow(1, "Same Name", "Same Location")]
+    [DataRow(2, null, null)]
+    public async Task UpdateParkingLot_NoChangesMade_ReturnsNoChangesMadeResult(
+        int id, string? name, string? location)
     {
         // Arrange
-        var lot = new CreateParkingLotDto
+        var updateDto = new UpdateParkingLotDto
         {
             Name = name,
-            Location = location,
-            Address = address,
-            Capacity = capacity,
-            Tariff = (decimal)tariff,
-            DayTariff = (decimal)dayTariff
+            Location = location
         };
 
+        var existingLot = new ParkingLotModel
+        {
+            Id = id,
+            Name = "Same Name",
+            Location = "Same Location",
+            Address = "Same Address",
+            Capacity = 100,
+            Reserved = 20,
+            Tariff = 5,
+            DayTariff = 15
+        };
+
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetById<ParkingLotModel>(id)).ReturnsAsync(existingLot);
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Update(It.IsAny<ParkingLotModel>(), It.IsAny<UpdateParkingLotDto>())).ReturnsAsync(false);
+
         // Act
-        var result = await _parkingLotService!.CreateParkingLot(lot);
-        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
+        var result = await _parkingLotService!.UpdateParkingLot(id, updateDto);
 
         // Assert
-        _mockParkingLotRepository!.Verify(access => access.Create(It.IsAny<ParkingLotModel>()), Times.Never);
-     }
+        Assert.IsInstanceOfType(result, typeof(UpdateLotResult.NoChangesMade));
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.Update(existingLot, updateDto), Times.Once);
+    }
 
     [TestMethod]
     [DataRow(1, "New Name", "New Location", "New Address", 10, 5.0, 20.0)]
@@ -259,120 +428,21 @@ public sealed class ParkingLotServiceTests
     }
 
     [TestMethod]
-    [DataRow("Lot A", "Location A", "Address A", 100, 5.0, 20.0)]
-    [DataRow("Lot B", "Location B", "Address B", 200, 10.0, null)]
-    [DataRow("Lot C", "Location C", "Address C", 50, 7.5, 15.0)]
-    public async Task CreateParkingLot_ValidData_ReturnsSuccessResult(
-        string name, string location, string address,
-        int capacity, double tariffDouble, double? dayTariffDouble)
+    public async Task UpdateParkingLot_RepositoryThrows_ReturnsErrorResult()
     {
         // Arrange
-        decimal tariff = (decimal)tariffDouble;
-        decimal? dayTariff = dayTariffDouble.HasValue ? (decimal)dayTariffDouble.Value : null;
-
-        var createDto = new CreateParkingLotDto
-        {
-            Name = name,
-            Location = location,
-            Address = address,
-            Capacity = capacity,
-            Tariff = tariff,
-            DayTariff = dayTariff
-        };
-
-         _mockParkingLotRepository!
-             .Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
-             .ReturnsAsync(false);
-
-        long expectedNewId = 123;
-        _mockParkingLotRepository!
-            .Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()))
-            .ReturnsAsync((true, expectedNewId))
-            .Callback<ParkingLotModel>(createdLot => {
-                 Assert.AreEqual(createDto.Name, createdLot.Name);
-                 Assert.AreEqual(createDto.Address, createdLot.Address);
-                 Assert.AreEqual(0, createdLot.Reserved);
-                 Assert.AreEqual(createDto.Capacity, createdLot.Capacity);
-                 Assert.AreEqual(createDto.Tariff, createdLot.Tariff);
-                 Assert.AreEqual(createDto.DayTariff, createdLot.DayTariff);
-                 Assert.AreNotEqual(default, createdLot.CreatedAt);
-             });
+        int id = 1;
+        var updateDto = new UpdateParkingLotDto { Name = "Fail Update" };
+        var existingLot = new ParkingLotModel { Id = id };
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetById<ParkingLotModel>(id)).ReturnsAsync(existingLot);
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Update(It.IsAny<ParkingLotModel>(), It.IsAny<UpdateParkingLotDto>())).ThrowsAsync(new TimeoutException("DB Timeout")); // Db timeout exception
 
         // Act
-        var result = await _parkingLotService!.CreateParkingLot(createDto);
+        var result = await _parkingLotService!.UpdateParkingLot(id, updateDto);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Success));
-        var successResult = (CreateLotResult.Success)result;
-        var createdLot = successResult.Lot;
-
-        Assert.AreEqual(expectedNewId, createdLot.Id);
-        Assert.AreEqual(createDto.Name, createdLot.Name);
-        Assert.AreEqual(createDto.Address, createdLot.Address);
-
-        _mockParkingLotRepository.Verify(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()), Times.Once);
-        _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Once);
-    }
-
-
-    [TestMethod]
-    [DataRow("Address 1")]
-    [DataRow("Address 2")]
-    public async Task CreateParkingLot_AddressExists_ReturnsErrorResult(string existingAddress)
-    {
-        // Arrange
-        var createDto = new CreateParkingLotDto
-        {
-            Name = "New Lot",
-            Location = "New Location",
-            Address = existingAddress,
-            Capacity = 50,
-            Tariff = 1
-        };
-
-        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(true);
-
-        // Act
-        var result = await _parkingLotService!.CreateParkingLot(createDto);
-
-        // Assert
-        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
-        _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Never);
-    }
-
-    [TestMethod]
-    [DataRow("Lot A", "Location A", "Address A", 100, 5.0, 20.0)]
-    [DataRow("Lot B", "Location B", "Address B", 200, 10.0, null)]
-    public async Task CreateParkingLot_DatabaseInsertionFails_ReturnsErrorResult(
-        string name, string location, string address,
-        int capacity, double tariffDouble, double? dayTariffDouble)
-    {
-        // Arrange
-        decimal tariff = (decimal)tariffDouble;
-        decimal? dayTariff = dayTariffDouble.HasValue ? (decimal)dayTariffDouble.Value : null;
-
-        var createDto = new CreateParkingLotDto
-        {
-            Name = name,
-            Location = location,
-            Address = address,
-            Capacity = capacity,
-            Tariff = tariff,
-            DayTariff = dayTariff
-        };
-
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(false);
-
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>())).ReturnsAsync((false, 0L));
-
-         // Act
-         var result = await _parkingLotService!.CreateParkingLot(createDto);
-
-         // Assert
-         Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
-         var errorResult = (CreateLotResult.Error)result;
-         Assert.AreEqual("Database insertion failed.", errorResult.Message);
-         _mockParkingLotRepository.Verify(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>()), Times.Once);
+        Assert.IsInstanceOfType(result, typeof(UpdateLotResult.Error));
+        StringAssert.Contains(((UpdateLotResult.Error)result).Message, "DB Timeout");
     }
 
     [TestMethod]
@@ -434,39 +504,20 @@ public sealed class ParkingLotServiceTests
     }
 
     [TestMethod]
-    public async Task GetAllParkingLots_ReturnsAllLots()
+    public async Task DeleteParkingLot_RepositoryThrows_ReturnsErrorResult()
     {
         // Arrange
-        var lots = new List<ParkingLotModel>
-        {
-            new() { Id = 1, Name = "Lot A", Location = "City A", Address = "Street 1", Capacity = 100, Tariff = 2, DayTariff = 10 },
-             new() { Id = 2, Name = "Lot B", Location = "City B", Address = "Street 2", Capacity = 200, Tariff = 3, DayTariff = 12 }
-        };
-
-        _mockParkingLotRepository!.Setup(access => access.GetAll()).ReturnsAsync(lots);
+        int id = 1;
+        var lotToDelete = new ParkingLotModel { Id = id };
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetById<ParkingLotModel>(id)).ReturnsAsync(lotToDelete);
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Delete(It.IsAny<ParkingLotModel>())).ThrowsAsync(new DbUpdateConcurrencyException("Concurrency conflict")); // Db concurrency exception
 
         // Act
-        var result = await _parkingLotService!.GetAllParkingLots();
+        var result = await _parkingLotService!.DeleteParkingLot(id);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(GetLotListResult.Success));
-        var successResult = (GetLotListResult.Success)result;
-        Assert.AreEqual(2, successResult.Lots.Count);
-        _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
-     }
-
-    [TestMethod]
-    public async Task GetAllParkingLots_NoLots_ReturnsNotFoundResult()
-    {
-        // Arrange
-        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetAll()).ReturnsAsync(new List<ParkingLotModel>());
-
-        // Act
-        var result = await _parkingLotService!.GetAllParkingLots();
-
-        // Assert
-        Assert.IsInstanceOfType(result, typeof(GetLotListResult.NotFound));
-        _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
+        Assert.IsInstanceOfType(result, typeof(DeleteLotResult.Error));
+        StringAssert.Contains(((DeleteLotResult.Error)result).Message, "Concurrency conflict");
     }
 
     [TestMethod]
@@ -547,7 +598,7 @@ public sealed class ParkingLotServiceTests
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetByLocation(location), Times.Once);
     }
 
-     [TestMethod]
+    [TestMethod]
     [DataRow(null)]
     [DataRow("")]
     [DataRow(" ")]
@@ -558,7 +609,43 @@ public sealed class ParkingLotServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(GetLotListResult.InvalidInput));
-         _mockParkingLotRepository!.Verify(lotRepo => lotRepo.GetByLocation(It.IsAny<string>()), Times.Never);
+        _mockParkingLotRepository!.Verify(lotRepo => lotRepo.GetByLocation(It.IsAny<string>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task GetAllParkingLots_ReturnsAllLots()
+    {
+        // Arrange
+        var lots = new List<ParkingLotModel>
+        {
+            new() { Id = 1, Name = "Lot A", Location = "City A", Address = "Street 1", Capacity = 100, Tariff = 2, DayTariff = 10 },
+            new() { Id = 2, Name = "Lot B", Location = "City B", Address = "Street 2", Capacity = 200, Tariff = 3, DayTariff = 12 }
+        };
+
+        _mockParkingLotRepository!.Setup(access => access.GetAll()).ReturnsAsync(lots);
+
+        // Act
+        var result = await _parkingLotService!.GetAllParkingLots();
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetLotListResult.Success));
+        var successResult = (GetLotListResult.Success)result;
+        Assert.AreEqual(2, successResult.Lots.Count);
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task GetAllParkingLots_NoLots_ReturnsNotFoundResult()
+    {
+        // Arrange
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetAll()).ReturnsAsync(new List<ParkingLotModel>());
+
+        // Act
+        var result = await _parkingLotService!.GetAllParkingLots();
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetLotListResult.NotFound));
+        _mockParkingLotRepository.Verify(lotRepo => lotRepo.GetAll(), Times.Once);
     }
 
     [TestMethod]
@@ -610,6 +697,22 @@ public sealed class ParkingLotServiceTests
     }
 
     [TestMethod]
+    [DataRow("id", "9999999999")]
+    [DataRow("address", "Error Address")]
+    public async Task ParkingLotExists_RepositoryThrows_ReturnsErrorResult(string checkBy, string value)
+    {
+        // Arrange
+        _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ThrowsAsync(new DbUpdateConcurrencyException("Concurrency conflict"));
+
+        // Act
+        var result = await _parkingLotService!.ParkingLotExists(checkBy, value);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(ParkingLotExistsResult.Error));
+        StringAssert.Contains(((ParkingLotExistsResult.Error)result).Message, "Concurrency conflict");
+    }
+
+    [TestMethod]
     [DataRow(0)]
     [DataRow(5)]
     [DataRow(123)]
@@ -625,55 +728,4 @@ public sealed class ParkingLotServiceTests
         Assert.AreEqual(expectedCount, result);
         _mockParkingLotRepository.Verify(lotRepo => lotRepo.Count(), Times.Once);
     }
-
-    [TestMethod]
-    public async Task CreateParkingLot_RepositoryThrows_ReturnsErrorResult()
-    {
-        // Arrange
-        var createDto = new CreateParkingLotDto { Name="Fail", Address="Fail Address", Capacity=10, Tariff=1, Location="Fail" };
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Exists(It.IsAny<Expression<Func<ParkingLotModel, bool>>>())).ReturnsAsync(false);
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.CreateWithId(It.IsAny<ParkingLotModel>())).ThrowsAsync(new InvalidOperationException("DB Boom!")); // Db exception
-
-        // Act
-        var result = await _parkingLotService!.CreateParkingLot(createDto);
-
-        // Assert
-        Assert.IsInstanceOfType(result, typeof(CreateLotResult.Error));
-        StringAssert.Contains(((CreateLotResult.Error)result).Message, "DB Boom!");
-    }
-
-     [TestMethod]
-     public async Task UpdateParkingLot_RepositoryThrows_ReturnsErrorResult()
-     {
-         // Arrange
-         int id = 1;
-         var updateDto = new UpdateParkingLotDto { Name = "Fail Update" };
-         var existingLot = new ParkingLotModel { Id = id };
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetById<ParkingLotModel>(id)).ReturnsAsync(existingLot);
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Update(It.IsAny<ParkingLotModel>(), It.IsAny<UpdateParkingLotDto>())).ThrowsAsync(new TimeoutException("DB Timeout")); // Db timeout exception
-
-         // Act
-         var result = await _parkingLotService!.UpdateParkingLot(id, updateDto);
-
-         // Assert
-         Assert.IsInstanceOfType(result, typeof(UpdateLotResult.Error));
-         StringAssert.Contains(((UpdateLotResult.Error)result).Message, "DB Timeout");
-     }
-
-     [TestMethod]
-     public async Task DeleteParkingLot_RepositoryThrows_ReturnsErrorResult()
-     {
-         // Arrange
-         int id = 1;
-         var lotToDelete = new ParkingLotModel { Id = id };
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.GetById<ParkingLotModel>(id)).ReturnsAsync(lotToDelete);
-         _mockParkingLotRepository!.Setup(lotRepo => lotRepo.Delete(It.IsAny<ParkingLotModel>())).ThrowsAsync(new DbUpdateConcurrencyException("Concurrency conflict")); // Db concurrency exception
-
-         // Act
-         var result = await _parkingLotService!.DeleteParkingLot(id);
-
-         // Assert
-         Assert.IsInstanceOfType(result, typeof(DeleteLotResult.Error));
-         StringAssert.Contains(((DeleteLotResult.Error)result).Message, "Concurrency conflict");
-     }
 }

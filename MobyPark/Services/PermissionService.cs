@@ -117,7 +117,7 @@ public class PermissionService : IPermissionService
                         return new PermissionExistsResult.InvalidInput("Value must be in 'Resource:Action' format.");
                     string resource = parts[0].Upper();
                     string action = parts[1].Upper();
-                    exists = await _permissions.Exists(p => p.Resource == resource && p.Action == action);
+                    exists = await _permissions.Exists(permission => permission.Resource == resource && permission.Action == action);
                     break;
                 default:
                     return new PermissionExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'resource+action'.");

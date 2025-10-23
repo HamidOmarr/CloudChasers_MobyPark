@@ -56,65 +56,6 @@ public class ParkingLotService : IParkingLotService
         return new GetLotResult.Success(lot);
     }
 
-    public async Task<GetLotResult> GetParkingLotByName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return new GetLotResult.InvalidInput("Name cannot be empty or whitespace.");
-
-        var lot = await _parkingLots.GetByName(name);
-        if (lot is null)
-            return new GetLotResult.NotFound();
-
-        return new GetLotResult.Success(lot);
-    }
-
-    public async Task<GetLotListResult> GetParkingLotsByLocation(string location)
-    {
-        if (string.IsNullOrWhiteSpace(location))
-            return new GetLotListResult.InvalidInput("Location cannot be empty or whitespace.");
-
-        var lots = await _parkingLots.GetByLocation(location);
-
-        if (lots.Count == 0)
-            return new GetLotListResult.NotFound();
-
-        return new GetLotListResult.Success(lots);
-    }
-
-    public async Task<GetLotListResult> GetAllParkingLots()
-    {
-        var lots = await _parkingLots.GetAll();
-
-        if (lots.Count == 0)
-            return new GetLotListResult.NotFound();
-
-        return new GetLotListResult.Success(lots);
-    }
-
-    public async Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue)
-    {
-        if (string.IsNullOrWhiteSpace(filterValue))
-            return new ParkingLotExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
-
-        ParkingLotExistsResult FromBool(bool exists) =>
-            exists ? new ParkingLotExistsResult.Exists() : new ParkingLotExistsResult.NotExists();
-
-        checkBy = checkBy.Lower();
-
-        return checkBy switch
-        {
-            "id" => !long.TryParse(filterValue, out long id)
-                ? new ParkingLotExistsResult.InvalidInput("ID must be a valid long.")
-                : FromBool(await _parkingLots.Exists(lot => lot.Id == id)),
-
-            "address" => FromBool(await _parkingLots.Exists(lot => lot.Address == filterValue)),
-
-            _ => new ParkingLotExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'address'.")
-        };
-    }
-
-    public async Task<int> CountParkingLots() => await _parkingLots.Count();
-
     public async Task<UpdateLotResult> UpdateParkingLot(long id, UpdateParkingLotDto dto)
     {
         var getResult = await GetParkingLotById(id);
@@ -123,7 +64,6 @@ public class ParkingLotService : IParkingLotService
             return getResult switch
             {
                 GetLotResult.NotFound => new UpdateLotResult.NotFound(),
-                GetLotResult.InvalidInput invalid => new UpdateLotResult.InvalidInput(invalid.Message),
                 _ => new UpdateLotResult.Error("Failed to retrieve parking lot for update.")
             };
         }
@@ -161,4 +101,75 @@ public class ParkingLotService : IParkingLotService
         catch (Exception ex)
         { return new DeleteLotResult.Error(ex.Message); }
     }
+
+    public async Task<GetLotResult> GetParkingLotByName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return new GetLotResult.InvalidInput("Name cannot be empty or whitespace.");
+
+        var lot = await _parkingLots.GetByName(name);
+        if (lot is null)
+            return new GetLotResult.NotFound();
+
+        return new GetLotResult.Success(lot);
+    }
+
+    public async Task<GetLotListResult> GetParkingLotsByLocation(string location)
+    {
+        if (string.IsNullOrWhiteSpace(location))
+            return new GetLotListResult.InvalidInput("Location cannot be empty or whitespace.");
+
+        var lots = await _parkingLots.GetByLocation(location);
+
+        if (lots.Count == 0)
+            return new GetLotListResult.NotFound();
+
+        return new GetLotListResult.Success(lots);
+    }
+
+    public async Task<GetLotListResult> GetAllParkingLots()
+    {
+        var lots = await _parkingLots.GetAll();
+
+        if (lots.Count == 0)
+            return new GetLotListResult.NotFound();
+
+        return new GetLotListResult.Success(lots);
+    }
+
+    public async Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue)
+    {
+        string normalizedCheckBy = checkBy.Lower();
+        string trimmedValue = filterValue.TrimSafe();
+
+        if (string.IsNullOrEmpty(trimmedValue))
+            return new ParkingLotExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
+
+        bool exists;
+        try
+        {
+            switch (normalizedCheckBy)
+            {
+                case "id":
+                    if (!long.TryParse(trimmedValue, out long id))
+                        return new ParkingLotExistsResult.InvalidInput("ID must be a valid long integer.");
+
+                    exists = await _parkingLots.Exists(lot => lot.Id == id);
+                    break;
+
+                case "address":
+                    exists = await _parkingLots.Exists(lot => lot.Address == trimmedValue);
+                    break;
+
+                default:
+                    return new ParkingLotExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'address'.");
+            }
+        }
+        catch (Exception ex)
+        { return new ParkingLotExistsResult.Error(ex.Message); }
+
+        return exists ? new ParkingLotExistsResult.Exists() : new ParkingLotExistsResult.NotExists();
+    }
+
+    public async Task<int> CountParkingLots() => await _parkingLots.Count();
 }
