@@ -103,14 +103,16 @@ public class ParkingSessionController : BaseController
         return Ok(session);
     }
 
-    [HttpPost("{lotID}/sessions/{sessionId}/stop")]
-    public async Task<IActionResult> StopSession(int lotID, [FromBody] PaymentValidationRequest paymentValidationRequest, [FromBody] StopSessionRequest stopSessionRequest)
+    [HttpPost("{lotID}/sessions/stop")]
+    public async Task<IActionResult> StopSession(int lotID, [FromBody] StopSessionRequest request)
     {
         var user = GetCurrentUser();
-        var payment = await _services.Payments.GetPaymentsByUser(user.Username);
-        var validatedPayment = await _services.Payments.ValidatePayment(payment.Last().TransactionId, paymentValidationRequest.Validation, paymentValidationRequest.TransactionData);
-        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(lotID, stopSessionRequest);
-        decimal TotalPaymentAmount = await _services.Payments.GetTotalAmountForTransaction(validatedPayment.TransactionId);
+
+        // 1. Haal sessie op en valideer
+        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(
+            lotID,
+            new StopSessionRequest { LicensePlate = request.LicensePlate }
+        );
 
         if (session.ParkingLotId != lotID)
             return NotFound(new { error = "Session not found" });
@@ -121,24 +123,39 @@ public class ParkingSessionController : BaseController
         if (session.Stopped is not null)
             return BadRequest(new { error = "Session already stopped" });
 
-        if (payment.Count == 0)
+        // 2. Valideer betaling
+        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
+        if (payments.Count == 0)
             return BadRequest(new { error = "No payment found for this user" });
 
-        if (!paymentValidationRequest.Confirmed)
+        var lastPayment = payments.Last();
+        if (lastPayment.Amount == 0)
+            return BadRequest(new { error = "No payment required for this session" });
+
+        if (!request.PaymentValidation.Confirmed)
             return BadRequest(new { error = "Payment not confirmed. Restart process." });
 
-        if (payment.Last().Amount == 0)
-        {
-            return BadRequest(new { error = "No payment required for this session" });
-        }
+        var validatedPayment = await _services.Payments.ValidatePayment(
+            lastPayment.TransactionId,
+            request.PaymentValidation.Validation,
+            request.PaymentValidation.TransactionData
+        );
+
         if (validatedPayment is null)
             return BadRequest(new { error = "Payment validation failed" });
 
-
+        // 3. Stop de sessie en bereken totaalbedrag
+        var totalAmount = await _services.Payments.GetTotalAmountForTransaction(validatedPayment.TransactionId);
 
         session.Stopped = DateTime.UtcNow;
         await _services.ParkingSessions.UpdateParkingSession(session);
-        return Ok(new { status = "Stopped", session, totalAmount = TotalPaymentAmount });
+
+        return Ok(new
+        {
+            status = "Stopped",
+            session,
+            totalAmount
+        });
     }
 
 
