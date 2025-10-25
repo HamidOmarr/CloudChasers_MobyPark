@@ -2,6 +2,7 @@ using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.DataService;
 using MobyPark.Services;
+using MobyPark.Services.Results.ParkingLot;
 using Moq;
 
 namespace MobyPark.Tests;
@@ -11,6 +12,7 @@ public sealed class ParkingLotServiceTests
 {
     private Mock<IDataAccess>? _mockDataService;
     private Mock<IParkingLotAccess>? _mockParkingLotAccess;
+    private Mock<SessionService>? _mockSessions;
     private ParkingLotService? _parkingLotService;
 
     [TestInitialize]
@@ -18,10 +20,11 @@ public sealed class ParkingLotServiceTests
     {
         _mockDataService = new Mock<IDataAccess>();
         _mockParkingLotAccess = new Mock<IParkingLotAccess>();
+        _mockSessions = new Mock<SessionService>();
 
         _mockDataService.Setup(access => access.ParkingLots).Returns(_mockParkingLotAccess.Object);
 
-        _parkingLotService = new ParkingLotService(_mockDataService.Object);
+        _parkingLotService = new ParkingLotService(_mockDataService.Object, _mockSessions.Object);
     }
 
     [TestMethod]
@@ -120,10 +123,10 @@ public sealed class ParkingLotServiceTests
         };
 
         // Act
-        var result = await _parkingLotService!.UpdateParkingLot(lot);
+        var result = await _parkingLotService!.UpdateParkingLotByIDAsync(lot, lot.Id);
 
         // Assert
-        Assert.IsTrue(result);
+        Assert.AreEqual(result, new RegisterResult.Success(lot));
 
         _mockParkingLotAccess.Verify(access => access.Update(It.Is<ParkingLotModel>(parkingLot =>
             parkingLot.Id == id &&
@@ -168,12 +171,10 @@ public sealed class ParkingLotServiceTests
             .ReturnsAsync(true);
 
         // Act
-        var result = await _parkingLotService!.CreateParkingLot(lot);
+        var result = await _parkingLotService!.InsertParkingLotAsync(lot);
 
         // Assert
         Assert.IsNotNull(result);
-        Assert.AreEqual(name, result.Name);
-        Assert.AreEqual(location, result.Location);
         _mockParkingLotAccess.Verify(access => access.CreateWithId(It.Is<ParkingLotModel>(pl =>
             pl.Name == name &&
             pl.Location == location &&
@@ -204,7 +205,7 @@ public sealed class ParkingLotServiceTests
 
         // Act & Assert
         await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
-            await _parkingLotService!.CreateParkingLot(lot));
+            await _parkingLotService!.InsertParkingLotAsync(lot));
 
         _mockParkingLotAccess!.Verify(access => access.Create(It.IsAny<ParkingLotModel>()), Times.Never);
     }
@@ -232,7 +233,7 @@ public sealed class ParkingLotServiceTests
 
         // Act & Assert
         await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(async () =>
-            await _parkingLotService!.CreateParkingLot(lot));
+            await _parkingLotService!.InsertParkingLotAsync(lot));
 
         _mockParkingLotAccess!.Verify(access => access.Create(It.IsAny<ParkingLotModel>()), Times.Never);
     }
@@ -263,10 +264,10 @@ public sealed class ParkingLotServiceTests
             .ReturnsAsync(true);
 
         // Act
-        bool result = await _parkingLotService!.DeleteParkingLot(id);
+        RegisterResult result = await _parkingLotService!.DeleteParkingLotByIDAsync(id);
 
         // Assert
-        Assert.IsTrue(result);
+        Assert.AreEqual(result, new RegisterResult.SuccessfullyDeleted());
         _mockParkingLotAccess.Verify(access => access.Delete(id), Times.Once);
     }
 
@@ -282,32 +283,9 @@ public sealed class ParkingLotServiceTests
 
         // Act & Assert
         await Assert.ThrowsExceptionAsync<KeyNotFoundException>(async () =>
-            await _parkingLotService!.DeleteParkingLot(id));
+            await _parkingLotService!.DeleteParkingLotByIDAsync(id));
 
         _mockParkingLotAccess.Verify(access => access.Delete(It.IsAny<int>()), Times.Never);
     }
-
-    [TestMethod]
-    public async Task GetAllParkingLots_ReturnsAllLots()
-    {
-        // Arrange
-        var lots = new List<ParkingLotModel>
-        {
-            new() { Id = 1, Name = "Lot A", Location = "City A", Address = "Street 1", Capacity = 100, Tariff = 2, DayTariff = 10 },
-            new() { Id = 2, Name = "Lot B", Location = "City B", Address = "Street 2", Capacity = 200, Tariff = 3, DayTariff = 12 }
-        };
-
-        _mockParkingLotAccess!
-            .Setup(access => access.GetAll())
-            .ReturnsAsync(lots);
-
-        // Act
-        List<ParkingLotModel> result = await _parkingLotService!.GetAllParkingLots();
-
-        // Assert
-        Assert.AreEqual(2, result.Count);
-        Assert.AreEqual("Lot A", result[0].Name);
-        Assert.AreEqual("Lot B", result[1].Name);
-        _mockParkingLotAccess.Verify(access => access.GetAll(), Times.Once);
-    }
+    
 }

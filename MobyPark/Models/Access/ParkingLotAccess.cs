@@ -143,4 +143,5 @@ public class ParkingLotAccess : Repository<ParkingLotModel>, IParkingLotAccess
         var affected = await Connection.ExecuteNonQuery(query, parameters);
         return affected > 0;
     }
+    
 }

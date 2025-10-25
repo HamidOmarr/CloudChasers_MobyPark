@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using MobyPark.Models;
 using MobyPark.Models.Access;
 using MobyPark.Models.DataService;
@@ -15,8 +16,10 @@ public sealed class UserServiceTests
     private Mock<IDataAccess>? _mockDataService;
     private Mock<IUserAccess>? _mockUserAccess;
     private Mock<SessionService>? _mockSessions;
+    private Mock<IConfiguration> _mockConfig;
     private UserService? _userService;
     private IPasswordHasher<UserModel>? _hasher;
+    
 
 
     [TestInitialize]
@@ -26,8 +29,9 @@ public sealed class UserServiceTests
         _mockUserAccess = new Mock<IUserAccess>();
         _hasher = new PasswordHasher<UserModel>();
         _mockSessions = new Mock<SessionService>();
+        _mockConfig = new Mock<IConfiguration>();
         _mockDataService.Setup(ds => ds.Users).Returns(_mockUserAccess.Object);
-        _userService = new UserService(_mockDataService.Object, _hasher, _mockSessions.Object);
+        _userService = new UserService(_mockConfig.Object, _mockDataService.Object, _hasher, _mockSessions.Object);
     }
 
     [TestMethod]
