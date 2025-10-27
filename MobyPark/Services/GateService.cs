@@ -1,9 +1,11 @@
+using MobyPark.Services.Interfaces;
+
 namespace MobyPark.Services;
 
-public class GateService
+public class GateService : IGateService
 {
-    // placeholder
-    public virtual Task<bool> OpenGateAsync(int parkingLotId, string licensePlate)
+    // Placeholder. When integrated with actual gate hardware, implement here and add tests.
+    public Task<bool> OpenGateAsync(long parkingLotId, string licensePlate)
     {
         return Task.FromResult(true);
     }

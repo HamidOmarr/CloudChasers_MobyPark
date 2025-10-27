@@ -5,6 +5,7 @@ namespace MobyPark.Tests;
 [TestClass]
 public sealed class SystemServiceTests
 {
+    #region GenerateGuid
     [TestMethod]
     [DataRow("test")]
     [DataRow("hello world")]
@@ -49,4 +50,6 @@ public sealed class SystemServiceTests
         Assert.AreNotEqual(Guid.Empty, guid);
         Assert.IsTrue(Guid.TryParse(guid.ToString(), out _));
     }
+
+    #endregion
 }

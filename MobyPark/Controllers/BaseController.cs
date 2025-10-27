@@ -1,37 +1,39 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
-using MobyPark.Services;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.User;
 
-namespace MobyPark.Controllers
+namespace MobyPark.Controllers;
+
+[ApiController]
+public abstract class BaseController : ControllerBase
 {
-    [ApiController]
-    public abstract class BaseController : ControllerBase
+    protected readonly IUserService UserService;
+
+    protected BaseController(IUserService users)
     {
-        protected readonly SessionService SessionService;
+        UserService = users;
+    }
 
-        protected BaseController(SessionService sessionService)
-        {
-            SessionService = sessionService;
-        }
+    protected long GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
 
-        protected UserModel GetCurrentUser()
-        {
-            if (!Request.Headers.TryGetValue("Authorization", out var token))
-                UnauthorizedResponse();
+        if (userIdClaim is null || !long.TryParse(userIdClaim.Value, out long userId))
+            throw new InvalidOperationException("User ID claim is missing or invalid in the token.");
 
-            var user = SessionService.GetSession(token);
-            if (user == null)
-                UnauthorizedResponse();
+        return userId;
+    }
 
-            return user;
-        }
+    protected async Task<UserModel> GetCurrentUserAsync()
+    {
+        var userId = GetCurrentUserId();
+        var userResult = await UserService.GetUserById(userId);
 
-        private void UnauthorizedResponse()
-        {
-            Response.StatusCode = 401;
-            Response.ContentType = "application/json";
-            Response.WriteAsync("{\"error\": \"Invalid or missing session token\"}").Wait();
-            throw new Exception("Unauthorized"); // Stop further execution
-        }
+        if (userResult is not GetUserResult.Success success)
+            throw new UnauthorizedAccessException("Authenticated user record not found.");
+
+        return success.User;
     }
 }

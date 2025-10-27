@@ -1,0 +1,61 @@
+services:
+  mobypark-db:
+    image: postgres:18
+    container_name: mobypark_db
+    restart: always
+    environment:
+      POSTGRES_USER: MobyParkAdmin
+      POSTGRES_PASSWORD: MobyParkCloudChasers
+      POSTGRES_DB: mobypark
+    ports:
+      - "5432:5432"
+    networks:
+      - mobypark-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark" ]
+      interval: 5s
+      retries: 10
+
+  mobypark_db_restore:
+    image: postgres:18
+    depends_on:
+      - mobypark-db
+    volumes:
+      - ./mobypark.dump:/mobypark.dump:ro
+    entrypoint: >
+      bash -c "
+        until pg_isready -h mobypark-db -U MobyParkAdmin; do
+          echo 'Waiting for database...';
+          sleep 2;
+        done &&
+        echo 'Dropping database...' &&
+        PGPASSWORD=MobyParkCloudChasers dropdb -h mobypark-db -U MobyParkAdmin --if-exists mobypark &&
+        echo 'Creating database...' &&
+        PGPASSWORD=MobyParkCloudChasers createdb -h mobypark-db -U MobyParkAdmin mobypark &&
+        echo 'Restoring dump...' &&
+        PGPASSWORD=MobyParkCloudChasers pg_restore -h mobypark-db -U MobyParkAdmin -d mobypark -v /mobypark.dump &&
+        echo 'Restore complete.'
+      "
+    networks:
+      - mobypark-net
+
+  mobypark-api:
+    build:
+      context: .
+      dockerfile: MobyPark/Dockerfile
+    container_name: mobypark_api
+    environment:
+      ConnectionStrings__PostgresConnection: "Host=mobypark-db;Port=5432;Database=mobypark;Username=MobyParkAdmin;Password=MobyParkCloudChasers;Timezone=Europe/Amsterdam"
+    ports:
+      - "5001:8080"
+    depends_on:
+      mobypark-db:
+        condition: service_healthy
+#    depends_on:
+#      - mobypark-db
+    networks:
+      - mobypark-net
+
+networks:
+  mobypark-net:
+    driver: bridge

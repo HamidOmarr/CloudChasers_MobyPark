@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models;
-using MobyPark.Services.Services;
+using MobyPark.DTOs.ParkingLot.Request;
+using MobyPark.Services;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.ParkingLot;
 
 namespace MobyPark.Controllers;
 
@@ -8,94 +11,108 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingLotsController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly IParkingLotService _parkingLots;
+    private readonly IAuthorizationService _authorizationService;
 
-    public ParkingLotsController(ServiceStack services) : base(services.Sessions)
+    public ParkingLotsController(UserService users, IParkingLotService parkingLots, IAuthorizationService authorizationService) : base(users)
     {
-        _services = services;
+        _parkingLots = parkingLots;
+        _authorizationService = authorizationService;
     }
 
-    // ADMIN ONLY
-
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ParkingLotModel lot)
+    public async Task<IActionResult> Create([FromBody] CreateParkingLotDto dto)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        lot.CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow);
-        await _services.ParkingLots.CreateParkingLot(lot);
-        return StatusCode(201, new { message = "Parking lot created" });
-    }
-
-    [HttpPut("{lotId}")]
-    public async Task<IActionResult> Update(int lotId, [FromBody] ParkingLotModel lot)
-    {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var existingLot = await _services.ParkingLots.GetParkingLotById(lotId);
-        if (existingLot is null) return NotFound(new { error = "Parking lot not found" });
-
-        var newLot = new ParkingLotModel
+        var result = await _parkingLots.CreateParkingLot(dto);
+        return result switch
         {
-            Id = lotId,
-            Name = lot.Name ?? existingLot.Name,
-            Location = lot.Location ?? existingLot.Location,
-            Address = lot.Address ?? existingLot.Address,
-            Capacity = lot.Capacity != 0 ? lot.Capacity : existingLot.Capacity,
-            Reserved = existingLot.Reserved,
-            Tariff = lot.Tariff != 0 ? lot.Tariff : existingLot.Tariff,
-            DayTariff = lot.DayTariff ?? existingLot.DayTariff,
-            CreatedAt = existingLot.CreatedAt,
-            Coordinates = new CoordinatesModel
-            {
-                Lat = lot.Coordinates.Lat != 0 ? lot.Coordinates.Lat : existingLot.Coordinates.Lat,
-                Lng = lot.Coordinates.Lng != 0 ? lot.Coordinates.Lng : existingLot.Coordinates.Lng
-            }
+            CreateLotResult.Success s => StatusCode(201, s.Lot),
+            CreateLotResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
-
-        await _services.ParkingLots.UpdateParkingLot(newLot);
-
-        return Ok(new { message = "Parking lot modified" });
     }
 
+    [Authorize(Policy = "CanManageParkingLots")]
+    [HttpPut("{lotId}")]
+    public async Task<IActionResult> Update(int lotId, [FromBody] UpdateParkingLotDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var getResult = await _parkingLots.GetParkingLotById(lotId);
+        if (getResult is not GetLotResult.Success success)
+        {
+            return getResult switch
+            {
+                GetLotResult.NotFound => NotFound(new { error = "Parking lot not found" }),
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to retrieve lot" })
+            };
+        }
+
+        var existingLot = success.Lot;
+
+        var updateResult = await _parkingLots.UpdateParkingLot(existingLot.Id, dto);
+        return updateResult switch
+        {
+            UpdateLotResult.Success updated => Ok(updated.Lot),
+            UpdateLotResult.NotFound => NotFound(new { error = "Parking lot not found (Concurrency issue)." }),
+            UpdateLotResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown update error occurred." })
+        };
+    }
+
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpDelete("{lotId}")]
     public async Task<IActionResult> Delete(int lotId)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
-
-        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
-        if (lot is null) return NotFound(new { error = "Parking lot not found" });
-
-        await _services.ParkingLots.DeleteParkingLot(lotId);
-        return Ok(new { status = "Deleted" });
+        var result = await _parkingLots.DeleteParkingLot(lotId);
+        return result switch
+        {
+            DeleteLotResult.Success => Ok(new { status = "Deleted" }),
+            DeleteLotResult.NotFound => NotFound(new { error = "Parking lot not found" }),
+            DeleteLotResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown delete error occurred." })
+        };
     }
 
+    [Authorize(Policy = "CanManageParkingLots")]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
+        var result = await _parkingLots.GetAllParkingLots();
 
-        var lots = await _services.ParkingLots.GetAllParkingLots();
-        return Ok(lots);
+        return result switch
+        {
+            GetLotListResult.Success s => Ok(s.Lots),
+            GetLotListResult.NotFound => NotFound(new { error = "No parking lots found" }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
     }
 
-    // ADMIN + USER
-
+    [Authorize(Policy = "CanReadParkingLots")]
     [HttpGet("{lotId}")]
     public async Task<IActionResult> GetById(int lotId)
     {
-        var user = GetCurrentUser();
-        var lot = await _services.ParkingLots.GetParkingLotById(lotId);
-        if (lot is null) return NotFound(new { error = "Parking lot not found" });
+        var result = await _parkingLots.GetParkingLotById(lotId);
 
-        // Admins get all data, users get filtered data
-        if (user.Role == "ADMIN") return Ok(lot);
+        if (result is not GetLotResult.Success success)
+        {
+            return result switch
+            {
+                GetLotResult.NotFound => NotFound(new { error = "Parking lot not found" }),
+                GetLotResult.InvalidInput e => BadRequest(new { error = e.Message }),
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+            };
+        }
 
-        int spotsAvailable = lot.Capacity - lot.Reserved;
+        var lot = success.Lot;
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingLots");
+
+        if (authorizationResult.Succeeded)
+            return Ok(lot);
+
         return Ok(new
         {
             lot.Name,
@@ -103,8 +120,7 @@ public class ParkingLotsController : BaseController
             lot.Address,
             lot.Tariff,
             lot.DayTariff,
-            spotsAvailable
+            spotsAvailable = lot.AvailableSpots
         });
-
     }
 }
