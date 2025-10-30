@@ -1,41 +1,49 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
+using System.Security.Claims;
+using System.Text;
 using MobyPark.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Session;
 
 namespace MobyPark.Services;
 
-public class SessionService
+public class SessionService : ISessionService
 {
-    private readonly ConcurrentDictionary<string, UserModel> _sessions = new();
-    
-    public string CreateSession(UserModel user)
+    private readonly IConfiguration _config;
+
+    public SessionService(IConfiguration config)
     {
-        var token = GenerateToken();
-        _sessions[token] = user;
-        return token;
+        _config = config;
     }
 
-    public void AddSession(string token, UserModel user)
+    public CreateJwtResult CreateSession(UserModel user)
     {
-        _sessions[token] = user;
-    }
+        string? secretKey = _config["Jwt:Key"];
+        string issuer = _config["Jwt:Issuer"] ?? "MobyParkAPI";
+        string audience = _config["Jwt:Audience"] ?? "MobyParkUsers";
 
-    public UserModel? RemoveSession(string token)
-    {
-        _sessions.TryRemove(token, out var user);
-        return user;
-    }
+        if (string.IsNullOrEmpty(secretKey))
+            return new CreateJwtResult.ConfigError("JWT secret key is not configured.");
 
-    public UserModel? GetSession(string token)
-    {
-        _sessions.TryGetValue(token, out var user);
-        return user;
-    }
-    
-    private static string GenerateToken()
-    {
-        Span<byte> bytes = stackalloc byte[32]; // 256-bit
-        RandomNumberGenerator.Fill(bytes);
-        return Convert.ToHexString(bytes); // 64 hex chars
+        var claims = new List<Claim>
+        {
+            new (ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new (ClaimTypes.Name, user.Username),
+            new (ClaimTypes.Email, user.Email),
+            new (ClaimTypes.Role, user.Role.Name)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+
+        return new CreateJwtResult.Success(new JwtSecurityTokenHandler().WriteToken(token));
     }
 }

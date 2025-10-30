@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models.Responses.User;
-using MobyPark.Models.Requests.User;
+using MobyPark.DTOs.User.Request;
+using MobyPark.DTOs.User.Response;
+using MobyPark.Models;
 using MobyPark.Services;
+using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
-using MobyPark.Services.Services;
 
 namespace MobyPark.Controllers;
 
@@ -12,128 +13,259 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly UserService _userService;
+    private readonly SessionService _sessionService;
 
-    public UsersController(ServiceStack services) : base(services.Sessions)
+    public UsersController(UserService users, SessionService sessions) : base(users)
     {
-        _userService = services.Users;
+        _sessionService = sessions;
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _userService.CreateUserAsync(request);
+        var result = await UserService.CreateUserAsync(dto);
+
         return result switch
         {
-            RegisterResult.Success s => CreatedAtAction(
-                nameof(GetUser),
-                new { id = s.User.Id },
-                new AuthResponse
-                {
-                    UserId = s.User.Id,
-                    Username = s.User.Username,
-                    Email = s.User.Email,
-                    Token = SessionService.CreateSession(s.User)
-                }),
+            RegisterResult.Success success => HandleRegistrationSuccess(success.User),
             RegisterResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
-            RegisterResult.InvalidData e => BadRequest(new { error = e.Message }),
-            RegisterResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "Unknown result" })
+            RegisterResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            RegisterResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unknown result" })
         };
+
+        IActionResult HandleRegistrationSuccess(UserModel user)
+        {
+            var tokenResult = _sessionService.CreateSession(user);
+
+            if (tokenResult is not CreateJwtResult.Success tokenSuccess)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Server configuration error generating token." });
+            }
+
+            return CreatedAtAction(
+                nameof(GetUser),
+                new { id = user.Id },
+                new AuthDto
+                {
+                    UserId = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    Token = tokenSuccess.JwtToken
+                });
+        }
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _userService.LoginAsync(request);
+        var result = await UserService.Login(dto);
 
         return result switch
         {
             LoginResult.Success s => Ok(s.Response),
-            LoginResult.InvalidCredentials => Unauthorized(new { error = "Invalid credentials" }),
-            LoginResult.Error e => BadRequest(new { error = e.Message }),
-            _ => StatusCode(500, new { error = "Unexpected error" })
+            LoginResult.InvalidCredentials or LoginResult.Error => Unauthorized(new { error = "Invalid credentials" }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
         };
     }
 
     [Authorize]
     [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserDto dto)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _userService.UpdateUserProfileAsync(user, request);
+        var user = await GetCurrentUserAsync();
+
+        var result = await UserService.UpdateUserProfile(user.Id, dto);
 
         return result switch
         {
-            UpdateProfileResult.Success s => Ok(new { message = "User updated successfully", user = s.User }),
-            UpdateProfileResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
-            UpdateProfileResult.InvalidData e => BadRequest(new { error = e.Message }),
-            UpdateProfileResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "Unexpected error" })
+            UpdateUserResult.Success success => Ok(new { message = "User updated successfully", user = success.User }),
+            UpdateUserResult.NoChangesMade => Ok(new { message = "No changes made to the user profile" }),
+            UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+            UpdateUserResult.UsernameTaken => Conflict(new { error = "Username already taken" }),
+            UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
         };
     }
 
     [Authorize]
     [HttpGet("profile")]
-    public IActionResult GetProfile()
+    public async Task<IActionResult> GetProfile()
     {
-        var user = GetCurrentUser();
-        return Ok( new UserProfileResponse
+        var user = await GetCurrentUserAsync();
+
+        return Ok( new UserProfileDto
         {
             Id = user.Id,
             Username = user.Username,
-            Name = user.Name,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Email = user.Email,
             Phone = user.Phone,
-            BirthYear = user.BirthYear
+            Birthday = user.Birthday
         });
     }
 
-    [Authorize]
+    [Authorize(Policy = "CanReadUsers")]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUser(int id)
     {
-        var user = await _userService.GetUserById(id);
-        if (user is null || user.Active == false) return NotFound();
+        var result = await UserService.GetUserById(id);
+        if (result is not GetUserResult.Success success)
+        {
+            return result switch
+            {
+                GetUserResult.NotFound => NotFound(new { error = "User not found" }),
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
+            };
+        }
 
-        return Ok(new { user.Id, user.Username, user.Name });
+        var user = success.User;
+        return Ok(new { user.Id, user.Username, user.FirstName, user.LastName });
     }
 
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Policy = "CanReadUsers")]
     [HttpGet("admin/users/{id:int}")]
     public async Task<IActionResult> GetUserAdmin(int id)
     {
-        var user = await _userService.GetUserById(id);
-        if (user is null || user.Active == false) return NotFound();
+        var result = await UserService.GetUserById(id);
+        if (result is not GetUserResult.Success success)
+        {
+            return result switch
+            {
+                GetUserResult.NotFound => NotFound(new { error = "User not found" }),
+                _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error" })
+            };
+        }
 
-        return Ok(new AdminUserProfileResponse
+        var user = success.User;
+        return Ok(new AdminUserProfileDto
         {
             Id = user.Id,
             Username = user.Username,
-            Name = user.Name,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Email = user.Email,
             Phone = user.Phone,
-            BirthYear = user.BirthYear,
-            Role = user.Role,
-            Active = user.Active,
+            Birthday = user.Birthday,
+            Role = user.Role.Name,
             CreatedAt = user.CreatedAt
         });
+    }
+
+    [Authorize(Policy = "CanManageUsers")]
+    [HttpPut("admin/users/{id:long}/identity")]
+    public async Task<IActionResult> UpdateUserIdentity(long id, [FromBody] UpdateUserIdentityDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await UserService.UpdateUserIdentity(id, dto);
+
+        return result switch
+        {
+             UpdateUserResult.Success success => Ok(new { message = "User identity updated successfully",
+                 user = new AdminUserProfileDto
+                 {
+                     Id = success.User.Id,
+                     Username = success.User.Username,
+                     FirstName = success.User.FirstName,
+                     LastName = success.User.LastName,
+                     Email = success.User.Email,
+                     Phone = success.User.Phone,
+                     Birthday = success.User.Birthday,
+                     Role = success.User.Role.Name,
+                     CreatedAt = success.User.CreatedAt
+                 } }),
+             UpdateUserResult.NoChangesMade => Ok(new { message = "No identity changes applied to the user." }),
+             UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+             UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+             UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user identity." })
+        };
+    }
+
+    [Authorize(Policy = "CanManageUsers")]
+    [HttpPut("admin/users/{id:long}/role")]
+    public async Task<IActionResult> UpdateUserRole(long id, [FromBody] UpdateUserRoleDto dto)
+    {
+         if (!ModelState.IsValid) return BadRequest(ModelState);
+
+         var result = await UserService.UpdateUserRole(id, dto);
+         return result switch
+         {
+              UpdateUserResult.Success success => Ok(new { message = "User role updated successfully",
+                  user = new AdminUserProfileDto
+                  {
+                      Id = success.User.Id,
+                      Username = success.User.Username,
+                      FirstName = success.User.FirstName,
+                      LastName = success.User.LastName,
+                      Email = success.User.Email,
+                      Phone = success.User.Phone,
+                      Birthday = success.User.Birthday,
+                      Role = success.User.Role.Name,
+                      CreatedAt = success.User.CreatedAt
+                  } }),
+              UpdateUserResult.NoChangesMade => Ok(new { message = "User already has the specified role." }),
+              UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+              UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+              UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+              _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user role." })
+         };
+    }
+
+    [Authorize(Policy="CanManageUsers")]
+    [HttpDelete("admin/users/{id:long}")]
+    public async Task<IActionResult> DeleteUser(long id)
+    {
+        var result = await UserService.DeleteUser(id);
+
+        return result switch {
+            DeleteUserResult.Success => Ok(new { status = "Deleted" }),
+            DeleteUserResult.NotFound => NotFound(new { error = "User not found" }),
+            DeleteUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error during deletion." })
+        };
+    }
+
+    [Authorize(Policy="CanReadUsers")]
+    [HttpGet("admin/users")]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var result = await UserService.GetAllUsers();
+
+        return result switch {
+            GetUserListResult.Success success => Ok(success.Users.Select(
+                user => new AdminUserProfileDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    Phone = user.Phone,
+                    Birthday = user.Birthday,
+                    Role = user.Role.Name,
+                    CreatedAt = user.CreatedAt
+                }
+            )),
+            GetUserListResult.NotFound => NotFound(new { error = "No users found." }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error retrieving users." })
+        };
     }
 
     [Authorize]
     [HttpGet("logout")]
     public IActionResult Logout()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var token))
-            return BadRequest(new { error = "Invalid session token" });
-
-        SessionService.RemoveSession(token);
-        return Ok(new { message = "User logged out" });
+        return NoContent();
     }
 }

@@ -1,24 +1,31 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
+using MobyPark.DTOs.User.Request;
+using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
-using MobyPark.Models.Responses.User;
-using MobyPark.Models.DataService;
-using MobyPark.Models.Requests.User;
+using MobyPark.Models.Repositories;
+using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public partial class UserService
+public partial class UserService : IUserService
 {
-    private readonly IDataAccess _dataAccess;
+    private readonly IUserRepository _users;
+    private readonly IUserPlateRepository _userPlates;
+    private readonly IParkingSessionRepository _parkingSessions;
+    private readonly IRoleRepository _roles;
     private readonly IPasswordHasher<UserModel> _hasher;
-    private readonly SessionService _sessions;
+    private readonly ISessionService _sessions;
 
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
     private const string PhonePattern = @"^\+?[0-9]+$";
-    private const string PhoneDigitPattern = @"^0\d{9}$";
+    private const string PhoneDigitPattern = @"^\d{10}$";
     private const string EmailPattern = @"^(?!\.)(?!.*\.\.)[A-Za-z0-9._%+-]+(?<!\.)@(?:(?:xn--)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$";
 
     [GeneratedRegex(PasswordPattern)]
@@ -32,206 +39,415 @@ public partial class UserService
     [GeneratedRegex(EmailPattern)]
     private static partial Regex EmailRegex();
 
-    public UserService(IDataAccess dataAccess, IPasswordHasher<UserModel> hasher, SessionService sessions)
+    public UserService(
+        IUserRepository users,
+        IUserPlateRepository userPlates,
+        IParkingSessionRepository parkingSessions,
+        IRoleRepository roles,
+        IPasswordHasher<UserModel> hasher,
+        ISessionService sessions)
     {
-        _dataAccess = dataAccess;
+        _users = users;
+        _userPlates = userPlates;
+        _parkingSessions = parkingSessions;
+        _roles = roles;
         _hasher = hasher;
         _sessions = sessions;
     }
 
-    // Generic CRUD operations
-    private async Task<(bool success, UserModel user)> CreateUser(UserModel user)
+    private async Task<UserModel> CreateUser(UserModel user)
     {
-        (bool success, int id) = await _dataAccess.Users.CreateWithId(user);
-        if (!success)
-            throw new InvalidOperationException("Failed to insert user into database.");
+        (bool createdSuccessfully, long id) = await _users.CreateWithId(user);
+        if (!createdSuccessfully) throw new InvalidOperationException("Database insertion failed unexpectedly.");
 
         user.Id = id;
-        return (success, user);
-    }
-
-    public async Task<UserModel?> GetUserByUsername(string username) =>  await _dataAccess.Users.GetByUsername(username);
-
-    public async Task<UserModel?> GetUserByEmail(string email) => await _dataAccess.Users.GetByEmail(email);
-
-    public async Task<UserModel?> GetUserById(int id) => await _dataAccess.Users.GetById(id);
-
-    public async Task<List<UserModel>> GetAllUsers() => await _dataAccess.Users.GetAll();
-
-    public async Task<int> CountUsers() => await _dataAccess.Users.Count();
-
-    public async Task<UserModel> UpdateUser(UserModel user)
-    {
-        /*
-         TODO:
-         Consider adding validation here, to ensure data integrity.
-         I.e.: Use the same checks as in CreateUserAsync, but allow null/empty for fields that are not being updated, and set them to the existing values when building the updated user object.
-         For now, we assume the caller has already validated the user object, but is risky.
-         Alternatively, make this method private and only allow updates through specialised methods (like UpdateEmail, UpdatePassword, etc).
-        */
-
-        ArgumentNullException.ThrowIfNull(user);
-        await _dataAccess.Users.Update(user);
         return user;
     }
 
-    public async Task<bool> DeleteUser(int id)
+    public async Task<GetUserResult> GetUserByUsername(string username)
     {
-        var user = await GetUserById(id);
-        if (user is null) throw new KeyNotFoundException("User not found");
-
-        bool success = await _dataAccess.Users.Delete(id);
-        return success;
+        var user = await _users.GetByUsername(username);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
     }
 
-    // Direct methods
-    public async Task<RegisterResult> CreateUserAsync(RegisterRequest request)
+    public async Task<GetUserResult> GetUserByEmail(string email)
     {
-        if (await GetUserByUsername(request.Username) is not null)
+        var user = await _users.GetByEmail(email);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
+    }
+
+    public async Task<GetUserResult> GetUserById(long userId)
+    {
+        var user = await _users.GetById<UserModel>(userId);
+        if (user is null)
+            return new GetUserResult.NotFound();
+        return new GetUserResult.Success(user);
+    }
+
+    public async Task<GetUserListResult> GetAllUsers()
+    {
+        var users = await _users.GetAll();
+        if (users.Count == 0)
+            return new GetUserListResult.NotFound();
+        return new GetUserListResult.Success(users);
+    }
+
+    public async Task<int> CountUsers() => await _users.Count();
+
+    private async Task<UpdateUserResult> UpdateUser(UserModel user)
+    {
+        var getResult = await GetUserById(user.Id);
+
+        if (getResult is not GetUserResult.Success success)
+            return getResult switch
+            {
+                GetUserResult.NotFound => new UpdateUserResult.NotFound(),
+                _ => new UpdateUserResult.Error("Unknown error occurred while retrieving the user.")
+            };
+
+        try
+        {
+            var existingUser = success.User;
+
+            bool updated = await _users.Update(existingUser, user);
+            if (!updated)
+                return new UpdateUserResult.Error("Database update failed.");
+            return new UpdateUserResult.Success(existingUser);
+        }
+        catch (Exception ex)
+        { return new UpdateUserResult.Error(ex.Message); }
+    }
+
+    public async Task<DeleteUserResult> DeleteUser(long id)
+    {
+        var userResult = await GetUserById(id);
+        if (userResult is GetUserResult.NotFound)
+            return new DeleteUserResult.NotFound();
+
+        var user = ((GetUserResult.Success)userResult).User;
+
+        try
+        {
+            if (!await _users.Delete(user))
+                return new DeleteUserResult.Error("Database deletion failed.");
+
+            return new DeleteUserResult.Success();
+        }
+        catch (Exception ex)
+        { return new DeleteUserResult.Error(ex.Message); }
+    }
+
+    public async Task<RegisterResult> CreateUserAsync(RegisterDto dto)
+    {
+        var userResult = await GetUserByUsername(dto.Username);
+        if (userResult is GetUserResult.Success)
             return new RegisterResult.UsernameTaken();
 
-        // check name
-        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password) ||
-            string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Phone) || request.Birthday.Year < 1900 ||
-            request.Birthday.Year > DateTime.Now.Year)
-            return new RegisterResult.InvalidData("Missing required fields");
+        var emailResult = CleanEmail(dto.Email, out var cleanEmail);
+        if (emailResult is RegisterResult.InvalidData invalidEmail)
+            return invalidEmail;
+        var phoneResult = CleanPhone(dto.Phone, out var cleanPhone);
+        if (phoneResult is RegisterResult.InvalidData invalidPhone)
+            return invalidPhone;
 
-        string cleanEmail;
-        string cleanPhone;
-
-        try
-        { cleanEmail = CleanEmail(request.Email); }
-        catch (Exception e)
-        { return new RegisterResult.InvalidData($"Invalid email: {e.Message}"); }
-        try
-        { cleanPhone = CleanPhone(request.Phone); }
-        catch (Exception e)
-        { return new RegisterResult.InvalidData($"Invalid phone number: {e.Message}"); }
-
-
-        if (!PasswordRegex().IsMatch(request.Password))
+        if (!PasswordRegex().IsMatch(dto.Password))
             return new RegisterResult.InvalidData("Password does not meet complexity requirements.");
 
         var user = new UserModel
         {
-            Username = request.Username.Trim(),
-            Name = request.Name.Trim(),
-            Email = cleanEmail,
-            Phone = cleanPhone,
-            BirthYear = request.Birthday.Year,
-            Role = "USER",
-            Active = true,
-            CreatedAt = DateTime.UtcNow
+            Username = dto.Username.Trim(),
+            FirstName = dto.FirstName.Trim(),
+            LastName = dto.LastName.Trim(),
+            Email = cleanEmail!,
+            Phone = cleanPhone!,
+            Birthday = dto.Birthday,
+            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
-        user.PasswordHash = _hasher.HashPassword(user, request.Password);
+        user.PasswordHash = _hasher.HashPassword(user, dto.Password);
 
-        (bool success, UserModel createdUser) = await CreateUser(user);
-        if (!success) return new RegisterResult.Error("Failed to create user");
+        try
+        {
+            UserModel createdUser = await CreateUser(user);
+            if (string.IsNullOrWhiteSpace(dto.LicensePlate))
+                return new RegisterResult.Success(createdUser);
 
-        return new RegisterResult.Success(createdUser);
+            var plateResult = await ValidateGuestLicensePlate(createdUser.Id, dto.LicensePlate);
+            return plateResult ?? new RegisterResult.Success(createdUser);
+        }
+        catch (InvalidOperationException)
+        { return new RegisterResult.Error("Failed to create user due to database issue."); }
     }
 
-    public async Task<LoginResult> LoginAsync(LoginRequest request)
+    private async Task<RegisterResult?> ValidateGuestLicensePlate(long userId, string licensePlate)
     {
-        if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
+        if (string.IsNullOrWhiteSpace(licensePlate)) return null;
+
+        licensePlate = licensePlate.Upper();
+        var userPlates = await _userPlates.GetPlatesByPlate(licensePlate);
+
+        foreach (var uPlate in userPlates)
+        {
+            var userResult = await GetUserById(uPlate.UserId);
+            if (userResult is GetUserResult.NotFound) continue;
+
+            var user = ((GetUserResult.Success)userResult).User;
+            if (user.Id == UserRepository.DeletedUserId) continue;
+
+            var userRecentSessions = await _parkingSessions.GetAllRecentSessionsByLicensePlate(uPlate.LicensePlateNumber, TimeSpan.FromDays(30));
+            if (userRecentSessions.Count > 0)
+                return new RegisterResult.InvalidData("License plate is already associated with another user.");
+        }
+
+        await _userPlates.AddPlateToUser(userId, licensePlate);
+        return null;
+    }
+
+    public async Task<LoginResult> Login(LoginDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Identifier) || string.IsNullOrWhiteSpace(dto.Password))
             return new LoginResult.Error("Identifier and password are required.");
 
-        var user = await GetUserByEmail(request.Identifier) ?? await GetUserByUsername(request.Identifier);
+        // If else to check both email and username. If neither found, user remains null.
+        UserModel? user = null;
+        var emailResult = await GetUserByEmail(dto.Identifier);
+        if (emailResult is GetUserResult.Success sEmail)
+            user = sEmail.User;
+
+        else
+        {
+            var userResult = await GetUserByUsername(dto.Identifier);
+            if (userResult is GetUserResult.Success sUser)
+                user = sUser.User;
+        }
+
         if (user is null)
             return new LoginResult.InvalidCredentials();
 
-        var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
             return new LoginResult.InvalidCredentials();
 
-        var token = _sessions.CreateSession(user);
-        var response = new AuthResponse
+        var tokenResult = _sessions.CreateSession(user);
+
+        if (tokenResult is not CreateJwtResult.Success success)
+            return new LoginResult.Error("Failed to create authentication token.");
+
+        var response = new AuthDto
         {
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email,
-            Token = token
+            Token = success.JwtToken
         };
 
         return new LoginResult.Success(response);
     }
 
-    public async Task<UpdateProfileResult> UpdateUserProfileAsync(UserModel user, UpdateProfileRequest request)
+    public async Task<UpdateUserResult> UpdateUserProfile(long userId, UpdateUserDto dto)
     {
-        if (!string.IsNullOrWhiteSpace(request.Username))
-        {
-            var existing = await _dataAccess.Users.GetByUsername(request.Username);
-            if (existing is not null && existing.Id != user.Id)
-                return new UpdateProfileResult.UsernameTaken();
+        var user = await _users.GetById<UserModel>(userId);
+        if (user is null)
+            return new UpdateUserResult.NotFound();
 
-            user.Username = request.Username.Trim();
+        // Username
+        if (!string.IsNullOrWhiteSpace(dto.Username))
+        {
+            var existingResult = await GetUserByUsername(dto.Username);
+            if (existingResult is GetUserResult.Success success && success.User.Id != user.Id)
+                return new UpdateUserResult.UsernameTaken();
+
+            user.Username = dto.Username.TrimSafe();
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Password))
-            user.PasswordHash = _hasher.HashPassword(user, request.Password);
-
-        if (!string.IsNullOrWhiteSpace(request.Email))
+        // Password
+        if (!string.IsNullOrWhiteSpace(dto.Password))
         {
-            var cleanEmail = CleanEmail(request.Email);
-            var existingEmail = await _dataAccess.Users.GetByEmail(cleanEmail);
-            if (existingEmail is not null && existingEmail.Id != user.Id)
-                return new UpdateProfileResult.EmailTaken();
+            var passwordResult = ValidatePasswordIntegrity(dto.Password);
+            if (passwordResult is UpdateUserResult.InvalidData)
+                return passwordResult;
 
-            user.Email = cleanEmail;
+            user.PasswordHash = _hasher.HashPassword(user, dto.Password);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Phone))
+        // Email
+        if (!string.IsNullOrWhiteSpace(dto.Email))
         {
-            var cleanPhone = CleanPhone(request.Phone);
-            user.Phone = cleanPhone;
+            var emailResult = ValidateAndCleanEmail(dto.Email, out string? cleanEmail);
+            if (emailResult is not UpdateUserResult.Success)
+                return emailResult;
+
+            var existingEmailResult = await GetUserByEmail(cleanEmail!);
+            if (existingEmailResult is GetUserResult.Success success && success.User.Id != user.Id)
+                return new UpdateUserResult.EmailTaken();
+
+            user.Email = cleanEmail!;
         }
 
-        await UpdateUser(user);
-        return new UpdateProfileResult.Success(user);
+        // Phone
+        if (!string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            var phoneResult = ValidateAndCleanPhone(dto.Phone, out string? cleanPhone);
+            if (phoneResult is UpdateUserResult.InvalidData)
+                return phoneResult;
+
+            user.Phone = cleanPhone!;
+        }
+
+        return await UpdateUser(user);
     }
 
-    // Helpers for cleaning and validation
-    private static string CleanPhone(string phone)
+    public async Task<UpdateUserResult> UpdateUserIdentity(long userId, UpdateUserIdentityDto dto)
     {
+        // Should only be callable by someone with USERS:MANAGE permission from the controller
+        var userResult = await GetUserById(userId);
+        if (userResult is GetUserResult.NotFound)
+            return new UpdateUserResult.NotFound();
+        var user = ((GetUserResult.Success)userResult).User;
+
+        bool wasModified = false;
+
+        if (!string.IsNullOrWhiteSpace(dto.FirstName))
+        {
+            user.FirstName = dto.FirstName.Capitalize();
+            wasModified = true;
+        }
+        if (!string.IsNullOrWhiteSpace(dto.LastName))
+        {
+            user.LastName = dto.LastName.Capitalize();
+            wasModified = true;
+        }
+
+        if (dto.Birthday.HasValue)
+        {
+            if (dto.Birthday.Value > DateOnly.FromDateTime(DateTime.Now))
+                return new UpdateUserResult.InvalidData("Birthday cannot be in the future.");
+
+            if (dto.Birthday.Value.Year < 1900)
+                return new UpdateUserResult.InvalidData("Birthday is not valid.");
+
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            int age = today.Year - dto.Birthday.Value.Year;
+            if (dto.Birthday.Value > today.AddYears(-age)) age--;
+            // Minimum age requirement; provisional license considered to be valid from 16 years old
+            if (age < 16) return new UpdateUserResult.InvalidData("User must be at least 16 years old.");
+
+            user.Birthday = dto.Birthday.Value;
+            wasModified = true;
+        }
+
+        if (!wasModified) return new UpdateUserResult.Success(user);
+
+        return await UpdateUser(user);
+    }
+
+    public async Task<UpdateUserResult> UpdateUserRole(long userId, UpdateUserRoleDto dto)
+    {
+        // Should only be callable by someone with USERS:MANAGE permission
+        var userResult = await GetUserById(userId);
+        if (userResult is GetUserResult.NotFound)
+            return new UpdateUserResult.NotFound();
+        var user = ((GetUserResult.Success)userResult).User;
+
+        if (user.RoleId == dto.RoleId)
+            return new UpdateUserResult.NoChangesMade();
+
+        var newRole = await _roles.GetById<RoleModel>(dto.RoleId);
+        if (newRole is null)
+            return new UpdateUserResult.InvalidData($"Role with ID {dto.RoleId} does not exist.");
+
+        if (user.Role.Name.Equals("ADMIN", StringComparison.OrdinalIgnoreCase)
+            && !newRole.Name.Equals("ADMIN", StringComparison.OrdinalIgnoreCase))
+            return new UpdateUserResult.InvalidData("Cannot change role of an ADMIN user.");
+
+        user.RoleId = dto.RoleId;
+
+        return await UpdateUser(user);
+    }
+
+    private static UpdateUserResult ValidatePasswordIntegrity(string password)
+    {
+        if (!PasswordRegex().IsMatch(password))
+            return new UpdateUserResult.InvalidData("Password does not meet complexity requirements.");
+        return new UpdateUserResult.Success(null!);
+    }
+
+    private static UpdateUserResult ValidateAndCleanEmail(string email, out string? cleanEmail)
+    {
+        email = email.TrimSafe();
+        var registerResult = CleanEmail(email, out cleanEmail);
+
+        if (registerResult is RegisterResult.InvalidData invalidData)
+            return new UpdateUserResult.InvalidData($"Email format error: {invalidData.Message}");
+        return new UpdateUserResult.Success(null!);
+    }
+
+    private static UpdateUserResult ValidateAndCleanPhone(string phone, out string? cleanPhone)
+    {
+        phone = phone.TrimSafe();
+        var registerResult = CleanPhone(phone, out cleanPhone);
+
+        if (registerResult is RegisterResult.InvalidData invalidData)
+            return new UpdateUserResult.InvalidData($"Phone format error: {invalidData.Message}");
+        return new UpdateUserResult.Success(null!);
+    }
+
+    private static RegisterResult CleanPhone(string phone, out string? cleanPhone)
+    {
+        phone = phone.TrimSafe();
         if (string.IsNullOrWhiteSpace(phone))
-            throw new ArgumentException("Phone number cannot be empty.", nameof(phone));
+        {
+            cleanPhone = null;
+            return new RegisterResult.InvalidData("Phone number cannot be empty.");
+        }
 
         bool hasLeadingPlus = phone.StartsWith('+');
         phone = PhoneTrim().Replace(phone, "");
-        if (hasLeadingPlus)
+        if (hasLeadingPlus && !phone.StartsWith('+'))
             phone = "+" + phone;
 
         if (!Phone().IsMatch(phone))
-            throw new ArgumentException("Phone number contains invalid characters.", nameof(phone));
+        {
+            cleanPhone = null;
+            return new RegisterResult.InvalidData("Phone number contains invalid characters.");
+        }
 
-        // Normalize to +310 ...
-        if (phone.StartsWith("00"))
-            phone = phone[2..];
-        if (phone.StartsWith('+'))
-            phone = phone[1..];
-        if (phone.StartsWith("31"))
-            phone = phone[2..];
-        if (!phone.StartsWith('0'))
-            phone = "0" + phone;
+        if (phone.StartsWith("00")) phone = phone[2..];
+        if (phone.StartsWith('+')) phone = phone[1..];
+        if (phone.StartsWith("31")) phone = phone[2..];
+        if (!phone.StartsWith('0')) phone = '0' + phone;
 
         if (!PhoneDigits().IsMatch(phone))
-            throw new ArgumentException("Invalid Dutch phone number digits.", nameof(phone));
+        {
+            cleanPhone = null;
+            return new RegisterResult.InvalidData("Phone number is not a Dutch number.");
+        }
 
-        return "+31" + phone;
+        cleanPhone = "+31" + phone[1..];
+        return new RegisterResult.Success(null!);
     }
 
-    private static string CleanEmail(string email)
+    private static RegisterResult CleanEmail(string email, out string? cleanEmail)
     {
+        email = email.TrimSafe();
         if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException("Email cannot be empty.", nameof(email));
+        {
+            cleanEmail = null;
+            return new RegisterResult.InvalidData("Email cannot be empty.");
+        }
 
         email = email.Trim();
 
         var parts = email.Split('@');
         if (parts.Length != 2)
-            throw new ArgumentException("Email must contain exactly one '@' symbol.", nameof(email));
+        {
+            cleanEmail = null;
+            return new RegisterResult.InvalidData("Email must contain exactly one '@' symbol.");
+        }
 
         string local = parts[0];
         string domain = parts[1];
@@ -242,13 +458,20 @@ public partial class UserService
             domain = idn.GetAscii(domain);
         }
         catch (ArgumentException)
-        { throw new ArgumentException("Email contains invalid international domain name.", nameof(email)); }
+        {
+            cleanEmail = null;
+            return new RegisterResult.InvalidData("Email contains invalid international domain name.");
+        }
 
-        string normalizedEmail = $"{local.ToLowerInvariant()}@{domain.ToLowerInvariant()}";
+        string normalizedEmail = $"{local}@{domain.ToLowerInvariant()}";
 
         if (!EmailRegex().IsMatch(normalizedEmail))
-            throw new ArgumentException("Email address is not in a valid format.", nameof(email));
+        {
+            cleanEmail = null;
+            return new RegisterResult.InvalidData("Email address is not in a valid format.");
+        }
 
-        return normalizedEmail;
+        cleanEmail = normalizedEmail;
+        return new RegisterResult.Success(null!);
     }
 }

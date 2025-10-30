@@ -12,11 +12,13 @@ services:
     networks:
       - mobypark-net
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark" ]
+      test: ["CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark"]
       interval: 5s
       retries: 10
+    volumes:
+      - mobypark-data:/var/lib/postgresql/data
 
-  mobypark_db_restore:
+  mobypark-db-restore:
     image: postgres:18
     depends_on:
       - mobypark-db
@@ -49,12 +51,13 @@ services:
     ports:
       - "5001:8080"
     depends_on:
-      mobypark-db:
-        condition: service_healthy
-#    depends_on:
-#      - mobypark-db
+      mobypark-db-restore:
+        condition: service_completed_successfully
     networks:
       - mobypark-net
+
+volumes:
+  mobypark-data:
 
 networks:
   mobypark-net:

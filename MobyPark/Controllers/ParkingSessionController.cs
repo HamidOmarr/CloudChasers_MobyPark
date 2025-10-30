@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
-using MobyPark.Services.Services;
+using MobyPark.Services;
 using MobyPark.Models.Requests;
 using MobyPark.Models.Requests.Session;
 using MobyPark.Models.Requests;
 using MobyPark.Services;
-using MobyPark.Services.Exceptions;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.ParkingSession;
 
 namespace MobyPark.Controllers;
 
@@ -13,150 +16,114 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingSessionController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly IParkingSessionService _parkingSessions;
+    private readonly IAuthorizationService _authorizationService;
 
-    public ParkingSessionController(ServiceStack services) : base(services.Sessions)
+    public ParkingSessionController(UserService users, IParkingSessionService parkingSessions, IAuthorizationService authorizationService) : base(users)
     {
-        _services = services;
+        _parkingSessions = parkingSessions;
+        _authorizationService = authorizationService;
     }
 
-    [HttpPost("{lotId}/sessions:start")] // start endpoint unified
+    // [HttpPost("{lotId}/sessions:start")] // start endpoint unified // Commented out as it is unclear why this was added.
     [HttpPost("{lotId}/sessions/start")]
-    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionRequest request)
+    public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionDto request)
     {
-        try
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var user = await GetCurrentUserAsync();
+
+        var sessionDto = new CreateParkingSessionDto
         {
-            var session = await _services.ParkingSessions.StartSession(
-                lotId,
-                request.LicensePlate,
-                request.CardToken,
-                request.EstimatedAmount,
-                GetCurrentUser()?.Username,
-                request.SimulateInsufficientFunds
-            );
+            ParkingLotId = lotId,
+            LicensePlate = request.LicensePlate
+        };
 
-            var lot = await _services.ParkingLots.GetParkingLotById(lotId);
-            int? available = lot?.Capacity != null ? lot.Capacity - lot.Reserved : (int?)null;
+        var result = await _parkingSessions.StartSession(
+            sessionDto,
+            request.CardToken,
+            request.EstimatedAmount,
+            user.Username,
+            request.SimulateInsufficientFunds
+        );
 
-            return StatusCode(201, new
+        return result switch
+        {
+            StartSessionResult.Success success => StatusCode(201, new
             {
                 status = "Started",
-                sessionId = session.Id,
-                licensePlate = session.LicensePlate,
-                parkingLotId = session.ParkingLotId,
-                startedAt = session.Started,
-                paymentStatus = session.PaymentStatus,
-                availableSpots = available
-            });
-        }
-        catch (ActiveSessionAlreadyExistsException ex)
-        { return Conflict(new { error = ex.Message, code = "ACTIVE_SESSION_EXISTS" }); }
-        catch (KeyNotFoundException)
-        { return NotFound(new { error = "Parking lot not found" }); }
-        catch (UnauthorizedAccessException ex)
-        { return StatusCode(402, new { error = ex.Message, code = "PAYMENT_DECLINED" }); }
-        catch (InvalidOperationException ex)
-        { return BadRequest(new { error = ex.Message }); }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                paymentStatus = success.Session.PaymentStatus,
+                availableSpots = success.AvailableSpots
+            }),
+            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
     }
 
+    [Authorize(Policy = "CanManageParkingSessions")]
     [HttpDelete("{lotId}/sessions/{sessionId}")]
     public async Task<IActionResult> DeleteSession(int lotId, int sessionId)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN") return Forbid();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var session = await _services.ParkingSessions.GetParkingSessionById(sessionId);
-        if (session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
+        var getResult = await _parkingSessions.GetParkingSessionById(sessionId);
+        if (getResult is not GetSessionResult.Success success || success.Session.ParkingLotId != lotId)
+            return NotFound(new { error = "Session not found in this lot" });
 
-        await _services.ParkingSessions.DeleteParkingSession(sessionId);
-        return Ok(new { status = "Deleted" });
+        var deleteResult = await _parkingSessions.DeleteParkingSession(sessionId);
+
+        return deleteResult switch
+        {
+            DeleteSessionResult.Success => Ok(new { status = "Deleted" }),
+            DeleteSessionResult.NotFound => NotFound(new { error = "Session not found" }),
+            DeleteSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown delete error occurred." })
+        };
     }
 
+    [Authorize]
     [HttpGet("{lotId}/sessions")]
     public async Task<IActionResult> GetSessions(int lotId)
     {
-        var user = GetCurrentUser();
-        var sessions = await _services.ParkingSessions.GetParkingSessionsByParkingLotId(lotId);
+        var user = await GetCurrentUserAsync();
 
-        // Users can only view their own sessions
-        if (user.Role != "ADMIN")
-            sessions = sessions.Where(session => session.User == user.Username).ToList();
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingSessions");
+        bool canManageSessions = authorizationResult.Succeeded;
+        var sessions = await _parkingSessions.GetAuthorizedSessionsAsync(user.Id, lotId, canManageSessions);
 
         return Ok(sessions);
     }
 
+    [Authorize]
     [HttpGet("{lotId}/sessions/{sessionId}")]
     public async Task<IActionResult> GetSession(int lotId, int sessionId)
     {
-        var user = GetCurrentUser();
-        var session = await _services.ParkingSessions.GetParkingSessionById(sessionId);
+        var user = await GetCurrentUserAsync();
 
-        if (session.ParkingLotId != lotId)
-            return NotFound(new { error = "Session not found" });
+        var authorizationResult = await _authorizationService.AuthorizeAsync(User, "CanManageParkingSessions");
+        bool canManageSessions = authorizationResult.Succeeded;
 
-        if (user.Role != "ADMIN" && session.User != user.Username)
-            return Forbid();
-
-        return Ok(session);
-    }
-
-    [HttpPost("{lotID}/sessions/stop")]
-    public async Task<IActionResult> StopSession(int lotID, [FromBody] StopSessionRequest request)
-    {
-        var user = GetCurrentUser();
-
-        // 1. Haal sessie op en valideer
-        var session = await _services.ParkingSessions.GetParkingLotSessionByLicensePlateAndParkingLotId(
-            lotID,
-            new StopSessionRequest { LicensePlate = request.LicensePlate }
+        var result = await _parkingSessions.GetAuthorizedSessionAsync(
+            user.Id,
+            lotId,
+            sessionId,
+            canManageSessions
         );
 
-        if (session.ParkingLotId != lotID)
-            return NotFound(new { error = "Session not found" });
-
-        if (user.Role != "ADMIN" && session.User != user.Username)
-            return Forbid();
-
-        if (session.Stopped is not null)
-            return BadRequest(new { error = "Session already stopped" });
-
-        // 2. Valideer betaling
-        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
-        if (payments.Count == 0)
-            return BadRequest(new { error = "No payment found for this user" });
-
-        var lastPayment = payments.Last();
-        if (lastPayment.Amount == 0)
-            return BadRequest(new { error = "No payment required for this session" });
-
-        if (!request.PaymentValidation.Confirmed)
-            return BadRequest(new { error = "Payment not confirmed. Restart process." });
-
-        var validatedPayment = await _services.Payments.ValidatePayment(
-            lastPayment.TransactionId,
-            request.PaymentValidation.Validation,
-            request.PaymentValidation.TransactionData
-        );
-
-        if (validatedPayment is null)
-            return BadRequest(new { error = "Payment validation failed" });
-
-        // 3. Stop de sessie en bereken totaalbedrag
-        var totalAmount = await _services.Payments.GetTotalAmountForTransaction(validatedPayment.TransactionId);
-
-        session.Stopped = DateTime.UtcNow;
-        await _services.ParkingSessions.UpdateParkingSession(session);
-
-        return Ok(new
+        return result switch
         {
-            status = "Stopped",
-            session,
-            totalAmount
-        });
+            GetSessionResult.Success(var session) => Ok(session),
+            GetSessionResult.NotFound => NotFound(new { error = "Parking session not found in this lot." }),
+            GetSessionResult.Forbidden => Forbid(), // Standard response for authorization failure
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unexpected error occurred." })
+        };
     }
-
-
 }

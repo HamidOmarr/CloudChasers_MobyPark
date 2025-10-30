@@ -1,7 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.Models;
-using MobyPark.Models.Requests;
-using MobyPark.Services.Services;
+using MobyPark.DTOs;
+using MobyPark.DTOs.Payment.Request;
+using MobyPark.DTOs.Transaction.Request;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Payment;
+using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
 
@@ -9,97 +13,160 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class PaymentsController : BaseController
 {
-    private readonly ServiceStack _services;
+    private readonly IUserService _users;
+    private readonly IPaymentService _payments;
 
-    public PaymentsController(ServiceStack services) : base(services.Sessions)
+    public PaymentsController(IUserService users, IPaymentService payments) : base(users)
     {
-        _services = services;
+        _users = users;
+        _payments = payments;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] PaymentRequest request)
+    public async Task<IActionResult> Create([FromBody] CreatePaymentDto request)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var result = await _payments.CreatePaymentAndTransaction(request);
 
-        if (request.Amount == null)
-            return BadRequest(new { error = "Required fields missing" });
-
-        var payment = new PaymentModel
+        return result switch
         {
-            TransactionId = Guid.NewGuid().ToString("N"),
-            Amount = request.Amount.Value,
-            Initiator = user.Username,
-            CreatedAt = DateTime.UtcNow,
-            Completed = null,
-            Hash = Guid.NewGuid().ToString("N"),
-            TransactionData = request.TransactionData
+            CreatePaymentResult.Success success => CreatedAtAction(nameof(GetPaymentById),
+                new { paymentId = success.Payment.PaymentId },
+                success.Payment),
+            CreatePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown payment creation error occurred." })
         };
-
-        try
-        {
-            var makePayment = await _services.Payments.CreatePayment(payment);
-
-            return CreatedAtAction(nameof(GetUserPayments),
-                new { id = makePayment.TransactionId },
-                payment);
-        }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
     }
 
+    [Authorize(Policy = "CanProcessPayments")]
     [HttpPost("refund")]
     public async Task<IActionResult> Refund([FromBody] PaymentRefundRequest request)
     {
-        var user = GetCurrentUser();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        if (user.Role != "ADMIN")
-            return Forbid();
+        var adminUser = (await GetCurrentUserAsync()).Username;
 
         if (request.Amount == null)
-            return BadRequest(new { error = "Required field missing: amount" });
+            return BadRequest(new { error = "Required field missing: Amount" });
 
-        try
+        // No more try...catch!
+        var result = await _payments.RefundPayment(
+            request.PaymentId,
+            request.Amount.Value,
+            adminUser
+        );
+
+        return result switch
         {
-            var refund = await _services.Payments.RefundPayment(
-                request.CoupledTo,
-                request.Amount.Value,
-                user.Username
-            );
-
-            return StatusCode(201, new { status = "Success", refund });
-        }
-        catch (ArgumentException ex)
-        { return BadRequest(new { error = ex.Message }); }
+            RefundPaymentResult.Success success => StatusCode(201, new { status = "Success", refund = success.RefundPayment }),
+            RefundPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            RefundPaymentResult.NotFound => NotFound(new { error = "Original payment not found." }),
+            RefundPaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown refund error occurred." })
+        };
     }
 
-    [HttpPut("{transactionId}")]
-    public async Task<IActionResult> ValidatePayment(string transactionId, [FromBody] PaymentValidationRequest request)
+    [Authorize]
+    [HttpPut("{paymentId}")]
+    public async Task<IActionResult> ValidatePayment(string paymentId, [FromBody] TransactionDataDto request)
     {
-        var payment = await _services.Payments.GetPaymentByTransactionId(transactionId);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        if (payment.Hash != request.Validation)
-            return Unauthorized(new { error = "Validation failed", info = "The security hash could not be validated." });
+        if (!Guid.TryParse(paymentId, out Guid pid))
+            return BadRequest(new { error = "Invalid Payment ID format" });
 
-        await _services.Payments.ValidatePayment(transactionId, payment.Hash, request.TransactionData);
-        return Ok(new { status = "Success", payment });
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.ValidatePayment(pid, request, user.Id);
+
+        return result switch
+        {
+            ValidatePaymentResult.Success s => Ok(new { status = "Success", payment = s.Payment }),
+            ValidatePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied." }),
+            ValidatePaymentResult.InvalidData e => BadRequest(new { error = e.Message }),
+            ValidatePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown validation error occurred." })
+        };
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetUserPayments()
-    {
-        var user = GetCurrentUser();
-        var payments = await _services.Payments.GetPaymentsByUser(user.Username);
-        return Ok(payments);
-    }
-
+    [Authorize(Policy = "CanProcessPayments")]
     [HttpGet("{username}")]
     public async Task<IActionResult> GetPaymentsForUser(string username)
     {
-        var user = GetCurrentUser();
-        if (user.Role != "ADMIN")
-            return Forbid();
+        var targetUserResult = await _users.GetUserByUsername(username);
+        if (targetUserResult is not GetUserResult.Success sUser)
+            return NotFound(new { error = "User not found" });
 
-        var payments = await _services.Payments.GetPaymentsByUser(username);
-        return Ok(payments);
+        var result = await _payments.GetPaymentsByUser(sUser.User.Id);
+
+        return result switch
+        {
+            GetPaymentListResult.Success s => Ok(s.Payments),
+            GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the user." }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("id/{paymentId}")]
+    public async Task<IActionResult> GetPaymentById(string paymentId)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentById(paymentId, user.Id);
+
+        return result switch
+        {
+            GetPaymentResult.Success s => Ok(s.Payment),
+            GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("transaction/{transactionId}")]
+    public async Task<IActionResult> GetPaymentByTransactionId(string transactionId)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentByTransactionId(transactionId, user.Id);
+
+        return result switch
+        {
+            GetPaymentResult.Success s => Ok(s.Payment),
+            GetPaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            GetPaymentResult.InvalidInput e => BadRequest(new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpGet("plate/{licensePlate}")]
+    public async Task<IActionResult> GetPaymentsByLicensePlate(string licensePlate)
+    {
+        var user = await GetCurrentUserAsync();
+        var result = await _payments.GetPaymentsByLicensePlate(licensePlate, user.Id);
+
+        return result switch
+        {
+            GetPaymentListResult.Success s => Ok(s.Payments),
+            GetPaymentListResult.NotFound => NotFound(new { error = "No payments found for the specified license plate or access denied." }),
+
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [Authorize]
+    [HttpDelete("{paymentId}")]
+    public async Task<IActionResult> DeletePayment(string paymentId)
+    {
+         var user = await GetCurrentUserAsync();
+        var result = await _payments.DeletePayment(paymentId, user.Id);
+
+        return result switch
+        {
+            DeletePaymentResult.Success => Ok(new { status = "Deleted" }),
+            DeletePaymentResult.NotFound => NotFound(new { error = "Payment not found or access denied" }),
+            DeletePaymentResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
     }
 }

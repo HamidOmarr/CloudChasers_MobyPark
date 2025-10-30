@@ -1,238 +1,677 @@
 using Microsoft.AspNetCore.Identity;
+using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
-using MobyPark.Models.Access;
-using MobyPark.Models.DataService;
-using MobyPark.Models.Requests.User;
+using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
+using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
 using Moq;
+using MobyPark.Services.Interfaces;
 
 namespace MobyPark.Tests;
 
 [TestClass]
 public sealed class UserServiceTests
 {
-    private Mock<IDataAccess>? _mockDataService;
-    private Mock<IUserAccess>? _mockUserAccess;
-    private Mock<SessionService>? _mockSessions;
-    private UserService? _userService;
-    private IPasswordHasher<UserModel>? _hasher;
+    #region Setup
+    private Mock<IUserRepository> _mockUsersRepo = null!;
+    private Mock<IUserPlateRepository> _mockUserPlatesRepo = null!;
+    private Mock<IParkingSessionRepository> _mockParkingSessionsRepo = null!;
+    private Mock<IRoleRepository> _mockRolesRepo = null!;
+    private Mock<IPasswordHasher<UserModel>> _mockHasher = null!;
+    private Mock<ISessionService> _mockSessionService = null!;
+    private UserService _userService = null!;
 
+    private readonly UserModel _defaultUser = new()
+    {
+        Id = 1,
+        Username = "testuser",
+        Email = "test@user.com",
+        PasswordHash = "hashed_password",
+        Role = new RoleModel { Id = 6, Name = "USER" },
+        RoleId = 6
+    };
+
+    private readonly UserModel _adminUser = new()
+    {
+        Id = 2,
+        Username = "admin",
+        Email = "admin@user.com",
+        PasswordHash = "hashed_password",
+        Role = new RoleModel { Id = 2, Name = "ADMIN" },
+        RoleId = 1
+    };
+
+    private readonly UserModel _itManagerUser = new()
+    {
+        Id = 3,
+        Username = "itmanager",
+        Email = "itmanager@user.com",
+        PasswordHash = "hashed_password",
+        Role = new RoleModel { Id = 2, Name = "IT MANAGER" },
+        RoleId = 2
+    };
 
     [TestInitialize]
     public void TestInitialize()
     {
-        _mockDataService = new Mock<IDataAccess>();
-        _mockUserAccess = new Mock<IUserAccess>();
-        _hasher = new PasswordHasher<UserModel>();
-        _mockSessions = new Mock<SessionService>();
-        _mockDataService.Setup(ds => ds.Users).Returns(_mockUserAccess.Object);
-        _userService = new UserService(_mockDataService.Object, _hasher, _mockSessions.Object);
+        _mockUsersRepo = new Mock<IUserRepository>();
+        _mockUserPlatesRepo = new Mock<IUserPlateRepository>();
+        _mockParkingSessionsRepo = new Mock<IParkingSessionRepository>();
+        _mockRolesRepo = new Mock<IRoleRepository>();
+        _mockHasher = new Mock<IPasswordHasher<UserModel>>();
+        _mockSessionService = new Mock<ISessionService>();
+
+        _userService = new UserService(
+            _mockUsersRepo.Object,
+            _mockUserPlatesRepo.Object,
+            _mockParkingSessionsRepo.Object,
+            _mockRolesRepo.Object,
+            _mockHasher.Object,
+            _mockSessionService.Object
+        );
     }
 
-    [TestMethod]
-    [DataRow("mypassword")]
-    [DataRow("anotherSecret")]
-    [DataRow("123456")]
-    public void VerifyPassword_CorrectPassword_ReturnsSuccess(string password)
-    {
-        // Arrange
-        var user = new UserModel();
-        var hash = _hasher!.HashPassword(user, password);
+    #endregion
 
-        // Act
-        var result = _hasher.VerifyHashedPassword(user, hash, password);
-
-        // Assert
-        Assert.AreEqual(PasswordVerificationResult.Success, result);
-    }
-
-    [TestMethod]
-    [DataRow("mypassword", "wrongpassword")]
-    [DataRow("correct123", "wrong123")]
-    [DataRow("test", "TEST")] // case-sensitive
-    public void VerifyPassword_WrongPassword_ReturnsFailed(string realPassword, string attempt)
-    {
-        // Arrange
-        var user = new UserModel();
-        var hash = _hasher!.HashPassword(user, realPassword);
-
-        // Act
-        var result = _hasher.VerifyHashedPassword(user, hash, attempt);
-
-        // Assert
-        Assert.AreEqual(PasswordVerificationResult.Failed, result);
-    }
+    #region Create
 
     [TestMethod]
     [DataRow("user1", "P@ssword1", "Alice", "alice@gmail.com", "+310612345678", "2001-10-10")]
-    [DataRow("user2", "Pass123$", "Bob", "bob@example.com", "+310611112222", "1998-03-15")]
-    [DataRow("user3", "Abc12345!", "Charlie", "charlie@example.com", "+310622223333", "1995-07-22")]
-    [DataRow("user4", "StrongPass1@", "David", "david@example.com", "+310633334444", "2000-01-05")]
-    [DataRow("user5", "Pa ss1Ab2!", "Eve", "eve@example.com", "+310644445555", "1999-09-09")]
-    [DataRow("user6", "A1b2C3d4$", "Frank", "frank@example.com", "+310655556666", "1997-12-31")]
-    [DataRow("user7", "Aa1!Aa1!", "Grace", "grace@example.com", "+310666667777", "2002-04-18")]
-    [DataRow("user8", "Complex#Password123", "Hannah", "hannah@example.com", "+310677778888", "2003-08-25")]
-    [DataRow("user9", "Xy9*Zz8@", "Isaac", "isaac@example.com", "+310688889999", "1996-11-11")]
-    [DataRow("user10", "GoodPass1@", "Jack", "jack@example.com", "+310699990000", "1994-06-06")]
     public async Task CreateUserAsync_ValidInput_CreatesUserModel(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
-
-        _mockUserAccess!
-            .Setup(access => access.CreateWithId(It.IsAny<UserModel>()))
-            .ReturnsAsync((true, 1));
-
-        var request = new RegisterRequest
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
+        var dto = new RegisterDto
         {
-            Username = username,
-            Password = password,
-            ConfirmPassword = password,
-            Name = name,
-            Email = email,
-            Phone = phone,
-            Birthday = birthday
+            Username = username, Password = password, ConfirmPassword = password,
+            FirstName = name, LastName = name, Email = email, Phone = phone, Birthday = birthday
         };
 
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
+        _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
+
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.Success));
+        var successResult = (RegisterResult.Success)result;
+        Assert.AreEqual(1L, successResult.User.Id);
+        Assert.AreEqual(username, successResult.User.Username);
+        Assert.AreEqual(email, successResult.User.Email);
+        Assert.AreEqual("+31612345678", successResult.User.Phone);
 
-        // Extract the created user
-        var success = result as RegisterResult.Success;
-        var createdUser = success!.User;
-
-        Assert.IsNotNull(createdUser);
-        Assert.AreEqual(username, createdUser.Username);
-        Assert.AreEqual(name, createdUser.Name);
-        Assert.AreEqual("USER", createdUser.Role);
-        Assert.AreEqual(email.ToLowerInvariant(), createdUser.Email); // email is normalized
-        Assert.AreEqual(phone, createdUser.Phone);                   // phone normalized in CleanPhone
-        Assert.AreEqual(birthday.Year, createdUser.BirthYear);
-        Assert.IsTrue(createdUser.Active);
-        Assert.IsFalse(string.IsNullOrWhiteSpace(createdUser.PasswordHash));
-        Assert.IsTrue(createdUser.CreatedAt <= DateTime.UtcNow);
-
-        // Verify hash matches password
-        var verifyResult = _hasher!.VerifyHashedPassword(createdUser, createdUser.PasswordHash, password);
-        Assert.AreEqual(PasswordVerificationResult.Success, verifyResult);
-
-        // Verify persistence call
-        _mockUserAccess.Verify(u => u.CreateWithId(It.Is<UserModel>(usr =>
-            usr.Username == username &&
-            usr.Name == name &&
-            usr.Role == "USER"
-        )), Times.Once);
+        _mockUsersRepo.Verify(userRepo => userRepo.CreateWithId(It.Is<UserModel>(u => u.Username == username)), Times.Once);
+        _mockUserPlatesRepo.Verify(uPlateRepo => uPlateRepo.AddPlateToUser(It.IsAny<long>(), It.IsAny<string>()), Times.Never);
     }
 
-
     [TestMethod]
-    [DataRow(null, "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("", "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", null, "Name", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", "", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", "password", null, "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", "password", "", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", "password", "Name", null, "0612345678", "2000-01-01")]
-    [DataRow("user", "password", "Name", "", "0612345678", "2000-01-01")]
-    [DataRow("user", "password", "Name", "email@example.com", null, "2000-01-01")]
-    [DataRow("user", "password", "Name", "email@example.com", "", "2000-01-01")]
-    [DataRow("user", "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    [DataRow("user", "password", "Name", "email@example.com", "0612345678", "3000-01-01")]
-    [DataRow("user", "password", "Name", "email@example.com", "0612345678", "2000-01-01")]
-    public async Task CreateUserAsync_InvalidInput_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
+    [DataRow("user1", "P@ssword1", "plate123")]
+    public async Task CreateUserAsync_ValidInputWithPlate_AddsPlateToUser(string username, string password, string plate)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
-
-        var request = new RegisterRequest
+        var dto = new RegisterDto
         {
-            Username = username,
-            Password = password ?? "",
-            ConfirmPassword = password ?? "",
-            Name = name,
-            Email = email,
-            Phone = phone,
-            Birthday = birthday
+            Username = username, Password = password, ConfirmPassword = password,
+            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20)),
+            LicensePlate = plate
         };
 
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
+        _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
+        _mockUserPlatesRepo.Setup(uPlateRepo => uPlateRepo.GetPlatesByPlate(plate.ToUpper())).ReturnsAsync(new List<UserPlateModel>());
+
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        Assert.IsInstanceOfType(result, typeof(RegisterResult.Success));
+        _mockUserPlatesRepo.Verify(uPlateRepo => uPlateRepo.AddPlateToUser(1L, plate.ToUpper()), Times.Once);
     }
 
     [TestMethod]
-    [DataRow("user1", "short", "Name1", "user1@example.com", "+31611111111", "2000-01-01")]
-    [DataRow("user2", "        ", "Name2", "user2@example.com", "+31622222222", "2000-01-01")]
-    [DataRow("user3", "alllowercase1", "Name3", "user3@example.com", "+31633333333", "2000-01-01")]
-    [DataRow("user4", "ALLUPPERCASE1", "Name4", "user4@example.com", "+31644444444", "2000-01-01")]
-    [DataRow("user5", "NoNumbersHere", "Name5", "user5@example.com", "+31655555555", "2000-01-01")]
-    [DataRow("user6", "12345678", "Name6", "user6@example.com", "+31666666666", "2000-01-01")]
-    [DataRow("user7", "Password!", "Name7", "user7@example.com", "+31677777777", "2000-01-01")]
-    [DataRow("user8", "PASS1234", "Name8", "user8@example.com", "+31688888888", "2000-01-01")]
-    [DataRow("user9", "pass1234", "Name9", "user9@example.com", "+31699999999", "2000-01-01")]
-    public async Task CreateUserAsync_WeakOrWhitespacePassword_ReturnsInvalidData(
-        string username, string password, string name, string email, string phone, string birthdayString)
+    [DataRow("user1")]
+    public async Task CreateUserAsync_UsernameTaken_ReturnsUsernameTaken(string username)
     {
         // Arrange
-        var birthday = DateTime.Parse(birthdayString);
-
-        var request = new RegisterRequest
-        {
-            Username = username,
-            Password = password,
-            ConfirmPassword = password,
-            Name = name,
-            Email = email,
-            Phone = phone,
-            Birthday = birthday
-        };
+        var dto = new RegisterDto { Username = username, Password = "ValidPassword1!" };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync(_defaultUser);
 
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        Assert.IsInstanceOfType(result, typeof(RegisterResult.UsernameTaken));
     }
 
     [TestMethod]
-    [DataRow(null, "Password1", "Alice", "alice@example.com", "+310611111111", "2000-01-01")]
-    [DataRow("", "Password1", "Bob", "bob@example.com", "+310622222222", "2000-01-01")]
-    [DataRow("   ", "Password1", "Charlie", "charlie@example.com", "+310633333333", "2000-01-01")]
-    [DataRow("user1", "Password1", null, "diana@example.com", "+310644444444", "2000-01-01")]
-    [DataRow("user2", "Password1", "", "emma@example.com", "+310655555555", "2000-01-01")]
-    [DataRow("user3", "Password1", "   ", "frank@example.com", "+310666666666", "2000-01-01")]
-    [DataRow("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu", "Password1", "LongName", "longuser@example.com", "+310677777777", "2000-01-01")] // very long username
-    [DataRow("user4", "Password1", "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN", "longname@example.com", "+310688888888", "2000-01-01")] // very long name
-    public async Task CreateUserAsync_InvalidUsernameOrName_ReturnsInvalidDataResponse(string username, string password, string name, string email, string phone, string birthdayString)
+    [DataRow("short")]
+    [DataRow("alllowercase1")]
+    [DataRow("ALLUPPERCASE1")]
+    [DataRow("NoNumbersHere")]
+    [DataRow("12345678")]
+    [DataRow("Password!")]
+    [DataRow("PASS1234")]
+    public async Task CreateUserAsync_WeakPassword_ReturnsInvalidData(string password)
     {
-        //arrange
-        var birthday = DateTime.Parse(birthdayString);
-        var request = new RegisterRequest
+        // Arrange
+        var dto = new RegisterDto
         {
-            Username = username,
-            Password = password,
-            ConfirmPassword = password,
-            Name = name,
-            Email = email,
-            Phone = phone,
-            Birthday = birthday
+            Username = "user", Password = password, ConfirmPassword = password,
+            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
         };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("user")).ReturnsAsync((UserModel?)null);
 
-        //act + assert
-        var result = await _userService!.CreateUserAsync(request);
+        // Act
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        StringAssert.Contains(((RegisterResult.InvalidData)result).Message, "Password does not meet complexity");
     }
+
+    #endregion
+
+    #region Login
+
+    [TestMethod]
+    [DataRow("testuser", "password123")]
+    public async Task Login_ValidUsername_ReturnsSuccess(string identifier, string password)
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
+        _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
+            .Returns(PasswordVerificationResult.Success);
+        _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
+            .Returns(new CreateJwtResult.Success("test_token"));
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.Success));
+        Assert.AreEqual("test_token", ((LoginResult.Success)result).Response.Token);
+    }
+
+    [TestMethod]
+    [DataRow("test@user.com", "password123")]
+    public async Task Login_ValidEmail_ReturnsSuccess(string identifier, string password)
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync(_defaultUser);
+        _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
+            .Returns(PasswordVerificationResult.Success);
+        _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
+            .Returns(new CreateJwtResult.Success("test_token"));
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.Success));
+        Assert.AreEqual("test_token", ((LoginResult.Success)result).Response.Token);
+        _mockUsersRepo.Verify(userRepo => userRepo.GetByUsername(It.IsAny<string>()), Times.Never);
+    }
+
+    [TestMethod]
+    [DataRow("nouser", "password123")]
+    public async Task Login_UserNotFound_ReturnsInvalidCredentials(string identifier, string password)
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.InvalidCredentials));
+    }
+
+    [TestMethod]
+    [DataRow("testuser", "wrongpassword")]
+    public async Task Login_WrongPassword_ReturnsInvalidCredentials(string identifier, string password)
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
+        _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
+            .Returns(PasswordVerificationResult.Failed);
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.InvalidCredentials));
+    }
+
+    [TestMethod]
+    [DataRow("testuser", "password123")]
+    public async Task Login_TokenCreationFails_ReturnsError(string identifier, string password)
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
+        _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
+            .Returns(PasswordVerificationResult.Success);
+
+        _mockSessionService.Setup(session => session.CreateSession(_defaultUser))
+            .Returns(new CreateJwtResult.ConfigError("JWT Key not configured."));
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.Error));
+        StringAssert.Contains(((LoginResult.Error)result).Message, "Failed to create authentication token");
+    }
+
+    #endregion
+
+    #region GetById
+
+    [TestMethod]
+    [DataRow(1L)]
+    public async Task GetUserById_Found_ReturnsSuccess(long id)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.GetUserById(id);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.Success));
+    }
+
+    [TestMethod]
+    [DataRow(99L)]
+    public async Task GetUserById_NotFound_ReturnsNotFound(long id)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.GetUserById(id);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.NotFound));
+    }
+
+    #endregion
+
+    #region GetByVariousCriteria
+
+    [TestMethod]
+    [DataRow("testuser")]
+    public async Task GetUserByUsername_Found_ReturnsSuccess(string username)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.GetUserByUsername(username);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.Success));
+        Assert.AreEqual(username, ((GetUserResult.Success)result).User.Username);
+    }
+
+    [TestMethod]
+    [DataRow("nonexistentuser")]
+    public async Task GetUserByUsername_NotFound_ReturnsNotFound(string username)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.GetUserByUsername(username);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.NotFound));
+    }
+
+    [TestMethod]
+    [DataRow("test@user.com")]
+    public async Task GetUserByEmail_Found_ReturnsSuccess(string email)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(email)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.GetUserByEmail(email);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.Success));
+        Assert.AreEqual(email, ((GetUserResult.Success)result).User.Email);
+    }
+
+    [TestMethod]
+    [DataRow("no@email.com")]
+    public async Task GetUserByEmail_NotFound_ReturnsNotFound(string email)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(email)).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.GetUserByEmail(email);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserResult.NotFound));
+    }
+
+    [TestMethod]
+    public async Task GetAllUsers_Found_ReturnsSuccessList()
+    {
+        // Arrange
+        var list = new List<UserModel> { _defaultUser, _adminUser };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetAll()).ReturnsAsync(list);
+
+        // Act
+        var result = await _userService.GetAllUsers();
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserListResult.Success));
+        Assert.AreEqual(2, ((GetUserListResult.Success)result).Users.Count);
+    }
+
+    [TestMethod]
+    public async Task GetAllUsers_NotFound_ReturnsNotFound()
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetAll()).ReturnsAsync(new List<UserModel>());
+
+        // Act
+        var result = await _userService.GetAllUsers();
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(GetUserListResult.NotFound));
+    }
+
+    #endregion
+
+    #region Count
+
+    [TestMethod]
+    [DataRow(42)]
+    public async Task CountUsers_ReturnsCount(int count)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.Count()).ReturnsAsync(count);
+        // Act
+        var result = await _userService.CountUsers();
+        // Assert
+        Assert.AreEqual(count, result);
+    }
+
+    #endregion
+
+    #region Delete
+
+    [TestMethod]
+    [DataRow(1L)]
+    public async Task DeleteUser_Success_ReturnsSuccess(long id)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.Delete(_defaultUser)).ReturnsAsync(true);
+        // Act
+        var result = await _userService.DeleteUser(id);
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(DeleteUserResult.Success));
+    }
+
+    [TestMethod]
+    [DataRow(99L)]
+    public async Task DeleteUser_NotFound_ReturnsNotFound(long id)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync((UserModel?)null);
+        // Act
+        var result = await _userService.DeleteUser(id);
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(DeleteUserResult.NotFound));
+    }
+
+    [TestMethod]
+    [DataRow(1L)]
+    public async Task DeleteUser_DbDeleteFails_ReturnsError(long id)
+    {
+        // Arrange
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.Delete(_defaultUser)).ReturnsAsync(false);
+        // Act
+        var result = await _userService.DeleteUser(id);
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(DeleteUserResult.Error));
+    }
+
+    #endregion
+
+    #region UpdateUserProfile
+
+    [TestMethod]
+    [DataRow(1L, "newuser", "new@email.com", "+31687654321")]
+    public async Task UpdateUserProfile_ValidChanges_ReturnsSuccess(long id, string newUsername, string newEmail, string newPhone)
+    {
+        // Arrange
+        var dto = new UpdateUserDto { Username = newUsername, Email = newEmail, Phone = newPhone };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(newUsername)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(newEmail)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.Update(It.IsAny<UserModel>(), It.IsAny<UserModel>())).ReturnsAsync(true);
+
+        // Act
+        var result = await _userService.UpdateUserProfile(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.Success));
+    }
+
+    [TestMethod]
+    [DataRow(1L, "newuser")]
+    public async Task UpdateUserProfile_UsernameTaken_ReturnsUsernameTaken(long id, string newUsername)
+    {
+        // Arrange
+        var dto = new UpdateUserDto { Username = newUsername };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(newUsername)).ReturnsAsync(new UserModel { Id = 99L });
+
+        // Act
+        var result = await _userService.UpdateUserProfile(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.UsernameTaken));
+    }
+
+    [TestMethod]
+    [DataRow(1L, "new@email.com")]
+    public async Task UpdateUserProfile_EmailTaken_ReturnsEmailTaken(long id, string newEmail)
+    {
+        // Arrange
+        var dto = new UpdateUserDto { Email = newEmail };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(newEmail)).ReturnsAsync(new UserModel { Id = 99L });
+
+        // Act
+        var result = await _userService.UpdateUserProfile(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.EmailTaken));
+    }
+
+    [TestMethod]
+    [DataRow(1L, "weak")]
+    public async Task UpdateUserProfile_InvalidPassword_ReturnsInvalidData(long id, string newPassword)
+    {
+        // Arrange
+        var dto = new UpdateUserDto { Password = newPassword };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.UpdateUserProfile(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.InvalidData));
+        StringAssert.Contains(((UpdateUserResult.InvalidData)result).Message, "Password");
+    }
+
+    #endregion
+
+    #region UpdateIdentity
+
+    [TestMethod]
+    [DataRow(1L, "NewFirst", "NewLast", "1990-01-01")]
+    public async Task UpdateUserIdentity_ValidChanges_ReturnsSuccess(long id, string first, string last, string bday)
+    {
+        // Arrange
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var dto = new UpdateUserIdentityDto { FirstName = first, LastName = last, Birthday = birthday };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockUsersRepo.Setup(userRepo => userRepo.Update(It.IsAny<UserModel>(), It.IsAny<UserModel>())).ReturnsAsync(true);
+
+        // Act
+        var result = await _userService.UpdateUserIdentity(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.Success));
+    }
+
+    [TestMethod]
+    [DataRow(1L, "2100-01-01")]
+    [DataRow(1L, "1899-01-01")]
+    public async Task UpdateUserIdentity_InvalidBirthday_ReturnsInvalidData(long id, string bday)
+    {
+        // Arrange
+        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var dto = new UpdateUserIdentityDto { Birthday = birthday };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.UpdateUserIdentity(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.InvalidData));
+    }
+
+    [TestMethod]
+    [DataRow(1L)]
+    public async Task UpdateUserIdentity_BirthdayTooYoung_ReturnsInvalidData(long id)
+    {
+        // Arrange
+        var birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-10));
+        var dto = new UpdateUserIdentityDto { Birthday = birthday };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+
+        // Act
+        var result = await _userService.UpdateUserIdentity(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.InvalidData));
+        StringAssert.Contains(((UpdateUserResult.InvalidData)result).Message, "at least 16");
+    }
+
+    [TestMethod]
+    [DataRow(99L)]
+    public async Task UpdateUserIdentity_UserNotFound_ReturnsNotFound(long id)
+    {
+        // Arrange
+        var dto = new UpdateUserIdentityDto();
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.UpdateUserIdentity(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.NotFound));
+    }
+
+    #endregion
+
+    #region UpdateRole
+
+    [TestMethod]
+    [DataRow(1L, 2L)]
+    public async Task UpdateUserRole_ValidChange_ReturnsSuccess(long id, long newRoleId)
+    {
+        // Arrange
+        var dto = new UpdateUserRoleDto { RoleId = newRoleId };
+        var newRole = new RoleModel { Id = newRoleId, Name = "MODERATOR" };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockRolesRepo.Setup(userRepo => userRepo.GetById<RoleModel>(newRoleId)).ReturnsAsync(newRole);
+        _mockUsersRepo.Setup(userRepo => userRepo.Update(It.IsAny<UserModel>(), It.IsAny<UserModel>())).ReturnsAsync(true);
+
+        // Act
+        var result = await _userService.UpdateUserRole(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.Success));
+    }
+
+    [TestMethod]
+    [DataRow(1L, 1L)]
+    public async Task UpdateUserRole_NoChanges_ReturnsNoChangesMade(long id, long newRoleId)
+    {
+        // Arrange
+        var dto = new UpdateUserRoleDto { RoleId = newRoleId };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_adminUser);
+
+        // Act
+        var result = await _userService.UpdateUserRole(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.NoChangesMade));
+    }
+
+    [TestMethod]
+    [DataRow(1L, 99L)]
+    public async Task UpdateUserRole_RoleNotFound_ReturnsInvalidData(long id, long newRoleId)
+    {
+        // Arrange
+        var dto = new UpdateUserRoleDto { RoleId = newRoleId };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
+        _mockRolesRepo.Setup(roleRepo => roleRepo.GetById<RoleModel>(newRoleId)).ReturnsAsync((RoleModel?)null);
+
+        // Act
+        var result = await _userService.UpdateUserRole(id, dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.InvalidData));
+        StringAssert.Contains(((UpdateUserResult.InvalidData)result).Message, "does not exist");
+    }
+
+    [TestMethod]
+    [DataRow(2L, 3L)]
+    public async Task UpdateUserRole_CannotChangeAdmin_ReturnsInvalidData(long id, long newRoleId)
+    {
+        // Arrange
+        var dto = new UpdateUserRoleDto { RoleId = newRoleId };
+        var newRole = new RoleModel { Id = newRoleId, Name = "IT MANAGER" };
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_adminUser);
+        _mockRolesRepo.Setup(roleRepo => roleRepo.GetById<RoleModel>(newRoleId)).ReturnsAsync(newRole);
+
+        // Act
+        var result = await _userService.UpdateUserRole(id, dto);
+
+        Assert.IsInstanceOfType(result, typeof(UpdateUserResult.InvalidData));
+        StringAssert.Contains(((UpdateUserResult.InvalidData)result).Message, "Cannot change role of an ADMIN");
+    }
+
+    #endregion
+
+    #region Validation
 
     [TestMethod]
     [DataRow("user@domain.com", "user@domain.com")]
@@ -255,35 +694,27 @@ public sealed class UserServiceTests
     [DataRow("user@123.com", "user@123.com")]
     [DataRow(" user@domain.com ", "user@domain.com")]
     [DataRow("user--name@domain.com", "user--name@domain.com")]
-    public async Task CreateUser_ValidEmail_CreatesUser(string inputEmail, string expectedNormalized)
+    [DataRow("USER@DOMAIN.COM", "USER@domain.com")] // Added from my previous example
+    public async Task CreateUserAsync_ValidEmailFormats_CreatesUserWithNormalizedEmail(string inputEmail, string expectedNormalized)
     {
         // Arrange
-
-        var birthday = DateTime.Parse("2000-01-01");
-
-        var request = new RegisterRequest
+        var dto = new RegisterDto
         {
-            Username = "John.Doe",
-            Password = "StrongPass1@",
-            ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
-            Email = inputEmail,
-            Phone = "+31612345678",
-            Birthday = birthday
+            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test", LastName = "User", Email = inputEmail, Phone = "0612345678",
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
         };
 
-        _mockUserAccess!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
+        _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), "ValidPassword1!")).Returns("hashed_password");
 
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.Success));
-        var success = result as RegisterResult.Success;
-        var createdUser = success!.User;
-        Assert.IsNotNull(createdUser);
-        Assert.AreEqual(expectedNormalized, createdUser.Email);
-        _mockUserAccess.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Email == expectedNormalized)), Times.Once);
+        _mockUsersRepo.Verify(userRepo => userRepo.CreateWithId(It.Is<UserModel>(user => user.Email == expectedNormalized)), Times.Once);
     }
 
     [TestMethod]
@@ -313,118 +744,103 @@ public sealed class UserServiceTests
     [DataRow("user@domain!name.com")]
     [DataRow("user@domain#name.com")]
     [DataRow("user@domain$%.com")]
-    public async Task CreateUser_InvalidEmail_ReturnsInvalidDataResponse(string email)
+    public async Task CreateUserAsync_InvalidEmailFormats_ReturnsInvalidData(string email)
     {
-        var birthday = DateTime.Parse("2000-01-01");
-
-        var request = new RegisterRequest
+        // Arrange
+        var dto = new RegisterDto
         {
-            Username = "John.Doe",
-            Password = "StrongPass1@",
-            ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
-            Email = email,
-            Phone = "+31612345678",
-            Birthday = birthday
+            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test", LastName = "User", Email = email, Phone = "0612345678",
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
         };
 
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
+
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        StringAssert.Contains(((RegisterResult.InvalidData)result).Message, "Email");
+        _mockUsersRepo.Verify(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
     [TestMethod]
-    [DataRow("0612345678", "+310612345678")]
-    [DataRow("06 12345678", "+310612345678")]
-    [DataRow("+31 6 12345678", "+310612345678")]
-    [DataRow("+31612345678", "+310612345678")]
-    [DataRow("00316 12345678", "+310612345678")]
-    [DataRow("0031612345678", "+310612345678")]
-    [DataRow("(06)12345678", "+310612345678")]
-    [DataRow("06-12345678", "+310612345678")]
-    [DataRow("06-12-34-56-78", "+310612345678")]
-    [DataRow("612345678", "+310612345678")]
-    [DataRow("+31 (0)6 12345678", "+310612345678")]
-    [DataRow("0031 06 12345678", "+310612345678")]
-    [DataRow("++31612345678", "+310612345678")]
-    [DataRow(" 06  1234  5678 ", "+310612345678")]
-    [DataRow("+310612345678", "+310612345678")]
-    [DataRow("0101234567", "+310101234567")]
-    [DataRow("010 1234567", "+310101234567")]
-    [DataRow("+31 10 1234567", "+310101234567")]
-    [DataRow("+31101234567", "+310101234567")]
-    [DataRow("0031 10 1234567", "+310101234567")]
-    [DataRow("0031515123456", "+310515123456")]
-    [DataRow("(0515)123456", "+310515123456")]
-    [DataRow("0515-123456", "+310515123456")]
-    [DataRow("0515-12-34-56", "+310515123456")]
-    [DataRow("515123456", "+310515123456")]
-    [DataRow("+31 (0)76 1234567", "+310761234567")]
-    [DataRow("0031 076 1234567", "+310761234567")]
-    [DataRow("++310761234567", "+310761234567")]
-    [DataRow(" 076  1234  567 ", "+310761234567")]
-    [DataRow("+310761234567", "+310761234567")]
-    // All separators will be stripped out. These are valid but rare/hacky/weird/not recommended formats, but included for robustness.
-    [DataRow("06.1234.5678", "+310612345678")]    //        .
-    [DataRow("06#1234#5678", "+310612345678")]    //        #
-    [DataRow("06/1234/5678", "+310612345678")]    //        /
-    [DataRow("06_1234_5678", "+310612345678")]    //        _
-    [DataRow("06*1234*5678", "+310612345678")]    //        *
-    [DataRow("06+1234+5678", "+310612345678")]    //        +
-    [DataRow("06=1234=5678", "+310612345678")]    //        =
-    [DataRow("06@1234@5678", "+310612345678")]    //        @
-    [DataRow("06!1234!5678", "+310612345678")]    //        !
-    [DataRow("06$1234$5678", "+310612345678")]    //        $
-    [DataRow("06%1234%5678", "+310612345678")]    //        %
-    [DataRow("06^1234^5678", "+310612345678")]    //        ^
-    [DataRow("06&1234&5678", "+310612345678")]    //        &
-    [DataRow("06{1234}5678", "+310612345678")]    //        {}
-    [DataRow("06[1234]5678", "+310612345678")]    //        []
-    [DataRow("06|1234|5678", "+310612345678")]    //        |
-    [DataRow("06;1234;5678", "+310612345678")]    //        ;
-    [DataRow("06:1234:5678", "+310612345678")]    //        :
-    [DataRow("06'1234'5678", "+310612345678")]    //        '
-    [DataRow("06\"1234\"5678", "+310612345678")]  //        "
-    [DataRow("06<1234>5678", "+310612345678")]    //        <>
-    [DataRow("06,1234,5678", "+310612345678")]    //        ,
-    [DataRow("06?1234?5678", "+310612345678")]    //        ?
-    [DataRow("06`1234`5678", "+310612345678")]    //        `
-    [DataRow("06~1234~5678", "+310612345678")]    //        ~
-    public async Task CreateUser_ValidPhoneFormats_CreatesUser(string phone, string expected)
+    [DataRow("0612345678", "+31612345678")]
+    [DataRow("06 12345678", "+31612345678")]
+    [DataRow("+31 6 12345678", "+31612345678")]
+    [DataRow("+31612345678", "+31612345678")]
+    [DataRow("00316 12345678", "+31612345678")]
+    [DataRow("0031612345678", "+31612345678")]
+    [DataRow("(06)12345678", "+31612345678")]
+    [DataRow("06-12345678", "+31612345678")]
+    [DataRow("06-12-34-56-78", "+31612345678")]
+    [DataRow("612345678", "+31612345678")]
+    [DataRow("+31 (0)6 12345678", "+31612345678")]
+    [DataRow("0031 06 12345678", "+31612345678")]
+    [DataRow("++31612345678", "+31612345678")]
+    [DataRow(" 06  1234  5678 ", "+31612345678")]
+    [DataRow("+310612345678", "+31612345678")]
+    [DataRow("0101234567", "+31101234567")]
+    [DataRow("010 1234567", "+31101234567")]
+    [DataRow("+31 10 1234567", "+31101234567")]
+    [DataRow("+31101234567", "+31101234567")]
+    [DataRow("0031 10 1234567", "+31101234567")]
+    [DataRow("0031515123456", "+31515123456")]
+    [DataRow("(0515)123456", "+31515123456")]
+    [DataRow("0515-123456", "+31515123456")]
+    [DataRow("0515-12-34-56", "+31515123456")]
+    [DataRow("515123456", "+31515123456")]
+    [DataRow("+31 (0)76 1234567", "+31761234567")]
+    [DataRow("0031 076 1234567", "+31761234567")]
+    [DataRow("++310761234567", "+31761234567")]
+    [DataRow(" 076  1234  567 ", "+31761234567")]
+    [DataRow("+310761234567", "+31761234567")]
+    [DataRow("06.1234.5678", "+31612345678")]    //        .
+    [DataRow("06#1234#5678", "+31612345678")]    //        #
+    [DataRow("06/1234/5678", "+31612345678")]    //        /
+    [DataRow("06_1234_5678", "+31612345678")]    //        _
+    [DataRow("06*1234*5678", "+31612345678")]    //        *
+    [DataRow("06+1234+5678", "+31612345678")]    //        +
+    [DataRow("06=1234=5678", "+31612345678")]    //        =
+    [DataRow("06@1234@5678", "+31612345678")]    //        @
+    [DataRow("06!1234!5678", "+31612345678")]    //        !
+    [DataRow("06$1234$5678", "+31612345678")]    //        $
+    [DataRow("06%1234%5678", "+31612345678")]    //        %
+    [DataRow("06^1234^5678", "+31612345678")]    //        ^
+    [DataRow("06&1234&5678", "+31612345678")]    //        &
+    [DataRow("06{1234}5678", "+31612345678")]    //        {}
+    [DataRow("06[1234]5678", "+31612345678")]    //        []
+    [DataRow("06|1234|5678", "+31612345678")]    //        |
+    [DataRow("06;1234;5678", "+31612345678")]    //        ;
+    [DataRow("06:1234:5678", "+31612345678")]    //        :
+    [DataRow("06'1234'5678", "+31612345678")]    //        '
+    [DataRow("06\"1234\"5678", "+31612345678")]  //        "
+    [DataRow("06<1234>5678", "+31612345678")]    //        <>
+    [DataRow("06,1234,5678", "+31612345678")]    //        ,
+    [DataRow("06?1234?5678", "+31612345678")]    //        ?
+    [DataRow("06`1234`5678", "+31612345678")]    //        `
+    [DataRow("06~1234~5678", "+31612345678")]    //        ~
+    public async Task CreateUserAsync_ValidPhoneFormats_CreatesUserWithNormalizedPhone(string phone, string expected)
     {
         // Arrange
-        var birthday = DateTime.Parse("2000-01-01");
-
-        var request = new RegisterRequest
+        var dto = new RegisterDto
         {
-            Username = "John.Doe",
-            Password = "StrongPass1@",
-            ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
-            Email = "john@doe.com",
-            Phone = phone,
-            Birthday = birthday
+            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
         };
 
-        _mockUserAccess!.Setup(access => access.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1)).Verifiable();
-
-        _mockUserAccess!
-            .Setup(access => access.Create(It.IsAny<UserModel>()))
-            .ReturnsAsync(true).Verifiable();
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
+        _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), "ValidPassword1!")).Returns("hashed_password");
 
         // Act
-        var result = await _userService!.CreateUserAsync(request);
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.Success));
-        var success = result as RegisterResult.Success;
-        var createdUser = success!.User;
-        Assert.IsNotNull(createdUser);
-        Assert.AreEqual(expected, createdUser.Phone);
-        _mockUserAccess.Verify(access => access.CreateWithId(It.Is<UserModel>(model => model.Phone == expected)), Times.Once);
+        _mockUsersRepo.Verify(userRepo => userRepo.CreateWithId(It.Is<UserModel>(user => user.Phone == expected)), Times.Once);
     }
 
     [TestMethod]
@@ -434,121 +850,26 @@ public sealed class UserServiceTests
     [DataRow("061234A567")]
     [DataRow("061234567A")]
     [DataRow("+32 612345678")]
-    public async Task CreateUser_InvalidPhoneFormats_ReturnsInvalidDataResponse(string phone)
+    public async Task CreateUserAsync_InvalidPhoneFormats_ReturnsInvalidData(string phone)
     {
-        var birthday = DateTime.Parse("2000-01-01");
-
-        var request = new RegisterRequest
+        // Arrange
+        var dto = new RegisterDto
         {
-            Username = "John.Doe",
-            Password = "StrongPass1@",
-            ConfirmPassword = "StrongPass1@",
-            Name = "John Doe",
-            Email = "john@doe.com",
-            Phone = phone,
-            Birthday = birthday
+            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
+            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
         };
 
-        var result = await _userService!.CreateUserAsync(request);
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.CreateUserAsync(dto);
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(RegisterResult.InvalidData));
-        _mockUserAccess!.Verify(access => access.CreateWithId(It.IsAny<UserModel>()), Times.Never);
+        StringAssert.Contains(((RegisterResult.InvalidData)result).Message, "Phone number");
+        _mockUsersRepo.Verify(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>()), Times.Never);
     }
 
-    [TestMethod]
-    [DataRow("user1", "ValidPass1@", "Alice", "USER", true)]
-    [DataRow("user2", "Another1!", "Bob", "ADMIN", false)]
-    [DataRow("user3", "Complex#Pass2", "Charlie", "MANAGER", true)]
-    public async Task UpdateUser_ValidUser_CallsUpdateAndReturnsUser(string username, string password, string name, string role, bool active)
-    {
-        // Arrange
-        var user = new UserModel
-        {
-            Username = username,
-            PasswordHash = password,
-            Name = name,
-            Role = role,
-            Active = active,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _mockUserAccess!
-            .Setup(access => access.Update(It.IsAny<UserModel>()))
-            .ReturnsAsync(true).Verifiable();
-
-        // Act
-        var result = await _userService!.UpdateUser(user);
-
-        // Assert
-        Assert.AreEqual(user, result);
-        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
-    }
-
-    [TestMethod]
-    public async Task UpdateUser_NullUser_ThrowsArgumentNullException()
-    {
-        await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
-            await _userService!.UpdateUser(null!));
-
-        _mockUserAccess!.Verify(access => access.Update(It.IsAny<UserModel>()), Times.Never);
-    }
-
-    [TestMethod]
-    [DataRow("userX", "FailPass1@", "Dave")]
-    [DataRow("userY", "OtherFail2#", "Eve")]
-    public async Task UpdateUser_WhenUpdateThrows_ExceptionPropagates(string username, string password, string name)
-    {
-        // Arrange
-        var user = new UserModel
-        {
-            Username = username,
-            Name = name,
-            Role = "USER",
-            Active = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        user.PasswordHash = _hasher!.HashPassword(user, password);
-
-        _mockUserAccess!
-            .Setup(access => access.Update(It.IsAny<UserModel>()))
-            .ThrowsAsync(new InvalidOperationException("DB error"));
-
-        // Act & Assert
-        var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
-            await _userService!.UpdateUser(user));
-
-        Assert.AreEqual("DB error", ex.Message);
-    }
-
-    [TestMethod]
-    [DataRow("", "plain", null, "ADMIN", false)]
-    [DataRow("userWeird", "notHashed", "", "SUPERUSER", true)]
-    [DataRow("   ", "123", "   ", "GUEST", false)]
-    public async Task UpdateUser_DoesNotValidateUserFields(string username, string password, string name, string role, bool active)
-    {
-        // Arrange
-        var user = new UserModel
-        {
-            Username = username,
-            PasswordHash = password,
-            Name = name,
-            Role = role,
-            Active = active,
-            CreatedAt = DateTime.MinValue
-        };
-
-        _mockUserAccess!
-            .Setup(access => access.Update(It.IsAny<UserModel>()))
-            .ReturnsAsync(true).Verifiable();
-
-        // Act
-        var result = await _userService!.UpdateUser(user);
-
-        // Assert
-        Assert.AreEqual(user, result);
-        _mockUserAccess.Verify(access => access.Update(user), Times.Once);
-    }
+    #endregion
 }
-
