@@ -6,13 +6,14 @@ namespace MobyPark.Services.Interfaces;
 
 public interface IParkingLotService
 {
-    Task<CreateLotResult> CreateParkingLot(CreateParkingLotDto lot);
-    Task<GetLotResult> GetParkingLotById(long id);
-    Task<GetLotResult> GetParkingLotByName(string name);
-    Task<GetLotListResult> GetParkingLotsByLocation(string location);
-    Task<GetLotListResult> GetAllParkingLots();
-    Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue);
-    Task<int> CountParkingLots();
-    Task<UpdateLotResult> UpdateParkingLot(long id, UpdateParkingLotDto lot);
-    Task<DeleteLotResult> DeleteParkingLot(long id);
+    Task<ParkingLotModel?> GetParkingLotByAddress(string address);
+    Task<ParkingLotModel?> GetParkingLotById(int id);
+
+    Task<RegisterResult> InsertParkingLotAsync(ParkingLotModel parkingLot);
+
+    Task<RegisterResult> UpdateParkingLotByAddressAsync(ParkingLotModel parkingLot, string address);
+    Task<RegisterResult> UpdateParkingLotByIDAsync(ParkingLotModel parkingLot, int id);
+
+    Task<RegisterResult> DeleteParkingLotByIDAsync(int id);
+    Task<RegisterResult> DeleteParkingLotByAddressAsync(string address);
 }
