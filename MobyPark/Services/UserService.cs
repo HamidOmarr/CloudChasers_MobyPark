@@ -173,6 +173,9 @@ public partial class UserService : IUserService
         try
         {
             UserModel createdUser = await CreateUser(user);
+            // Reload model to include role and permissions. Needed to create a session with the correct claims.
+            createdUser = await _users.GetByIdWithRoleAndPermissions(createdUser.Id);
+
             if (string.IsNullOrWhiteSpace(dto.LicensePlate))
                 return new RegisterResult.Success(createdUser);
 
@@ -231,6 +234,9 @@ public partial class UserService : IUserService
         var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
             return new LoginResult.InvalidCredentials();
+
+        // Reload model to include role and permissions. Needed to create a session with the correct claims.
+        user = await _users.GetByIdWithRoleAndPermissions(user.Id);
 
         var tokenResult = _sessions.CreateSession(user);
 
