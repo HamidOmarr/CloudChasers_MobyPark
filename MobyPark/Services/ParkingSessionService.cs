@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
+using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
@@ -9,7 +10,6 @@ using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Models.Requests;
 using MobyPark.Models.Requests.Session;
-using MobyPark.Models.Access;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.UserPlate;
 using MobyPark.Validation;
@@ -24,6 +24,7 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
+    private readonly IPaymentService _payments;
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
@@ -31,7 +32,8 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth
+        IPreAuthService preAuth,
+        IPaymentService payments
         )
     {
         _sessions = parkingSessions;
@@ -40,6 +42,7 @@ public class ParkingSessionService : IParkingSessionService
         _pricing = pricing;
         _gate = gate;
         _preAuth = preAuth;
+        _payments = payments;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
@@ -376,6 +379,67 @@ public class ParkingSessionService : IParkingSessionService
         }
 
         return new StartSessionResult.Success(newSession, lot.AvailableSpots);
+    }
+
+    public async Task<StopSessionResult> StopSession(StopParkingSessionDto sessionDto)
+    {
+        var licensePlate = sessionDto.LicensePlate.Upper();
+
+        var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
+        if (activeSessionResult is not GetSessionResult.Success sActive)
+            return new StopSessionResult.LicensePlateNotFound();
+
+        var activeSession = sActive.Session;
+
+        if (activeSession.Stopped.HasValue)
+            return new StopSessionResult.AlreadyStopped();
+
+
+        var lotResult = await _parkingLots.GetParkingLotById(activeSession.ParkingLotId);
+        if (lotResult is not GetLotResult.Success sLot)
+            return new StopSessionResult.Error("Failed to retrieve parking lot.");
+
+        var lot = sLot.Lot;
+
+
+        var priceResult = _pricing.CalculateParkingCost(lot, activeSession.Started, DateTime.UtcNow);
+        if (priceResult is not CalculatePriceResult.Success sPrice)
+            return new StopSessionResult.Error("Failed to calculate parking cost.");
+
+        decimal totalAmount = sPrice.Price;
+
+        var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
+        if (!paymentResult.Approved)
+            return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
+
+        activeSession.Stopped = DateTime.UtcNow;
+        activeSession.Cost = totalAmount;
+        activeSession.DurationMinutes = (int)Math.Ceiling((activeSession.Stopped.Value - activeSession.Started).TotalMinutes);
+        activeSession.PaymentStatus = ParkingSessionStatus.Paid;
+
+        var updateDto = new UpdateParkingSessionDto
+        {
+            Stopped = activeSession.Stopped,
+            PaymentStatus = activeSession.PaymentStatus
+        };
+
+        var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
+        if (updateResult is not UpdateSessionResult.Success sUpdate)
+            return new StopSessionResult.Error("Failed to update session after payment.");
+
+
+        try
+        {
+            if (!await OpenSessionGate(activeSession, licensePlate))
+                return new StopSessionResult.Error("Payment successful but failed to open gate.");
+        }
+        catch (Exception ex)
+        {
+            return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
+        }
+
+
+        return new StopSessionResult.Success(activeSession, totalAmount);
     }
 
     private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)
