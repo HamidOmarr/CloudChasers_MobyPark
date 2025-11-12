@@ -8,8 +8,6 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.ParkingSession;
-using MobyPark.Models.Requests;
-using MobyPark.Models.Requests.Session;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.UserPlate;
 using MobyPark.Validation;
@@ -383,7 +381,7 @@ public class ParkingSessionService : IParkingSessionService
 
     public async Task<StopSessionResult> StopSession(StopParkingSessionDto sessionDto)
     {
-        var licensePlate = sessionDto.LicensePlate.Upper();
+        var licensePlate = sessionDto.LicensePlate.ToUpper();
 
         var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
         if (activeSessionResult is not GetSessionResult.Success sActive)
@@ -420,13 +418,14 @@ public class ParkingSessionService : IParkingSessionService
         var updateDto = new UpdateParkingSessionDto
         {
             Stopped = activeSession.Stopped,
-            PaymentStatus = activeSession.PaymentStatus
+            PaymentStatus = activeSession.PaymentStatus,
+            Cost = activeSession.Cost
         };
 
         var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
         if (updateResult is not UpdateSessionResult.Success sUpdate)
             return new StopSessionResult.Error("Failed to update session after payment.");
-
+        activeSession = sUpdate.Session;
 
         try
         {
