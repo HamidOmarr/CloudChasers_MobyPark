@@ -24,6 +24,15 @@ public class ParkingLotService : IParkingLotService
     public async Task<ParkingLotModel?> GetParkingLotById(int id) =>
         await _parkingLots.GetParkingLotByID(id);
 
+    public async Task<ParkingLotModel?> ParkingLotExists(string checkBy, string value)
+    {
+        var check = checkBy == "address"
+            ? await _parkingLots.GetParkingLotByAddress(value) : checkBy == "id" ? await _parkingLots.GetParkingLotByID(int.Parse(value)) : null;
+
+        if (check is null) return null;
+        return check;
+    }
+
 
     public async Task<RegisterResult> InsertParkingLotAsync(ParkingLotModel parkingLot)
     {
@@ -80,5 +89,10 @@ public class ParkingLotService : IParkingLotService
             return new RegisterResult.NotFound("Parking lot not found");
         return new RegisterResult.SuccessfullyDeleted();
     }
-    
+
+    public async Task<int> CountParkingLots() => await _parkingLots.Count();
+
+    public async Task<List<ParkingLotModel>> GetAllParkingLots() => await _parkingLots.GetAll();
+
+
 }
