@@ -22,7 +22,6 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
-    private readonly IPaymentService _payments;
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
@@ -30,8 +29,7 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth,
-        IPaymentService payments
+        IPreAuthService preAuth
         )
     {
         _sessions = parkingSessions;
@@ -40,7 +38,6 @@ public class ParkingSessionService : IParkingSessionService
         _pricing = pricing;
         _gate = gate;
         _preAuth = preAuth;
-        _payments = payments;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
