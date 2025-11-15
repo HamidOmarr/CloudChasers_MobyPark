@@ -127,7 +127,10 @@ public class ParkingLotServiceTests
         var result = await _service.GetParkingLotByIdAsync(999);
 
         // Assert
+        Assert.IsNotNull(result);
         Assert.AreEqual(ServiceStatus.NotFound, result.Status);
+        Assert.AreEqual($"No lot with id: {999} found.", result.Error);
+        Assert.IsNull(result.Data);
     }
 
     #endregion
