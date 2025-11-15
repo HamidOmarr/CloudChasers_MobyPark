@@ -67,4 +67,39 @@ public class Repository<T> : IRepository<T> where T : class
         int result = await Context.SaveChangesAsync();
         return result > 0;
     }
+    
+    
+    
+    //Methods from the class
+    
+    //Add
+    public void Add(T entity)
+    {
+        if (entity == null) throw new ArgumentNullException("Entity is null");
+        DbSet.Add(entity);
+    }
+    
+    //Update
+    public void Update(T entity) => DbSet.Update(entity);
+
+    //Delete
+    public void Deletee(T entity)
+    {
+        if (entity == null) throw new ArgumentNullException("Entity is null");
+        DbSet.Remove(entity);
+    }
+
+    //Save
+    public int SaveChanges() => Context.SaveChanges();
+
+    public IEnumerable<T> ReadAll() => DbSet.ToList();
+    public T? FindById(object id) => DbSet.Find(id);
+
+    public IEnumerable<T> GetBy(Expression<Func<T, bool>> predicate) => DbSet.Where(predicate);
+    public IQueryable<T> Query() => DbSet.AsQueryable();
+
+    public Task<T?> FindByIdAsync(object id) => DbSet.FindAsync(id).AsTask();
+    public Task<List<T>> ReadAllAsync() => DbSet.ToListAsync();
+    public Task<List<T>> GetByAsync(Expression<Func<T, bool>> predicate) => DbSet.Where(predicate).ToListAsync();
+    public Task<int> SaveChangesAsync() => Context.SaveChangesAsync();
 }

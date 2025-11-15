@@ -284,7 +284,7 @@ public class ParkingSessionService : IParkingSessionService
     {
         int newReservedCount = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
 
-        var lotUpdateDto = new UpdateParkingLotDto
+        var lotUpdateDto = new PatchParkingLotDto
         {
             Reserved = newReservedCount
         };
@@ -309,7 +309,7 @@ public class ParkingSessionService : IParkingSessionService
             (bool createdSuccessfully, long id) = await _sessions.CreateWithId(session);
             if (!createdSuccessfully)
             {
-                var rollback = new UpdateParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
+                var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
                 await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
                 return new PersistSessionResult.Error("Failed to persist parking session (database error).");
             }
@@ -319,7 +319,7 @@ public class ParkingSessionService : IParkingSessionService
         }
         catch (Exception ex)
         {
-            var rollback = new UpdateParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
+            var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
             await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
 
             return new PersistSessionResult.Error(ex.Message);
@@ -380,7 +380,7 @@ public class ParkingSessionService : IParkingSessionService
                 await DeleteParkingSession(newSession.Id);
 
             int rolledBackReservedCount = Math.Max(0, lot.Reserved - 1);
-            var rollback = new UpdateParkingLotDto { Reserved = rolledBackReservedCount };
+            var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
             await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
 
             return new StartSessionResult.Error("Failed to start session: " + ex.Message);
