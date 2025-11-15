@@ -22,7 +22,7 @@ public class ParkingLotsController : BaseController
         _authorizationService = authorizationService;
     }
 
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPost]
     public async Task<IActionResult> CreateParkingLot([FromBody] CreateParkingLotDto parkingLot)
     {
@@ -38,8 +38,8 @@ public class ParkingLotsController : BaseController
             };
     }
     
-    [HttpGet("{lotId:int}")]
-    public async Task<IActionResult> GetParkingLotById(int lotId)
+    [HttpGet("{lotId:long}")]
+    public async Task<IActionResult> GetParkingLotById(long lotId)
     {
         var result = await _parkingService.GetParkingLotByIdAsync(lotId);
         return result.Status switch
@@ -68,9 +68,9 @@ public class ParkingLotsController : BaseController
         };
     }
 
-    [Authorize(Policy = "AdminOnly")]
-    [HttpPatch("by-id/{lotId:int}")]
-    public async Task<IActionResult> UpdateParkingLotById(int lotId, [FromBody] PatchParkingLotDto lot)
+    [Authorize(Policy = "CanManageParkingLot")]
+    [HttpPatch("by-id/{lotId:long}")]
+    public async Task<IActionResult> PatchParkingLotById(long lotId, [FromBody] PatchParkingLotDto lot)
     {
         var result = await _parkingService.PatchParkingLotByIdAsync(lotId, lot);
         return result.Status switch
@@ -84,9 +84,9 @@ public class ParkingLotsController : BaseController
         };
     }
     
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPatch("by-address")]
-    public async Task<IActionResult> UpdateParkingLotByAddress([FromQuery] string address, [FromBody] PatchParkingLotDto lot)
+    public async Task<IActionResult> PatchParkingLotByAddress([FromQuery] string address, [FromBody] PatchParkingLotDto lot)
     {
         var result = await _parkingService.PatchParkingLotByAddressAsync(address, lot);
         return result.Status switch
@@ -100,9 +100,9 @@ public class ParkingLotsController : BaseController
         };
     }
 
-    [Authorize(Policy = "AdminOnly")]
-    [HttpDelete("by-id/{lotId:int}")]
-    public async Task<IActionResult> DeleteParkingLotById(int lotId)
+    [Authorize(Policy = "CanManageParkingLot")]
+    [HttpDelete("by-id/{lotId:long}")]
+    public async Task<IActionResult> DeleteParkingLotById(long lotId)
     {
         var result = await _parkingService.DeleteParkingLotByIdAsync(lotId);
         return result.Status switch
@@ -116,7 +116,7 @@ public class ParkingLotsController : BaseController
         };
     }
     
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "CanManageParkingLot")]
     [HttpDelete("by-address/{address}")]
     public async Task<IActionResult> DeleteByAddress(string address)
     {

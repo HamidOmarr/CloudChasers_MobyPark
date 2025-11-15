@@ -44,12 +44,12 @@ public class ParkingLotService
         
     }
     
-    public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByIdAsync(int id)
+    public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByIdAsync(long id)
     {
         try
         {
             var lot = await _parkingRepo.FindByIdAsync(id);
-            if (lot is null) return null;
+            if (lot is null) return ServiceResult<ReadParkingLotDto>.NotFound($"No lot with id: {id} found.");
 
             return ServiceResult<ReadParkingLotDto>.Ok( new ReadParkingLotDto
             {
@@ -150,7 +150,7 @@ public class ParkingLotService
         }
     }
     
-    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(int id, PatchParkingLotDto updateLot) 
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot) 
     {
         try
         {
@@ -191,7 +191,7 @@ public class ParkingLotService
         }
     }
 
-    public async Task<ServiceResult<bool>> DeleteParkingLotByIdAsync(int id)
+    public async Task<ServiceResult<bool>> DeleteParkingLotByIdAsync(long id)
     {
         try
         {
@@ -214,7 +214,7 @@ public class ParkingLotService
         {
             var normalized = address.Trim().ToLower();
             var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
-            if (exists is null) return ServiceResult<bool>.NotFound("No lot found with that id. Deletion failed.");
+            if (exists is null) return ServiceResult<bool>.NotFound("No lot found with that address. Deletion failed.");
 
             _parkingRepo.Deletee(exists);
             await _parkingRepo.SaveChangesAsync();
