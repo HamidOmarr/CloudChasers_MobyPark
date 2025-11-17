@@ -10,6 +10,7 @@ using MobyPark.Services.Results.ParkingLot;
 namespace MobyPark.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class ParkingLotsController : BaseController
 {
