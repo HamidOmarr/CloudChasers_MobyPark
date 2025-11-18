@@ -95,5 +95,18 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(userPlate => userPlate.LicensePlate)
             .WithMany()
             .HasForeignKey(userPlate => userPlate.LicensePlateNumber);
+
+        // Explicit PascalCase table names (future migrations will rename existing snake_case tables)
+        modelBuilder.Entity<UserModel>().ToTable("Users");
+        modelBuilder.Entity<RoleModel>().ToTable("Roles");
+        modelBuilder.Entity<PermissionModel>().ToTable("Permissions");
+        modelBuilder.Entity<RolePermissionModel>().ToTable("RolePermissions");
+        modelBuilder.Entity<ReservationModel>().ToTable("Reservations");
+        modelBuilder.Entity<ParkingLotModel>().ToTable("ParkingLots");
+        modelBuilder.Entity<LicensePlateModel>().ToTable("LicensePlates");
+        modelBuilder.Entity<ParkingSessionModel>().ToTable("ParkingSessions");
+        modelBuilder.Entity<PaymentModel>().ToTable("Payments");
+        modelBuilder.Entity<TransactionModel>().ToTable("Transactions");
+        modelBuilder.Entity<UserPlateModel>().ToTable("UserPlates");
     }
 }

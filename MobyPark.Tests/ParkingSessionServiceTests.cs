@@ -282,7 +282,7 @@ public sealed class ParkingSessionServiceTests
         Assert.IsInstanceOfType(result, typeof(UpdateSessionResult.Success));
         Assert.AreEqual(newStatus, ((UpdateSessionResult.Success)result).Session.PaymentStatus);
 
-        _mockPricingService.Verify(ps => ps.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+        _mockPricingService.Verify(pricingService => pricingService.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
         _mockSessionsRepo.Verify(sessionRepo => sessionRepo.Update(existingSession, dto), Times.Once);
     }
 
@@ -893,7 +893,7 @@ public sealed class ParkingSessionServiceTests
         };
         var userPlates = new System.Collections.Generic.List<UserPlateModel>
         {
-            new UserPlateModel { UserId = userId, LicensePlateNumber = plate, CreatedAt = DateOnly.FromDateTime(plateAddedTime) }
+            new UserPlateModel { UserId = userId, LicensePlateNumber = plate, CreatedAt = new DateTimeOffset(plateAddedTime, TimeSpan.Zero) }
         };
 
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetById<ParkingSessionModel>(sessionId))
@@ -930,7 +930,7 @@ public sealed class ParkingSessionServiceTests
             {
                 UserId = userId,
                 LicensePlateNumber = userPlate,
-                CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2))
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-2)
             }
         };
 
@@ -970,7 +970,7 @@ public sealed class ParkingSessionServiceTests
             {
                 UserId = userId,
                 LicensePlateNumber = plate,
-                CreatedAt = DateOnly.FromDateTime(plateAddedTime)
+                CreatedAt = new DateTimeOffset(plateAddedTime, TimeSpan.Zero)
             }
         };
 
@@ -1052,7 +1052,7 @@ public sealed class ParkingSessionServiceTests
             {
                 UserId = userId,
                 LicensePlateNumber = ownedPlate,
-                CreatedAt = DateOnly.FromDateTime(plateAddedTime)
+                CreatedAt = new DateTimeOffset(plateAddedTime, TimeSpan.Zero)
             }
         };
         _mockUserPlateService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(userId))

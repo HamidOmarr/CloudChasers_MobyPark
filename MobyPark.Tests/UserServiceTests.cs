@@ -81,7 +81,7 @@ public sealed class UserServiceTests
     public async Task CreateUserAsync_ValidInput_CreatesUserModel(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
+        var birthday = DateTimeOffset.Parse(birthdayString + "T00:00:00Z");
         var dto = new RegisterDto
         {
             Username = username, Password = password, ConfirmPassword = password,
@@ -116,7 +116,7 @@ public sealed class UserServiceTests
         {
             Username = username, Password = password, ConfirmPassword = password,
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20)),
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20),
             LicensePlate = plate
         };
 
@@ -163,7 +163,7 @@ public sealed class UserServiceTests
         {
             Username = "user", Password = password, ConfirmPassword = password,
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("user")).ReturnsAsync((UserModel?)null);
 
@@ -536,7 +536,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_ValidChanges_ReturnsSuccess(long id, string first, string last, string bday)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var birthday = DateTimeOffset.Parse(bday + "T00:00:00Z");
         var dto = new UpdateUserIdentityDto { FirstName = first, LastName = last, Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
         _mockUsersRepo.Setup(userRepo => userRepo.Update(It.IsAny<UserModel>(), It.IsAny<UserModel>())).ReturnsAsync(true);
@@ -554,7 +554,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_InvalidBirthday_ReturnsInvalidData(long id, string bday)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var birthday = DateTimeOffset.Parse(bday + "T00:00:00Z");
         var dto = new UpdateUserIdentityDto { Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
 
@@ -570,7 +570,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_BirthdayTooYoung_ReturnsInvalidData(long id)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-10));
+        var birthday = DateTimeOffset.UtcNow.AddYears(-10);
         var dto = new UpdateUserIdentityDto { Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
 
@@ -702,7 +702,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = inputEmail, Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -751,7 +751,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = email, Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -828,7 +828,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -857,7 +857,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);

@@ -23,7 +23,7 @@ public class UserPlateRepository : Repository<UserPlateModel>, IUserPlateReposit
             UserId = userId,
             LicensePlateNumber = plate,
             IsPrimary = isFirstPlate,
-            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
+            CreatedAt = DateTimeOffset.UtcNow
         };
         await DbSet.AddAsync(userPlate);
         await Context.SaveChangesAsync();

@@ -165,7 +165,7 @@ public partial class UserService : IUserService
             Email = cleanEmail!,
             Phone = cleanPhone!,
             Birthday = dto.Birthday,
-            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
+            CreatedAt = DateTimeOffset.UtcNow
         };
 
         user.PasswordHash = _hasher.HashPassword(user, dto.Password);
@@ -330,15 +330,16 @@ public partial class UserService : IUserService
 
         if (dto.Birthday.HasValue)
         {
-            if (dto.Birthday.Value > DateOnly.FromDateTime(DateTime.Now))
+            if (dto.Birthday.Value > DateTimeOffset.UtcNow)
                 return new UpdateUserResult.InvalidData("Birthday cannot be in the future.");
 
             if (dto.Birthday.Value.Year < 1900)
                 return new UpdateUserResult.InvalidData("Birthday is not valid.");
 
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            int age = today.Year - dto.Birthday.Value.Year;
-            if (dto.Birthday.Value > today.AddYears(-age)) age--;
+            var today = DateTimeOffset.UtcNow.Date;
+            var bdayDate = dto.Birthday.Value.UtcDateTime.Date;
+            int age = today.Year - bdayDate.Year;
+            if (bdayDate > today.AddYears(-age)) age--;
             // Minimum age requirement; provisional license considered to be valid from 16 years old
             if (age < 16) return new UpdateUserResult.InvalidData("User must be at least 16 years old.");
 
