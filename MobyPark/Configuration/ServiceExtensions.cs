@@ -114,8 +114,7 @@ public static class ServiceExtensions
         services.AddAuthorizationBuilder()
             .AddPolicy("CanViewSelfFinance",
                 policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); });
-
-
+        
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();
 

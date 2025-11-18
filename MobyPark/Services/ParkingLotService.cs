@@ -2,174 +2,253 @@ using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class ParkingLotService : IParkingLotService
+public class ParkingLotService
 {
-    private readonly IParkingLotRepository _parkingLots;
+    private readonly IRepository<ParkingLotModel> _parkingRepo;
 
-    public ParkingLotService(IParkingLotRepository parkingLots)
+
+    public ParkingLotService(IRepository<ParkingLotModel> parkingLots)
     {
-        _parkingLots = parkingLots;
+        _parkingRepo = parkingLots;
     }
 
-    public async Task<CreateLotResult> CreateParkingLot(CreateParkingLotDto dto)
+    public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByAddressAsync(string address)
     {
-        var exists = await ParkingLotExists("address", dto.Address);
-        if (exists is ParkingLotExistsResult.Exists)
-            return new CreateLotResult.Error("Parking lot with the same address already exists.");
-
-        var lot = new ParkingLotModel
-        {
-            Name = dto.Name,
-            Location = dto.Location,
-            Address = dto.Address,
-            Capacity = dto.Capacity,
-            Reserved = 0,
-            Tariff = dto.Tariff,
-            DayTariff = dto.DayTariff,
-            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow)
-        };
-
         try
         {
-            (bool createdSuccessfully, long id) = await _parkingLots.CreateWithId(lot);
-            if (!createdSuccessfully)
-                return new CreateLotResult.Error("Database insertion failed.");
+            var normalized = address.Trim().ToLower();
+            var lot = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
+            if (lot is null) return ServiceResult<ReadParkingLotDto>.NotFound($"No parking lot found at address {address}");
 
-            lot.Id = id;
-            return new CreateLotResult.Success(lot);
+            return ServiceResult<ReadParkingLotDto>.Ok( new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Name = lot.Name,
+                Location = lot.Location,
+                Address = lot.Address,
+                Capacity = lot.Capacity,
+                Tariff = lot.Tariff,
+                DayTariff = lot.DayTariff
+            });
         }
         catch (Exception ex)
-        { return new CreateLotResult.Error(ex.Message); }
-    }
-
-    public async Task<GetLotResult> GetParkingLotById(long id)
-    {
-        var lot = await _parkingLots.GetById<ParkingLotModel>(id);
-        if (lot is null)
-            return new GetLotResult.NotFound();
-
-        return new GetLotResult.Success(lot);
-    }
-
-    public async Task<UpdateLotResult> UpdateParkingLot(long id, UpdateParkingLotDto dto)
-    {
-        var getResult = await GetParkingLotById(id);
-        if (getResult is not GetLotResult.Success success)
         {
-            return getResult switch
+            return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
+        }
+        
+    }
+    
+    public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByIdAsync(long id)
+    {
+        try
+        {
+            var lot = await _parkingRepo.FindByIdAsync(id);
+            if (lot is null) return ServiceResult<ReadParkingLotDto>.NotFound($"No lot with id: {id} found.");
+
+            return ServiceResult<ReadParkingLotDto>.Ok( new ReadParkingLotDto
             {
-                GetLotResult.NotFound => new UpdateLotResult.NotFound(),
-                _ => new UpdateLotResult.Error("Failed to retrieve parking lot for update.")
+                Id = lot.Id,
+                Name = lot.Name,
+                Location = lot.Location,
+                Address = lot.Address,
+                Capacity = lot.Capacity,
+                Tariff = lot.Tariff,
+                DayTariff = lot.DayTariff
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<ReadParkingLotDto>.Fail("Unexpected error occurred.");
+        }
+        
+    }
+
+    public async Task<ServiceResult<ReadParkingLotDto>> CreateParkingLotAsync(CreateParkingLotDto parkingLot)
+    {
+        var normalized = parkingLot.Address.Trim().ToLower();
+        
+        try
+        {
+            var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
+            if (exists is not null) return ServiceResult<ReadParkingLotDto>.Fail("Address taken");
+
+            var lot = new ParkingLotModel
+            {
+                Name = parkingLot.Name,
+                Location = parkingLot.Location,
+                Address = parkingLot.Address,
+                Capacity = parkingLot.Capacity,
+                Tariff = parkingLot.Tariff,
+                DayTariff = parkingLot.DayTariff
             };
-        }
 
-        var existingLot = success.Lot;
-        if (dto.Capacity.HasValue && dto.Capacity.Value < existingLot.Reserved)
-            return new UpdateLotResult.InvalidInput($"Capacity cannot be less than the number of reserved spots ({existingLot.Reserved}).");
+            _parkingRepo.Add(lot);
+            await _parkingRepo.SaveChangesAsync();
 
-        try
-        {
-            bool updated = await _parkingLots.Update(existingLot, dto);
-            if (!updated)
-                return new UpdateLotResult.NoChangesMade();
-            return new UpdateLotResult.Success(existingLot);
-        }
-        catch (Exception ex)
-        { return new UpdateLotResult.Error(ex.Message); }
-    }
-
-    public async Task<DeleteLotResult> DeleteParkingLot(long id)
-    {
-        var getResult = await GetParkingLotById(id);
-        if (getResult is GetLotResult.NotFound)
-            return new DeleteLotResult.NotFound();
-
-        var lot = ((GetLotResult.Success)getResult).Lot;
-
-        try
-        {
-            if (!await _parkingLots.Delete(lot))
-                return new DeleteLotResult.Error("Failed to delete the parking lot.");
-
-            return new DeleteLotResult.Success();
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
+                Id = lot.Id,
+                Name = lot.Name,
+                Location = lot.Location,
+                Address = lot.Address,
+                Capacity = lot.Capacity,
+                Tariff = lot.Tariff,
+                DayTariff = lot.DayTariff
+            })
+            ;
         }
         catch (Exception ex)
-        { return new DeleteLotResult.Error(ex.Message); }
+        {
+            return ServiceResult<ReadParkingLotDto>.Fail("Unexpected error occurred.");
+        }
     }
 
-    public async Task<GetLotResult> GetParkingLotByName(string name)
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot) 
     {
-        if (string.IsNullOrWhiteSpace(name))
-            return new GetLotResult.InvalidInput("Name cannot be empty or whitespace.");
-
-        var lot = await _parkingLots.GetByName(name);
-        if (lot is null)
-            return new GetLotResult.NotFound();
-
-        return new GetLotResult.Success(lot);
-    }
-
-    public async Task<GetLotListResult> GetParkingLotsByLocation(string location)
-    {
-        if (string.IsNullOrWhiteSpace(location))
-            return new GetLotListResult.InvalidInput("Location cannot be empty or whitespace.");
-
-        var lots = await _parkingLots.GetByLocation(location);
-
-        if (lots.Count == 0)
-            return new GetLotListResult.NotFound();
-
-        return new GetLotListResult.Success(lots);
-    }
-
-    public async Task<GetLotListResult> GetAllParkingLots()
-    {
-        var lots = await _parkingLots.GetAll();
-
-        if (lots.Count == 0)
-            return new GetLotListResult.NotFound();
-
-        return new GetLotListResult.Success(lots);
-    }
-
-    public async Task<ParkingLotExistsResult> ParkingLotExists(string checkBy, string filterValue)
-    {
-        string normalizedCheckBy = checkBy.Lower();
-        string trimmedValue = filterValue.TrimSafe();
-
-        if (string.IsNullOrEmpty(trimmedValue))
-            return new ParkingLotExistsResult.InvalidInput("Filter value cannot be empty or whitespace.");
-
-        bool exists;
+        var normalized = address.Trim().ToLower();
         try
         {
-            switch (normalizedCheckBy)
+            var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
+            if (exists is null)
+                return ServiceResult<ReadParkingLotDto>.NotFound("No parking lot was found with that address");
+
+            if (updateLot.Address is not null)
             {
-                case "id":
-                    if (!long.TryParse(trimmedValue, out long id))
-                        return new ParkingLotExistsResult.InvalidInput("ID must be a valid long integer.");
-
-                    exists = await _parkingLots.Exists(lot => lot.Id == id);
-                    break;
-
-                case "address":
-                    exists = await _parkingLots.Exists(lot => lot.Address == trimmedValue);
-                    break;
-
-                default:
-                    return new ParkingLotExistsResult.InvalidInput("Invalid checkBy parameter. Must be 'id' or 'address'.");
+                var newAddressNormalized = updateLot.Address.Trim().ToLower();
+                var addressTaken = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == newAddressNormalized && x.Id != exists.Id)).FirstOrDefault();
+                if (addressTaken is not null) return ServiceResult<ReadParkingLotDto>.BadRequest("There is already a parking lot assigned to the new address.");
             }
-        }
-        catch (Exception ex)
-        { return new ParkingLotExistsResult.Error(ex.Message); }
 
-        return exists ? new ParkingLotExistsResult.Exists() : new ParkingLotExistsResult.NotExists();
+            if (!string.IsNullOrWhiteSpace(updateLot.Name)) exists.Name = updateLot.Name;
+            if (!string.IsNullOrWhiteSpace(updateLot.Location)) exists.Location = updateLot.Location;
+            if (!string.IsNullOrWhiteSpace(updateLot.Address)) exists.Address = updateLot.Address;
+            if (updateLot.Capacity.HasValue) exists.Capacity = updateLot.Capacity.Value;
+            if (updateLot.Tariff.HasValue) exists.Tariff = updateLot.Tariff.Value;
+            if (updateLot.DayTariff.HasValue) exists.DayTariff = updateLot.DayTariff.Value;
+
+            _parkingRepo.Update(exists);
+            await _parkingRepo.SaveChangesAsync();
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
+                    Id = exists.Id,
+                    Name = exists.Name,
+                    Location = exists.Location,
+                    Address = exists.Address,
+                    Capacity = exists.Capacity,
+                    Tariff = exists.Tariff,
+                    DayTariff = exists.DayTariff
+                });
+        }
+        
+        catch (Exception ex)
+        {
+            return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
+        }
+    }
+    
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot) 
+    {
+        try
+        {
+            var exists = await _parkingRepo.FindByIdAsync(id);
+            if (exists is null)
+                return ServiceResult<ReadParkingLotDto>.NotFound("No parking lot was found with that id");
+
+            if (updateLot.Address is not null)
+            {
+                var newAddressNormalized = updateLot.Address.Trim().ToLower();
+                var addressTaken = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == newAddressNormalized && x.Id != exists.Id)).FirstOrDefault();
+                if (addressTaken is not null) return ServiceResult<ReadParkingLotDto>.BadRequest("There is already a parking lot assigned to the new address.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(updateLot.Name)) exists.Name = updateLot.Name;
+            if (!string.IsNullOrWhiteSpace(updateLot.Location)) exists.Location = updateLot.Location;
+            if (!string.IsNullOrWhiteSpace(updateLot.Address)) exists.Address = updateLot.Address;
+            if (updateLot.Capacity.HasValue) exists.Capacity = updateLot.Capacity.Value;
+            if (updateLot.Tariff.HasValue) exists.Tariff = updateLot.Tariff.Value;
+            if (updateLot.DayTariff.HasValue) exists.DayTariff = updateLot.DayTariff.Value;
+
+            _parkingRepo.Update(exists);
+            await _parkingRepo.SaveChangesAsync();
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
+                    Id = exists.Id,
+                    Name = exists.Name,
+                    Location = exists.Location,
+                    Address = exists.Address,
+                    Capacity = exists.Capacity,
+                    Tariff = exists.Tariff,
+                    DayTariff = exists.DayTariff
+                });
+        }
+        
+        catch (Exception ex)
+        {
+            return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
+        }
     }
 
-    public async Task<int> CountParkingLots() => await _parkingLots.Count();
+    public async Task<ServiceResult<bool>> DeleteParkingLotByIdAsync(long id)
+    {
+        try
+        {
+            var exists = await _parkingRepo.FindByIdAsync(id);
+            if (exists is null) return ServiceResult<bool>.NotFound("No lot found with that id. Deletion failed.");
+
+            _parkingRepo.Deletee(exists);
+            await _parkingRepo.SaveChangesAsync();
+            return ServiceResult<bool>.Ok(true);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<bool>.Fail("Unexpected error occurred.");
+        }
+    }
+    
+    public async Task<ServiceResult<bool>> DeleteParkingLotByAddressAsync(string address)
+    {
+        try
+        {
+            var normalized = address.Trim().ToLower();
+            var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
+            if (exists is null) return ServiceResult<bool>.NotFound("No lot found with that address. Deletion failed.");
+
+            _parkingRepo.Deletee(exists);
+            await _parkingRepo.SaveChangesAsync();
+            return ServiceResult<bool>.Ok(true);
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<bool>.Fail("Unexpected error occurred.");
+        }
+    }
+
+    public async Task<ServiceResult<List<ReadParkingLotDto>>> GetAllParkingLotsAsync()
+    {
+        try
+        {
+            var lots = await _parkingRepo.ReadAllAsync();
+            var lotList = lots.Select(p => new ReadParkingLotDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Location = p.Location,
+                Address = p.Address,
+                Capacity = p.Capacity,
+                Tariff = p.Tariff,
+                DayTariff = p.DayTariff
+            }).ToList();
+
+            return ServiceResult<List<ReadParkingLotDto>>.Ok(lotList);
+
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult<List<ReadParkingLotDto>>.Fail("Unexpected error occurred.");
+        }
+    }
+    
 }
