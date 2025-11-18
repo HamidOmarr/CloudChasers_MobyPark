@@ -40,17 +40,9 @@ public class ReservationService : IReservationService
 
     public async Task<CreateReservationResult> CreateReservation(CreateReservationDto dto, long requestingUserId, bool isAdminRequest = false)
     {
-        var lotValidationResult = await ValidateInputAndFetchLot(dto);
-        if (lotValidationResult is not GetLotResult.Success lotSuccess)
-        {
-            return lotValidationResult switch
-            {
-                GetLotResult.NotFound => new CreateReservationResult.LotNotFound(),
-                GetLotResult.InvalidInput i => new CreateReservationResult.InvalidInput(i.Message),
-                _ => new CreateReservationResult.Error("Failed to validate parking lot.")
-            };
-        }
-        var lot = lotSuccess.Lot;
+        var lot = await ValidateInputAndFetchLot(dto);
+        if (lot is null)
+            return new CreateReservationResult.LotNotFound();
 
         string normalizedPlate = dto.LicensePlate.Upper();
         var userPlateValidationResult = await ResolveTargetUserAndValidatePlate(dto, normalizedPlate, requestingUserId, isAdminRequest);
@@ -59,12 +51,12 @@ public class ReservationService : IReservationService
         {
             return userPlateValidationResult switch
             {
-                ResolveUserPlateResult.PlateNotFound => new CreateReservationResult.PlateNotFound(),
-                ResolveUserPlateResult.UserNotFound notFound => new CreateReservationResult.UserNotFound(notFound.Username),
-                ResolveUserPlateResult.PlateNotOwned notOwned => new CreateReservationResult.PlateNotOwned(notOwned.Message),
-                ResolveUserPlateResult.Forbidden forbidden => new CreateReservationResult.Forbidden(forbidden.Message),
-                ResolveUserPlateResult.Error err => new CreateReservationResult.Error(err.Message),
-                _ => new CreateReservationResult.Error("Failed to validate user or plate ownership.")
+                ResolveUserPlateResult.PlateNotFound                 => new CreateReservationResult.PlateNotFound(),
+                ResolveUserPlateResult.UserNotFound notFound         => new CreateReservationResult.UserNotFound(notFound.Username),
+                ResolveUserPlateResult.PlateNotOwned notOwned        => new CreateReservationResult.PlateNotOwned(notOwned.Message),
+                ResolveUserPlateResult.Forbidden forbidden           => new CreateReservationResult.Forbidden(forbidden.Message),
+                ResolveUserPlateResult.Error err                     => new CreateReservationResult.Error(err.Message),
+                _                                                    => new CreateReservationResult.Error("Failed to validate user or plate ownership.")
             };
         }
 
@@ -73,7 +65,6 @@ public class ReservationService : IReservationService
             return overlapCheckResult;
 
         var costResult = _pricing.CalculateParkingCost(lot, dto.StartDate, dto.EndDate);
-
         if (costResult is not CalculatePriceResult.Success cost)
             return new CreateReservationResult.Error("Failed to calculate reservation cost.");
 
@@ -87,17 +78,19 @@ public class ReservationService : IReservationService
             CreatedAt = DateTime.UtcNow,
             Cost = cost.Price
         };
+
         return await PersistReservation(reservationToCreate);
     }
 
-    private async Task<GetLotResult> ValidateInputAndFetchLot(CreateReservationDto dto)
+    private async Task<ParkingLotModel?> ValidateInputAndFetchLot(CreateReservationDto dto)
     {
         if (dto.EndDate <= dto.StartDate)
-            return new GetLotResult.InvalidInput("End date must be after start date.");
-        if (dto.StartDate < DateTime.UtcNow.AddMinutes(-2)) // Small buffer for potential processing time
-            return new GetLotResult.InvalidInput("Reservation start date cannot be in the past.");
+            return null;
 
-        return await _parkingLots.GetParkingLotById(dto.ParkingLotId);
+        if (dto.StartDate < DateTime.UtcNow.AddMinutes(-2))
+            return null;
+
+        return await _parkingLots.GetParkingLotById((int)dto.ParkingLotId);
     }
 
     private async Task<ResolveUserPlateResult> ResolveTargetUserAndValidatePlate(
@@ -290,17 +283,19 @@ public class ReservationService : IReservationService
 
         if (datesChanged)
         {
-            var lotResult = await _parkingLots.GetParkingLotById(updatedReservation.ParkingLotId);
-            if (lotResult is GetLotResult.Success lotSuccess)
+            var lot = await _parkingLots.GetParkingLotById((int)updatedReservation.ParkingLotId);
+            if (lot is not null)
             {
-                var costResult = _pricing.CalculateParkingCost(lotSuccess.Lot, updatedReservation.StartTime, updatedReservation.EndTime);
+                var costResult = _pricing.CalculateParkingCost(lot, updatedReservation.StartTime, updatedReservation.EndTime);
                 if (costResult is CalculatePriceResult.Success successPrice)
                     updatedReservation.Cost = successPrice.Price;
                 else if (costResult is CalculatePriceResult.Error err)
                     return new UpdateReservationResult.Error($"Failed to recalculate cost: {err.Message}");
             }
             else
+            {
                 return new UpdateReservationResult.Error("Failed to retrieve parking lot for cost recalculation.");
+            }
         }
 
         try

@@ -84,8 +84,7 @@ public static class ServiceExtensions
                 policy => { policy.RequireClaim("Permission", "RESERVATIONS:CANCEL"); })
             .AddPolicy("CanViewSelfFinance",
                 policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); });
-
-
+        
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();
 
