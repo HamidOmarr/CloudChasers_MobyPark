@@ -32,6 +32,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -57,6 +58,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -84,6 +86,7 @@ public class ParkingLotService
                 Location = parkingLot.Location,
                 Address = parkingLot.Address,
                 Capacity = parkingLot.Capacity,
+                Reserved = 0,
                 Tariff = parkingLot.Tariff,
                 DayTariff = parkingLot.DayTariff
             };
@@ -96,6 +99,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -138,6 +142,7 @@ public class ParkingLotService
                     Name = exists.Name,
                     Location = exists.Location,
                     Address = exists.Address,
+                    Reserved = exists.Reserved,
                     Capacity = exists.Capacity,
                     Tariff = exists.Tariff,
                     DayTariff = exists.DayTariff
@@ -179,6 +184,7 @@ public class ParkingLotService
                     Name = exists.Name,
                     Location = exists.Location,
                     Address = exists.Address,
+                    Reserved = exists.Reserved,
                     Capacity = exists.Capacity,
                     Tariff = exists.Tariff,
                     DayTariff = exists.DayTariff
@@ -237,6 +243,7 @@ public class ParkingLotService
                 Name = p.Name,
                 Location = p.Location,
                 Address = p.Address,
+                Reserved = p.Reserved,
                 Capacity = p.Capacity,
                 Tariff = p.Tariff,
                 DayTariff = p.DayTariff

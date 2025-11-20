@@ -17,9 +17,12 @@ public static class DiContainer
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         // Repository: Scoped. New instance per HTTP request.
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>)); // toegevoegd door mij
         services.AddScoped<ILicensePlateRepository, LicensePlateRepository>();
         services.AddScoped<IParkingLotRepository, ParkingLotRepository>();
+        services.AddScoped<ParkingLotService>(); //toegevoegd door mij
         services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
+        services.AddScoped<IParkingLotRepository, ParkingLotRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
