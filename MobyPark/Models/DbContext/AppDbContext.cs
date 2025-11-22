@@ -17,6 +17,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<PaymentModel> Payments => Set<PaymentModel>();
     public DbSet<TransactionModel> Transactions => Set<TransactionModel>();
     public DbSet<UserPlateModel> UserPlates => Set<UserPlateModel>();
+    public DbSet<HotelPassModel> HotelPasses => Set<HotelPassModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
