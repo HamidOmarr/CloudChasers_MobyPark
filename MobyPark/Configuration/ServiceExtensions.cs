@@ -114,6 +114,9 @@ public static class ServiceExtensions
         services.AddAuthorizationBuilder()
             .AddPolicy("CanViewSelfFinance",
                 policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); });
+
+        services.AddAuthorizationBuilder().AddPolicy("CanManageHotelPasses",
+            policy => { policy.RequireClaim("Permission", "HOTELPASSES:MANAGE"); });
         
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();

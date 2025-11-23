@@ -11,5 +11,5 @@ public interface IHotelPassService
     Task<ServiceResult<ReadHotelPassDto>> GetActiveHotelPassByLicensePlateAndLotIdAsync(long parkingLotId, string licensePlate);
     Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass);
     Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass);
-    Task<ServiceResult<bool>> DeleteHotelPassById(long id);
+    Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id);
 }

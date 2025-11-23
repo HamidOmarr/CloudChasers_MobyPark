@@ -1,36 +1,33 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.DTOs.ParkingLot.Request;
-using MobyPark.Models;
+using MobyPark.DTOs.Hotel;
 using MobyPark.Services;
-using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.ParkingLot;
 
 namespace MobyPark.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "CanManageHotelPasses")]
 [Route("api/[controller]")]
-public class ParkingLotsController : BaseController
+public class HotelPassesController : BaseController
 {
-    private readonly ParkingLotService _parkingService;
+    //alleen voor hotels dus moet role checken
+    private readonly HotelPassService _hotelService;
     private readonly IAuthorizationService _authorizationService;
-
-    public ParkingLotsController(UserService users, ParkingLotService parkingService, IAuthorizationService authorizationService) : base(users)
+    
+    public HotelPassesController(UserService users, HotelPassService hotelService, IAuthorizationService authorizationService) : base(users)
     {
-        _parkingService = parkingService;
+        _hotelService = hotelService;
         _authorizationService = authorizationService;
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPost]
-    public async Task<IActionResult> CreateParkingLot([FromBody] CreateParkingLotDto parkingLot)
+    public async Task<IActionResult> CreateHotelPass([FromBody] CreateHotelPassDto pass)
     {
-        var result = await _parkingService.CreateParkingLotAsync(parkingLot);
+        var result = await _hotelService.CreateHotelPassAsync(pass);
         return result.Status switch
         {
-            ServiceStatus.Success   => CreatedAtAction(nameof(GetParkingLotById), new { id = result.Data!.Id }, result.Data),
+            ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
             ServiceStatus.NotFound  => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
             ServiceStatus.Fail      => Conflict(result.Error),
@@ -38,26 +35,11 @@ public class ParkingLotsController : BaseController
             _ => BadRequest("Unknown error")
         };
     }
-    
-    [HttpGet("{lotId:long}")]
-    public async Task<IActionResult> GetParkingLotById(long lotId)
+
+    [HttpGet("{id:long}")]
+    public async Task<IActionResult> GetHotelPassById([FromRoute] long id)
     {
-        var result = await _parkingService.GetParkingLotByIdAsync(lotId);
-        return result.Status switch
-        {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
-    }
-    
-    [HttpGet("by-address")]
-    public async Task<IActionResult> GetParkingLotByAddress([FromQuery] string address)
-    {
-        var result = await _parkingService.GetParkingLotByAddressAsync(address);
+        var result = await _hotelService.GetHotelPassByIdAsync(id);
         return result.Status switch
         {
             ServiceStatus.Success   => Ok(result.Data),
@@ -69,27 +51,10 @@ public class ParkingLotsController : BaseController
         };
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
-    [HttpPatch("by-id/{lotId:long}")]
-    public async Task<IActionResult> PatchParkingLotById(long lotId, [FromBody] PatchParkingLotDto lot)
+    [HttpGet("parkinglot/{id:long}")]
+    public async Task<IActionResult> GetHotelPassesByParkingLotId([FromRoute] long parkingLotId)
     {
-        var result = await _parkingService.PatchParkingLotByIdAsync(lotId, lot);
-        return result.Status switch
-        {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
-    }
-    
-    [Authorize(Policy = "CanManageParkingLot")]
-    [HttpPatch("by-address")]
-    public async Task<IActionResult> PatchParkingLotByAddress([FromQuery] string address, [FromBody] PatchParkingLotDto lot)
-    {
-        var result = await _parkingService.PatchParkingLotByAddressAsync(address, lot);
+        var result = await _hotelService.GetHotelPassesByParkingLotIdAsync(parkingLotId);
         return result.Status switch
         {
             ServiceStatus.Success   => Ok(result.Data),
@@ -101,27 +66,10 @@ public class ParkingLotsController : BaseController
         };
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
-    [HttpDelete("by-id/{lotId:long}")]
-    public async Task<IActionResult> DeleteParkingLotById(long lotId)
+    [HttpGet("license-plate")]
+    public async Task<IActionResult> GetHotelPassesByLicensePlateAsync([FromQuery] string plate)
     {
-        var result = await _parkingService.DeleteParkingLotByIdAsync(lotId);
-        return result.Status switch
-        {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
-    }
-    
-    [Authorize(Policy = "CanManageParkingLot")]
-    [HttpDelete("by-address/{address}")]
-    public async Task<IActionResult> DeleteByAddress(string address)
-    {
-        var result = await _parkingService.DeleteParkingLotByAddressAsync(address);
+        var result = await _hotelService.GetHotelPassesByLicensePlateAsync(plate);
         return result.Status switch
         {
             ServiceStatus.Success   => Ok(result.Data),
@@ -133,10 +81,41 @@ public class ParkingLotsController : BaseController
         };
     }
 
-    [HttpGet("all")]
-    public async Task<IActionResult> GetAll()
+    [HttpGet("{id:long}/license-plate")]
+    public async Task<IActionResult> GetActiveHotelPassByLicensePlateAndLotId([FromRoute] long id,
+        [FromQuery] string plate)
     {
-        var result = await _parkingService.GetAllParkingLotsAsync();
+        var result = await _hotelService.GetActiveHotelPassByLicensePlateAndLotIdAsync(id, plate);
+        return result.Status switch
+        {
+            ServiceStatus.Success   => Ok(result.Data),
+            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.BadRequest => BadRequest(result.Error),
+            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Exception => StatusCode(500, result.Error),
+            _ => BadRequest("Unknown error")
+        };
+    }
+
+    [HttpPatch]
+    public async Task<IActionResult> PatchHotelPass([FromBody] PatchHotelPassDto pass)
+    {
+        var result = await _hotelService.PatchHotelPassAsync(pass);
+        return result.Status switch
+        {
+            ServiceStatus.Success   => Ok(result.Data),
+            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.BadRequest => BadRequest(result.Error),
+            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Exception => StatusCode(500, result.Error),
+            _ => BadRequest("Unknown error")
+        };
+    }
+
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> DeleteHotelPassById(long id)
+    {
+        var result = await _hotelService.DeleteHotelPassByIdAsync(id);
         return result.Status switch
         {
             ServiceStatus.Success   => Ok(result.Data),

@@ -68,7 +68,7 @@ public class HotelPassService : IHotelPassService
     {
         var now = DateTime.UtcNow;
         var pass = (await _hotelRepo
-                .GetByAsync(x => x.LicensePlate == licensePlate && x.Start >= now && x.End + x.ExtraTime <= now))
+                .GetByAsync(x => x.ParkingLotId == parkingLotId && x.LicensePlate == licensePlate && x.Start >= now && x.End + x.ExtraTime <= now))
             .FirstOrDefault(); //Ik ga ervanuit dat 1 kenteken maar 1 actieve hotel pass kan hebben bij een bepaald hotel/parkinglot.
         if (pass is null)
             return ServiceResult<ReadHotelPassDto>.NotFound(
@@ -87,16 +87,76 @@ public class HotelPassService : IHotelPassService
 
     public async Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass)
     {
-        return null;
+        var now = DateTime.UtcNow;
+        //Check if there is already an active pass at the current hotel
+        var alreadyActive = (await _hotelRepo.GetByAsync(x =>
+            x.LicensePlate == pass.LicensePlate && x.ParkingLotId == pass.ParkingLotId && x.Start >= now &&
+            x.End + x.ExtraTime <= now)).FirstOrDefault();
+        if (alreadyActive is not null)
+            return ServiceResult<ReadHotelPassDto>.Conflict(
+                $"There is already an active hotel pass for license plate {pass.LicensePlate} at the current parkinglot");
+
+        var hotelPass = new HotelPassModel
+        {
+            LicensePlate = pass.LicensePlate,
+            ParkingLotId = pass.ParkingLotId,
+            Start = pass.Start,
+            End = pass.End,
+            ExtraTime = pass.ExtraTime
+        };
+
+        _hotelRepo.Add(hotelPass);
+        await _hotelRepo.SaveChangesAsync();
+        return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
+        {
+            Id = hotelPass.Id,
+            LicensePlate = hotelPass.LicensePlate,
+            ParkingLotId = hotelPass.ParkingLotId,
+            Start = hotelPass.Start,
+            End = hotelPass.End,
+            ExtraTime = hotelPass.ExtraTime
+        });
     }
 
     public async Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass)
     {
-        return null;
+        var existingPass = await _hotelRepo.FindByIdAsync(pass.Id);
+        if (existingPass is null)
+            return ServiceResult<ReadHotelPassDto>.NotFound($"Update failed. No pass with id {pass.Id} found");
+
+        if (!string.IsNullOrWhiteSpace(pass.LicensePlate)) existingPass.LicensePlate = pass.LicensePlate;
+        if (pass.Start.HasValue && pass.End.HasValue)
+        {
+            if (pass.Start >= pass.End)
+                return ServiceResult<ReadHotelPassDto>.BadRequest("Start should be before end time");
+            existingPass.Start = pass.Start.Value;
+            existingPass.End = pass.End.Value;
+        }
+        if(pass.Start.HasValue && !pass.End.HasValue) existingPass.Start = pass.Start.Value;
+        if(!pass.Start.HasValue && pass.End.HasValue) existingPass.End = pass.End.Value;
+        if (pass.ExtraTime.HasValue) existingPass.ExtraTime = pass.ExtraTime.Value;
+
+        _hotelRepo.Update(existingPass);
+        await _hotelRepo.SaveChangesAsync();
+        
+        return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
+        {
+            Id = existingPass.Id,
+            LicensePlate = existingPass.LicensePlate,
+            ParkingLotId = existingPass.ParkingLotId,
+            Start = existingPass.Start,
+            End = existingPass.End,
+            ExtraTime = existingPass.ExtraTime
+        });
     }
 
-    public async Task<ServiceResult<bool>> DeleteHotelPassById(long id)
+    public async Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id)
     {
-        return null;
+        var pass = await _hotelRepo.FindByIdAsync(id);
+        if (pass is null) return ServiceResult<bool>.NotFound($"No hotel pass with id {id} found.");
+
+        _hotelRepo.Deletee(pass);
+        await _hotelRepo.SaveChangesAsync();
+        return ServiceResult<bool>.Ok(true);
     }
 }
