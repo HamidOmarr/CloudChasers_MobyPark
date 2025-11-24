@@ -14,10 +14,10 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class ParkingLotsController : BaseController
 {
-    private readonly ParkingLotService _parkingService;
+    private readonly IParkingLotService _parkingService;
     private readonly IAuthorizationService _authorizationService;
 
-    public ParkingLotsController(UserService users, ParkingLotService parkingService, IAuthorizationService authorizationService) : base(users)
+    public ParkingLotsController(UserService users, IParkingLotService parkingService, IAuthorizationService authorizationService) : base(users)
     {
         _parkingService = parkingService;
         _authorizationService = authorizationService;

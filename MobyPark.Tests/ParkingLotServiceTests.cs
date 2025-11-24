@@ -4,6 +4,7 @@ using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 
 namespace MobyPark.Tests;
@@ -12,13 +13,24 @@ namespace MobyPark.Tests;
 public class ParkingLotServiceTests
 {
     private Mock<IRepository<ParkingLotModel>> _parkingRepoMock = null!;
-    private ParkingLotService _service = null!;
+    private Mock<IRepository<ParkingSessionModel>> _sessionRepoMock = null!;
+    private Mock<IRepository<ReservationModel>> _reservationRepoMock = null!;
+    private Mock<IRepository<HotelPassModel>> _hotelRepoMock = null!;
+    private IParkingLotService _service = null!;
 
     [TestInitialize]
     public void Setup()
     {
         _parkingRepoMock = new Mock<IRepository<ParkingLotModel>>();
-        _service = new ParkingLotService(_parkingRepoMock.Object);
+        _sessionRepoMock = new Mock<IRepository<ParkingSessionModel>>();
+        _reservationRepoMock = new Mock<IRepository<ReservationModel>>();
+        _hotelRepoMock = new Mock<IRepository<HotelPassModel>>();
+
+        _service = new ParkingLotService(
+            _parkingRepoMock.Object,
+            _sessionRepoMock.Object,
+            _reservationRepoMock.Object,
+            _hotelRepoMock.Object);
     }
 
     #region GetParkingLotByAddressAsync
@@ -40,6 +52,7 @@ public class ParkingLotServiceTests
             DayTariff = 20m
         };
 
+        
         _parkingRepoMock
             .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
             .ReturnsAsync(new[] { lot }.ToList());

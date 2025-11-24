@@ -24,13 +24,12 @@ public sealed class ParkingSessionServiceTests
     #region Setup
 
     private Mock<IParkingSessionRepository> _mockSessionsRepo = null!;
-    private Mock<IRepository<ParkingLotModel>> _mockParkingLotService = null!;
     private Mock<IUserPlateService> _mockUserPlateService = null!;
     private Mock<IPricingService> _mockPricingService = null!;
     private ParkingSessionService _sessionService = null!;
-    private ParkingLotService _parkingLotService = null!;
     private Mock<IGateService> _mockGateService = null!;
     private Mock<IPreAuthService> _mockPreAuthService = null!;
+    private Mock<IParkingLotService> _mockParkingLotService = null!;
     
     
 
@@ -38,7 +37,7 @@ public sealed class ParkingSessionServiceTests
     public void TestInitialize()
     {
         _mockSessionsRepo = new Mock<IParkingSessionRepository>();
-        _mockParkingLotService = new Mock<IRepository<ParkingLotModel>>();
+        _mockParkingLotService = new Mock<IParkingLotService>();
         _mockUserPlateService = new Mock<IUserPlateService>();
         _mockPricingService = new Mock<IPricingService>();
         _mockGateService = new Mock<IGateService>();
@@ -46,7 +45,7 @@ public sealed class ParkingSessionServiceTests
 
         _sessionService = new ParkingSessionService(
             _mockSessionsRepo.Object,
-            _parkingLotService = new ParkingLotService(_mockParkingLotService.Object),
+            _mockParkingLotService.Object,
             _mockUserPlateService.Object,
             _mockPricingService.Object,
             _mockGateService.Object,
@@ -241,9 +240,21 @@ public sealed class ParkingSessionServiceTests
             .Setup(sessionRepo => sessionRepo.GetById<ParkingSessionModel>(id))
             .ReturnsAsync(existingSession);
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotModel.Id,
+            Name = lotModel.Name,
+            Location = lotModel.Location,
+            Address = lotModel.Address,
+            Reserved = lotModel.Reserved,
+            Capacity = lotModel.Capacity,
+            Tariff = lotModel.Tariff,
+            DayTariff = lotModel.DayTariff
+        };
+
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(lotId))
-            .ReturnsAsync(lotModel);
+            .Setup(x => x.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockPricingService
             .Setup(ps => ps.CalculateParkingCost(
@@ -401,9 +412,21 @@ public sealed class ParkingSessionServiceTests
             .Setup(r => r.GetById<ParkingSessionModel>(id))
             .ReturnsAsync(existingSession);
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotEntity.Id,
+            Name = lotEntity.Name,
+            Location = lotEntity.Location,
+            Address = lotEntity.Address,
+            Reserved = lotEntity.Reserved,
+            Capacity = lotEntity.Capacity,
+            Tariff = lotEntity.Tariff,
+            DayTariff = lotEntity.DayTariff
+        };
+
         _mockParkingLotService
-            .Setup(r => r.FindByIdAsync(lotId))
-            .ReturnsAsync(lotEntity);
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockPricingService
             .Setup(p => p.CalculateParkingCost(
@@ -438,8 +461,8 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(existingSession);
 
         _mockParkingLotService
-            .Setup(r => r.FindByIdAsync(lotId))
-            .ReturnsAsync((ParkingLotModel?)null);
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound("Parking lot not found"));
 
         var result = await _sessionService.UpdateParkingSession(id, dto);
 
@@ -1197,8 +1220,8 @@ public sealed class ParkingSessionServiceTests
         var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
 
         _mockParkingLotService
-            .Setup(r => r.FindByIdAsync(lotId))
-            .ReturnsAsync((ParkingLotModel?)null);
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound("Parking lot not found"));
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
@@ -1214,7 +1237,21 @@ public sealed class ParkingSessionServiceTests
         var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
         var lot = new ParkingLotModel { Id = lotId, Capacity = capacity, Reserved = reserved };
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
@@ -1232,8 +1269,25 @@ public sealed class ParkingSessionServiceTests
         string expectedPlate = plate.ToUpper();
         var active = new ParkingSessionModel { Id = activeSessionId, LicensePlateNumber = expectedPlate };
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(expectedPlate)).ReturnsAsync(active);
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(expectedPlate))
+            .ReturnsAsync(active);
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
@@ -1251,9 +1305,28 @@ public sealed class ParkingSessionServiceTests
         string p = plate.ToUpper();
         var m = (decimal)amount;
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(p)).ReturnsAsync((ParkingSessionModel?)null);
-        _mockPreAuthService.Setup(pra => pra.PreauthorizeAsync(token, m, false))
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        _mockPreAuthService
+            .Setup(pra => pra.PreauthorizeAsync(token, m, false))
             .ReturnsAsync(new PreAuthDto { Approved = false });
 
         var result = await _sessionService.StartSession(dto, token, m, user);
@@ -1272,15 +1345,32 @@ public sealed class ParkingSessionServiceTests
         string p = plate.ToUpper();
         var m = (decimal)amount;
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(p)).ReturnsAsync((ParkingSessionModel?)null);
-        _mockPreAuthService.Setup(pr => pr.PreauthorizeAsync(token, m, false))
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockParkingLotService.Setup(r => r.Update(lot));
-        _mockParkingLotService.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
-
-        _mockSessionsRepo.Setup(r => r.CreateWithId(It.IsAny<ParkingSessionModel>()))
+        _mockSessionsRepo
+            .Setup(r => r.CreateWithId(It.IsAny<ParkingSessionModel>()))
             .ReturnsAsync((false, 0L));
 
         var result = await _sessionService.StartSession(dto, token, m, user);
@@ -1299,19 +1389,38 @@ public sealed class ParkingSessionServiceTests
         string p = plate.ToUpper();
         var m = (decimal)amount;
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(p)).ReturnsAsync((ParkingSessionModel?)null);
-        _mockPreAuthService.Setup(pr => pr.PreauthorizeAsync(token, m, false))
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockParkingLotService.Setup(r => r.Update(lot));
-        _mockParkingLotService.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
-
-        _mockSessionsRepo.Setup(r =>
+        _mockSessionsRepo
+            .Setup(r =>
                 r.CreateWithId(It.Is<ParkingSessionModel>(s => s.LicensePlateNumber == p)))
             .ReturnsAsync((true, newId));
 
-        _mockGateService.Setup(g => g.OpenGateAsync((int)lotId, p)).ReturnsAsync(true);
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .ReturnsAsync(true);
 
         var result = await _sessionService.StartSession(dto, token, m, user);
 
@@ -1329,25 +1438,45 @@ public sealed class ParkingSessionServiceTests
         string p = plate.ToUpper();
         var m = (decimal)amount;
 
-        _mockParkingLotService.Setup(r => r.FindByIdAsync(lotId)).ReturnsAsync(lot);
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(p)).ReturnsAsync((ParkingSessionModel?)null);
-        _mockPreAuthService.Setup(pr => pr.PreauthorizeAsync(token, m, false))
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = lot.Reserved,
+            Capacity = lot.Capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockParkingLotService.Setup(r => r.Update(lot));
-        _mockParkingLotService.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
-
-        _mockSessionsRepo.Setup(r =>
+        _mockSessionsRepo
+            .Setup(r =>
                 r.CreateWithId(It.Is<ParkingSessionModel>(s => s.LicensePlateNumber == p)))
             .ReturnsAsync((true, newId));
 
-        _mockGateService.Setup(g => g.OpenGateAsync((int)lotId, p))
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
             .ReturnsAsync(false);
 
-        _mockSessionsRepo.Setup(r => r.GetById<ParkingSessionModel>(newId))
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(newId))
             .ReturnsAsync(new ParkingSessionModel { Id = newId });
 
-        _mockSessionsRepo.Setup(r => r.Delete(It.Is<ParkingSessionModel>(s => s.Id == newId)))
+        _mockSessionsRepo
+            .Setup(r => r.Delete(It.Is<ParkingSessionModel>(s => s.Id == newId)))
             .ReturnsAsync(true);
 
         var result = await _sessionService.StartSession(dto, token, m, user);

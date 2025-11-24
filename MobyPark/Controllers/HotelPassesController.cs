@@ -2,26 +2,26 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.Hotel;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 
 namespace MobyPark.Controllers;
 
 [ApiController]
-[Authorize(Policy = "CanManageHotelPasses")]
 [Route("api/[controller]")]
 public class HotelPassesController : BaseController
 {
-    //alleen voor hotels dus moet role checken
-    private readonly HotelPassService _hotelService;
+    private readonly IHotelPassService _hotelService;
     private readonly IAuthorizationService _authorizationService;
     
-    public HotelPassesController(UserService users, HotelPassService hotelService, IAuthorizationService authorizationService) : base(users)
+    public HotelPassesController(UserService users, IHotelPassService hotelService, IAuthorizationService authorizationService) : base(users)
     {
         _hotelService = hotelService;
         _authorizationService = authorizationService;
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> CreateHotelPass([FromBody] CreateHotelPassDto pass)
     {
         var result = await _hotelService.CreateHotelPassAsync(pass);
@@ -98,6 +98,7 @@ public class HotelPassesController : BaseController
     }
 
     [HttpPatch]
+    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> PatchHotelPass([FromBody] PatchHotelPassDto pass)
     {
         var result = await _hotelService.PatchHotelPassAsync(pass);
@@ -113,6 +114,7 @@ public class HotelPassesController : BaseController
     }
 
     [HttpDelete("{id:long}")]
+    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> DeleteHotelPassById(long id)
     {
         var result = await _hotelService.DeleteHotelPassByIdAsync(id);

@@ -1,8 +1,10 @@
+using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.Price;
@@ -18,13 +20,12 @@ public sealed class ReservationServiceTests
 {
     #region Setup
     private Mock<IReservationRepository> _mockReservationsRepo = null!;
-    private Mock<IRepository<ParkingLotModel>> _mockParkingLotService = null!;
     private Mock<ILicensePlateService> _mockLicensePlatesService = null!;
     private Mock<IUserService> _mockUsersService = null!;
     private Mock<IUserPlateService> _mockUserPlatesService = null!;
     private Mock<IPricingService> _mockPricingService = null!;
     private ReservationService _reservationService = null!;
-    private ParkingLotService _parkingLotService = null!;
+    private Mock<IParkingLotService> _mockParkingLotService = null!;
 
     private const long RequestingUserId = 1L;
     private const long OtherUserId = 2L;
@@ -37,15 +38,15 @@ public sealed class ReservationServiceTests
     public void TestInitialize()
     {
         _mockReservationsRepo = new Mock<IReservationRepository>();
-        _mockParkingLotService = new Mock<IRepository<ParkingLotModel>>();
         _mockLicensePlatesService = new Mock<ILicensePlateService>();
         _mockUsersService = new Mock<IUserService>();
         _mockUserPlatesService = new Mock<IUserPlateService>();
         _mockPricingService = new Mock<IPricingService>();
+        _mockParkingLotService = new Mock<IParkingLotService>();
 
         _reservationService = new ReservationService(
             _mockReservationsRepo.Object,
-            _parkingLotService = new ParkingLotService(_mockParkingLotService.Object),
+            _mockParkingLotService.Object,
             _mockLicensePlatesService.Object,
             _mockUsersService.Object,
             _mockUserPlatesService.Object,
@@ -95,9 +96,21 @@ public sealed class ReservationServiceTests
         var expectedCost = 10m;
         long newReservationId = 123L;
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = lot.Tariff,
+            DayTariff = 0m
+        };
+
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(lotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(plate.ToUpper()))
@@ -149,9 +162,21 @@ public sealed class ReservationServiceTests
         var expectedCost = 10m;
         long newReservationId = 124L;
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = lot.Tariff,
+            DayTariff = 0m
+        };
+
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(lotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(plate.ToUpper()))
@@ -197,8 +222,8 @@ public sealed class ReservationServiceTests
         var dto = CreateValidDto(lotId);
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(lotId))
-            .ReturnsAsync((ParkingLotModel?)null);
+            .Setup(s => s.GetParkingLotByIdAsync(lotId)) 
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound("not found"));
 
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
@@ -241,8 +266,12 @@ public sealed class ReservationServiceTests
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(plate.ToUpper()))
@@ -262,8 +291,12 @@ public sealed class ReservationServiceTests
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
@@ -283,8 +316,12 @@ public sealed class ReservationServiceTests
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
@@ -309,8 +346,12 @@ public sealed class ReservationServiceTests
         var user = new UserModel { Id = RequestingUserId, Username = "requestingUser" };
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(plate.ToUpper()))
@@ -344,8 +385,12 @@ public sealed class ReservationServiceTests
             status: ReservationStatus.Confirmed);
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
@@ -378,8 +423,12 @@ public sealed class ReservationServiceTests
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
@@ -421,8 +470,12 @@ public sealed class ReservationServiceTests
         var expectedCost = 10m;
 
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(DefaultLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(DefaultLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = lot.Id,
+                Tariff = lot.Tariff
+            }));
 
         _mockLicensePlatesService
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
@@ -820,7 +873,7 @@ public sealed class ReservationServiceTests
             status: ReservationStatus.Pending,
             start: DateTime.UtcNow.AddHours(1),
             end: DateTime.UtcNow.AddHours(3));
-    
+        
         var dto = new UpdateReservationDto
         {
             StartTime = startTime,
@@ -849,9 +902,21 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, existing.LicensePlateNumber))
             .ReturnsAsync(new GetUserPlateResult.Success(userPlate));
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = lot.Tariff,
+            DayTariff = 0m
+        };
+
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(existing.ParkingLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(existing.ParkingLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockPricingService
             .Setup(p => p.CalculateParkingCost(
@@ -1000,9 +1065,21 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, existing.LicensePlateNumber))
             .ReturnsAsync(new GetUserPlateResult.Success(userPlate));
 
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lot.Id,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = lot.Tariff,
+            DayTariff = 0m
+        };
+
         _mockParkingLotService
-            .Setup(repo => repo.FindByIdAsync(existing.ParkingLotId))
-            .ReturnsAsync(lot);
+            .Setup(s => s.GetParkingLotByIdAsync(existing.ParkingLotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockPricingService
             .Setup(p => p.CalculateParkingCost(
