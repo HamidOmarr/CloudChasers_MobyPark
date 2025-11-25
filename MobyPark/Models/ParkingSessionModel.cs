@@ -41,8 +41,6 @@ public class ParkingSessionModel : IHasLongId, ICanBeEdited
 
     public DateTimeOffset? Stopped { get; set; }
 
-    public int? DurationMinutes { get; set; }
-
     public decimal? Cost { get; set; }
 
     [Required]

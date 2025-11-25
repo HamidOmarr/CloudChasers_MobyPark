@@ -247,7 +247,6 @@ public sealed class ParkingSessionServiceTests
 
         Assert.AreEqual(stopTime, updatedSession.Stopped);
         Assert.AreEqual(expectedCost, updatedSession.Cost);
-        Assert.AreEqual(expectedDuration, updatedSession.DurationMinutes);
 
         _mockPricingService.Verify(ps => ps.CalculateParkingCost(parkingLot, startTime, stopTime), Times.Once);
         _mockSessionsRepo.Verify(sessionRepo => sessionRepo.Update(existingSession, dto), Times.Once);
@@ -370,7 +369,7 @@ public sealed class ParkingSessionServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateSessionResult.Error));
-        StringAssert.Contains(((UpdateSessionResult.Error)result).Message, "Failed to recalculate cost");
+        StringAssert.Contains(((UpdateSessionResult.Error)result).Message, "Pricing error");
     }
 
     [TestMethod]

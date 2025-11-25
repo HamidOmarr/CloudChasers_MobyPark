@@ -92,6 +92,19 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
 
+
+        var createdUser = new UserModel
+        {
+            Id = 1L,
+            Username = username,
+            Email = email,
+            Phone = "+31612345678",
+            Role = new RoleModel { Id = 6, Name = "USER" },
+            RoleId = 6
+        };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
+
         // Act
         var result = await _userService.CreateUserAsync(dto);
 
@@ -124,6 +137,18 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
         _mockUserPlatesRepo.Setup(uPlateRepo => uPlateRepo.GetPlatesByPlate(plate.ToUpper())).ReturnsAsync(new List<UserPlateModel>());
+
+        var createdUser = new UserModel
+        {
+            Id = 1L,
+            Username = username,
+            Email = "test@test.com",
+            Phone = "+31612345678",
+            Role = new RoleModel { Id = 6, Name = "USER" },
+            RoleId = 6
+        };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);
@@ -189,6 +214,10 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
         _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
 
@@ -209,6 +238,10 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
         _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
 

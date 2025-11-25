@@ -126,8 +126,6 @@ public class ParkingSessionService : IParkingSessionService
             if (costResult is CalculatePriceResult.Success priceSuccess)
             {
                 existingSession.Cost = priceSuccess.Price;
-                existingSession.DurationMinutes =
-                    (int)Math.Ceiling((existingSession.Stopped.Value - existingSession.Started).TotalMinutes);
             }
             else if (costResult is CalculatePriceResult.Error e)
             {

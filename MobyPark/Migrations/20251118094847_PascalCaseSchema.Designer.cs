@@ -92,9 +92,6 @@ namespace MobyPark.Migrations
                     b.Property<decimal?>("Cost")
                         .HasColumnType("numeric");
 
-                    b.Property<int?>("DurationMinutes")
-                        .HasColumnType("integer");
-
                     b.Property<string>("LicensePlateNumber")
                         .IsRequired()
                         .HasColumnType("text");

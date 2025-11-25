@@ -103,7 +103,6 @@ namespace MobyPark.Migrations
                     LicensePlateNumber = table.Column<string>(type: "text", nullable: false),
                     Started = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Stopped = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    DurationMinutes = table.Column<int>(type: "integer", nullable: true),
                     Cost = table.Column<decimal>(type: "numeric", nullable: true),
                     PaymentStatus = table.Column<int>(type: "payment_status", nullable: false)
                 },
