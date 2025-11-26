@@ -17,5 +17,5 @@ public class UpdateUserDto : ICanBeEdited
     [Phone]
     public string? Phone { get; set; }
 
-    public DateOnly? Birthday { get; set; }
+    public DateTimeOffset? Birthday { get; set; }
 }

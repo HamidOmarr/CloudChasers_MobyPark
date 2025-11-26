@@ -75,7 +75,7 @@ public class ReservationService : IReservationService
             StartTime = dto.StartDate,
             EndTime = dto.EndDate,
             Status = ReservationStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
             Cost = cost.Price
         };
 
@@ -86,8 +86,7 @@ public class ReservationService : IReservationService
     {
         if (dto.EndDate <= dto.StartDate)
             return null;
-
-        if (dto.StartDate < DateTime.UtcNow.AddMinutes(-2))
+        if (dto.StartDate < DateTimeOffset.UtcNow.AddMinutes(-2))
             return null;
 
         return await _parkingLots.GetParkingLotById((int)dto.ParkingLotId);
@@ -131,7 +130,7 @@ public class ReservationService : IReservationService
         };
     }
 
-    private async Task<CreateReservationResult?> CheckForOverlappingReservation(long parkingLotId, long requestingUserId, string licensePlateNumber, DateTime start, DateTime end)
+    private async Task<CreateReservationResult?> CheckForOverlappingReservation(long parkingLotId, long requestingUserId, string licensePlateNumber, DateTimeOffset start, DateTimeOffset end)
     {
         var existingReservations = await GetReservationsByLicensePlate(licensePlateNumber, requestingUserId);
 
@@ -320,7 +319,7 @@ public class ReservationService : IReservationService
 
         if (dto.StartTime.HasValue && dto.StartTime.Value != existingReservation.StartTime)
         {
-            if (existingReservation.StartTime < DateTime.UtcNow)
+            if (existingReservation.StartTime < DateTimeOffset.UtcNow)
                 return new ApplyUpdateResult.CannotChangeStartedReservation();
 
             existingReservation.StartTime = dto.StartTime.Value;

@@ -146,7 +146,8 @@ public class PermissionService : IPermissionService
         }
         var permissionToDelete = success.Permission;
 
-        if (await _rolePermissions.RoleHasPermission(id, permissionToDelete.Id))
+        var assignedRoles = await _rolePermissions.GetRolesByPermissionId(permissionToDelete.Id);
+        if (assignedRoles.Count > 0)
             return new DeletePermissionResult.Conflict("Cannot delete permission: It is assigned to one or more roles.");
 
         try

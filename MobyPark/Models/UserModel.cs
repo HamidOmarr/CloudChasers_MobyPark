@@ -33,9 +33,9 @@ public class UserModel : IHasLongId, ICanBeEdited
     public RoleModel Role { get; set; } = null!;
 
     [Required]
-    public DateOnly CreatedAt { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public DateOnly Birthday { get; set; } = DateOnly.MinValue;  // TODO: Set up default value, update later
+    public DateTimeOffset Birthday { get; set; } = DateTimeOffset.MinValue;  // TODO: Set up default value, update later
 
     public const long AdminRoleId = 1;
     public const long DefaultUserRoleId = 6;  // Defaults to 'User' role

@@ -52,19 +52,19 @@ public sealed class ReservationServiceTests
         );
     }
 
-    private CreateReservationDto CreateValidDto(long lotId = 1, string plate = UserPlate, DateTime? start = null, DateTime? end = null, string? username = null)
+    private CreateReservationDto CreateValidDto(long lotId = 1, string plate = UserPlate, DateTimeOffset? start = null, DateTimeOffset? end = null, string? username = null)
     {
         return new CreateReservationDto
         {
             ParkingLotId = lotId,
             LicensePlate = plate,
-            StartDate = start ?? DateTime.UtcNow.AddHours(1),
-            EndDate = end ?? DateTime.UtcNow.AddHours(3),
+            StartDate = start ?? DateTimeOffset.UtcNow.AddHours(1),
+            EndDate = end ?? DateTimeOffset.UtcNow.AddHours(3),
             Username = username
         };
     }
 
-    private ReservationModel CreateReservationModel(long id = 1, long lotId = DefaultLotId, string plate = UserPlate, ReservationStatus status = ReservationStatus.Pending, DateTime? start = null, DateTime? end = null)
+    private ReservationModel CreateReservationModel(long id = 1, long lotId = DefaultLotId, string plate = UserPlate, ReservationStatus status = ReservationStatus.Pending, DateTimeOffset? start = null, DateTimeOffset? end = null)
     {
         return new ReservationModel
         {
@@ -72,9 +72,9 @@ public sealed class ReservationServiceTests
             ParkingLotId = lotId,
             LicensePlateNumber = plate.ToUpper(),
             Status = status,
-            StartTime = start ?? DateTime.UtcNow.AddHours(1),
-            EndTime = end ?? DateTime.UtcNow.AddHours(3),
-            CreatedAt = DateTime.UtcNow.AddMinutes(-10)
+            StartTime = start ?? DateTimeOffset.UtcNow.AddHours(1),
+            EndTime = end ?? DateTimeOffset.UtcNow.AddHours(3),
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-10)
         };
     }
 
@@ -161,7 +161,7 @@ public sealed class ReservationServiceTests
     public async Task CreateReservation_EndDateBeforeStartDate_ReturnsLotNotFound()
     {
         // Arrange
-        var dto = CreateValidDto(start: DateTime.UtcNow.AddHours(2), end: DateTime.UtcNow.AddHours(1));
+        var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddHours(2), end: DateTimeOffset.UtcNow.AddHours(1));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
@@ -175,7 +175,7 @@ public sealed class ReservationServiceTests
     public async Task CreateReservation_StartDateInPast_ReturnsLotNotFound()
     {
         // Arrange
-        var dto = CreateValidDto(start: DateTime.UtcNow.AddMinutes(-5));
+        var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddMinutes(-5));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
@@ -691,7 +691,7 @@ public sealed class ReservationServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Success));
         Assert.AreEqual(newStatus, ((UpdateReservationResult.Success)result).Reservation.Status);
-        _mockPricingService.Verify(pricingService => pricingService.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+        _mockPricingService.Verify(pricingService => pricingService.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
     }
 
     [TestMethod]
@@ -699,9 +699,9 @@ public sealed class ReservationServiceTests
     public async Task UpdateReservation_DatesChange_RecalculatesCostAndReturnsSuccess(long id)
     {
         // Arrange
-        var startTime = DateTime.UtcNow.AddHours(2);
-        var endTime = DateTime.UtcNow.AddHours(5);
-        var existing = CreateReservationModel(id: id, status: ReservationStatus.Pending, start: DateTime.UtcNow.AddHours(1), end: DateTime.UtcNow.AddHours(3));
+        var startTime = DateTimeOffset.UtcNow.AddHours(2);
+        var endTime = DateTimeOffset.UtcNow.AddHours(5);
+        var existing = CreateReservationModel(id: id, status: ReservationStatus.Pending, start: DateTimeOffset.UtcNow.AddHours(1), end: DateTimeOffset.UtcNow.AddHours(3));
         var dto = new UpdateReservationDto { StartTime = startTime, EndTime = endTime };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
         var lot = new ParkingLotModel { Id = existing.ParkingLotId, Tariff = 5 };
@@ -784,9 +784,9 @@ public sealed class ReservationServiceTests
     public async Task UpdateReservation_CannotChangeStartedReservationDate_ReturnsError(long id)
     {
         // Arrange
-        var startTimeInPast = DateTime.UtcNow.AddHours(-2);
+        var startTimeInPast = DateTimeOffset.UtcNow.AddHours(-2);
         var existing = CreateReservationModel(id: id, status: ReservationStatus.Confirmed, start: startTimeInPast);
-        var dto = new UpdateReservationDto { StartTime = DateTime.UtcNow.AddHours(1) };
+        var dto = new UpdateReservationDto { StartTime = DateTimeOffset.UtcNow.AddHours(1) };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
 
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetById<ReservationModel>(id)).ReturnsAsync(existing);
@@ -805,8 +805,8 @@ public sealed class ReservationServiceTests
     public async Task UpdateReservation_EndTimeBeforeStartTime_ReturnsError(long id)
     {
         // Arrange
-        var startTime = DateTime.UtcNow.AddHours(5);
-        var invalidEndTime = DateTime.UtcNow.AddHours(4);
+        var startTime = DateTimeOffset.UtcNow.AddHours(5);
+        var invalidEndTime = DateTimeOffset.UtcNow.AddHours(4);
         var existing = CreateReservationModel(id: id, start: startTime);
         var dto = new UpdateReservationDto { EndTime = invalidEndTime };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
