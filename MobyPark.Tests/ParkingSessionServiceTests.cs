@@ -1508,8 +1508,7 @@ public sealed class ParkingSessionServiceTests
         };
 
         string p = plate.ToUpper();
-
-        // Lot data from parking lot service
+        
         var lotDto = new ReadParkingLotDto
         {
             Id = lotId,
@@ -1525,8 +1524,7 @@ public sealed class ParkingSessionServiceTests
         _mockParkingLotService
             .Setup(r => r.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
-
-        // No active session yet for this plate
+        
         _mockSessionsRepo
             .Setup(r => r.GetActiveSessionByLicensePlate(p))
             .ReturnsAsync((ParkingSessionModel?)null);
@@ -1545,8 +1543,13 @@ public sealed class ParkingSessionServiceTests
         _mockHotelPassService
             .Setup(s => s.GetActiveHotelPassByLicensePlateAndLotIdAsync(lotId, p))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.Ok(hotelPassDto));
-
-        // Session persists successfully; make sure it's the hotel-pass session
+        
+        _mockParkingLotService
+            .Setup(s => s.PatchParkingLotByIdAsync(
+                lotId,
+                It.IsAny<PatchParkingLotDto>()))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+        
         _mockSessionsRepo
             .Setup(r => r.CreateWithId(It.Is<ParkingSessionModel>(s =>
                 s.LicensePlateNumber == p &&
@@ -1554,13 +1557,11 @@ public sealed class ParkingSessionServiceTests
                 s.PaymentStatus == ParkingSessionStatus.HotelPass &&
                 s.HotelPassId == hotelPassDto.Id)))
             .ReturnsAsync((true, newSessionId));
-
-        // Gate opens fine
+        
         _mockGateService
             .Setup(g => g.OpenGateAsync((int)lotId, p))
             .ReturnsAsync(true);
-
-        // We expect NO pre-auth call in this path
+        
         _mockPreAuthService
             .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
             .Throws(new Exception("PreAuth should not be called when hotel pass exists"));
