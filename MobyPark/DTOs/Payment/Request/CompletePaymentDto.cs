@@ -4,5 +4,5 @@ namespace MobyPark.DTOs.Payment.Request;
 
 public class CompletePaymentDto : ICanBeEdited
 {
-    public DateTime? CompletedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
 }

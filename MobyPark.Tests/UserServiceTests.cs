@@ -81,7 +81,7 @@ public sealed class UserServiceTests
     public async Task CreateUserAsync_ValidInput_CreatesUserModel(string username, string password, string name, string email, string phone, string birthdayString)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(birthdayString));
+        var birthday = DateTimeOffset.Parse(birthdayString + "T00:00:00Z");
         var dto = new RegisterDto
         {
             Username = username, Password = password, ConfirmPassword = password,
@@ -91,6 +91,19 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync((UserModel?)null);
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
+
+
+        var createdUser = new UserModel
+        {
+            Id = 1L,
+            Username = username,
+            Email = email,
+            Phone = "+31612345678",
+            Role = new RoleModel { Id = 6, Name = "USER" },
+            RoleId = 6
+        };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);
@@ -116,7 +129,7 @@ public sealed class UserServiceTests
         {
             Username = username, Password = password, ConfirmPassword = password,
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20)),
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20),
             LicensePlate = plate
         };
 
@@ -124,6 +137,18 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), password)).Returns("hashed_password");
         _mockUserPlatesRepo.Setup(uPlateRepo => uPlateRepo.GetPlatesByPlate(plate.ToUpper())).ReturnsAsync(new List<UserPlateModel>());
+
+        var createdUser = new UserModel
+        {
+            Id = 1L,
+            Username = username,
+            Email = "test@test.com",
+            Phone = "+31612345678",
+            Role = new RoleModel { Id = 6, Name = "USER" },
+            RoleId = 6
+        };
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);
@@ -163,7 +188,7 @@ public sealed class UserServiceTests
         {
             Username = "user", Password = password, ConfirmPassword = password,
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("user")).ReturnsAsync((UserModel?)null);
 
@@ -189,6 +214,10 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
         _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
 
@@ -209,6 +238,10 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
         _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
 
@@ -536,7 +569,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_ValidChanges_ReturnsSuccess(long id, string first, string last, string bday)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var birthday = DateTimeOffset.Parse(bday + "T00:00:00Z");
         var dto = new UpdateUserIdentityDto { FirstName = first, LastName = last, Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
         _mockUsersRepo.Setup(userRepo => userRepo.Update(It.IsAny<UserModel>(), It.IsAny<UserModel>())).ReturnsAsync(true);
@@ -554,7 +587,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_InvalidBirthday_ReturnsInvalidData(long id, string bday)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Parse(bday));
+        var birthday = DateTimeOffset.Parse(bday + "T00:00:00Z");
         var dto = new UpdateUserIdentityDto { Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
 
@@ -570,7 +603,7 @@ public sealed class UserServiceTests
     public async Task UpdateUserIdentity_BirthdayTooYoung_ReturnsInvalidData(long id)
     {
         // Arrange
-        var birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-10));
+        var birthday = DateTimeOffset.UtcNow.AddYears(-10);
         var dto = new UpdateUserIdentityDto { Birthday = birthday };
         _mockUsersRepo.Setup(userRepo => userRepo.GetById<UserModel>(id)).ReturnsAsync(_defaultUser);
 
@@ -702,7 +735,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = inputEmail, Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -751,7 +784,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = email, Phone = "0612345678",
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -828,7 +861,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
@@ -857,7 +890,7 @@ public sealed class UserServiceTests
         {
             Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
             FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
-            Birthday = DateOnly.FromDateTime(DateTime.Now.AddYears(-20))
+            Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);

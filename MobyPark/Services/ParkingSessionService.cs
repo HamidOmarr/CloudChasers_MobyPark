@@ -114,20 +114,27 @@ public class ParkingSessionService : IParkingSessionService
 
         if (stoppedChanged && existingSession.Stopped.HasValue)
         {
-            var lotResult = await _parkingLots.GetParkingLotById(existingSession.ParkingLotId);
-            if (lotResult is GetLotResult.Success sLot)
-            {
-                var costResult = _pricing.CalculateParkingCost(sLot.Lot, existingSession.Started, existingSession.Stopped.Value);
-                if (costResult is CalculatePriceResult.Success priceSuccess)
-                {
-                    existingSession.Cost = priceSuccess.Price;
-                    existingSession.DurationMinutes = (int)Math.Ceiling((existingSession.Stopped.Value - existingSession.Started).TotalMinutes);
-                }
-                else if (costResult is CalculatePriceResult.Error)
-                    return new UpdateSessionResult.Error("Failed to recalculate cost during update.");
-            }
-            else
+            var lot = await _parkingLots.GetParkingLotById((int)existingSession.ParkingLotId);
+            if (lot is null)
                 return new UpdateSessionResult.Error("Failed to retrieve parking lot for cost recalculation.");
+
+            var costResult = _pricing.CalculateParkingCost(
+                lot,
+                existingSession.Started,
+                existingSession.Stopped.Value
+            );
+
+            if (costResult is CalculatePriceResult.Success priceSuccess)
+            {
+                existingSession.Cost = priceSuccess.Price;
+            }
+            else if (costResult is CalculatePriceResult.Error e)
+            {
+                var msg = string.IsNullOrWhiteSpace(e.Message)
+                    ? "Failed to recalculate cost during update."
+                    : e.Message;
+                return new UpdateSessionResult.Error(msg);
+            }
         }
 
         try
@@ -276,15 +283,21 @@ public class ParkingSessionService : IParkingSessionService
     {
         int newReservedCount = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
 
-        var lotUpdateDto = new UpdateParkingLotDto
+        var lotUpdateDto = new PatchParkingLotDto
         {
             Reserved = newReservedCount
         };
 
-        var lotUpdateResult = await _parkingLots.UpdateParkingLot(lot.Id, lotUpdateDto);
-        if (lotUpdateResult is not UpdateLotResult.Success)
+        var lotUpdateResult = await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
+
+        if (lotUpdateResult is not RegisterResult.Success)
         {
-            var error = (lotUpdateResult as UpdateLotResult.Error)?.Message ?? "Failed to update parking lot capacity.";
+            var error =
+                (lotUpdateResult as RegisterResult.Error)?.Message ??
+                (lotUpdateResult as RegisterResult.NotFound)?.Message ??
+                (lotUpdateResult as RegisterResult.InvalidData)?.Message ??
+                "Failed to update parking lot capacity.";
+
             return new PersistSessionResult.Error(error);
         }
 
@@ -295,8 +308,8 @@ public class ParkingSessionService : IParkingSessionService
             (bool createdSuccessfully, long id) = await _sessions.CreateWithId(session);
             if (!createdSuccessfully)
             {
-                var rollback = new UpdateParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-                await _parkingLots.UpdateParkingLot(lot.Id, rollback);
+                var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
+                await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
                 return new PersistSessionResult.Error("Failed to persist parking session (database error).");
             }
             session.Id = id;
@@ -305,8 +318,8 @@ public class ParkingSessionService : IParkingSessionService
         }
         catch (Exception ex)
         {
-            var rollback = new UpdateParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-            await _parkingLots.UpdateParkingLot(lot.Id, rollback);
+            var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
+            await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
 
             return new PersistSessionResult.Error(ex.Message);
         }
@@ -319,12 +332,11 @@ public class ParkingSessionService : IParkingSessionService
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
 
-        var lotResult = await _parkingLots.GetParkingLotById(sessionDto.ParkingLotId);
-        if (lotResult is not GetLotResult.Success sLot)
+        var lot = await _parkingLots.GetParkingLotById((int)sessionDto.ParkingLotId);
+        if (lot is null)
             return new StartSessionResult.LotNotFound();
 
-        var lot = sLot.Lot;
-        if (lot.AvailableSpots <= 0)
+        if (lot.Capacity - lot.Reserved <= 0)
             return new StartSessionResult.LotFull();
 
         var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
@@ -339,7 +351,7 @@ public class ParkingSessionService : IParkingSessionService
         {
             ParkingLotId = sessionDto.ParkingLotId,
             LicensePlateNumber = licensePlate,
-            Started = DateTime.UtcNow,
+            Started = DateTimeOffset.UtcNow,
             Stopped = null,
             PaymentStatus = ParkingSessionStatus.PreAuthorized
         };
@@ -367,8 +379,8 @@ public class ParkingSessionService : IParkingSessionService
                 await DeleteParkingSession(newSession.Id);
 
             int rolledBackReservedCount = Math.Max(0, lot.Reserved - 1);
-            var rollback = new UpdateParkingLotDto { Reserved = rolledBackReservedCount };
-            await _parkingLots.UpdateParkingLot(lot.Id, rollback);
+            var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
+            await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
 
             return new StartSessionResult.Error("Failed to start session: " + ex.Message);
         }
@@ -446,10 +458,10 @@ public class ParkingSessionService : IParkingSessionService
         {
             return s.Plates.ToDictionary(
                 uPlate => uPlate.LicensePlateNumber,
-                uPlate => uPlate.CreatedAt.ToDateTime(TimeOnly.MinValue)
+                uPlate => uPlate.CreatedAt
             );
         }
 
-        return new Dictionary<string, DateTime>();
+        return new Dictionary<string, DateTimeOffset>();
     }
 }

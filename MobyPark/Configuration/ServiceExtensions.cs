@@ -53,69 +53,38 @@ public static class ServiceExtensions
 
         services.AddAuthorizationBuilder()
             .AddPolicy("CanManageConfig",
-                policy => { policy.RequireClaim("Permission", "CONFIG:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "CONFIG:MANAGE"); })
             .AddPolicy("CanManageUsers",
-                policy => { policy.RequireClaim("Permission", "USERS:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "USERS:MANAGE"); })
             .AddPolicy("CanReadUsers",
-                policy => { policy.RequireClaim("Permission", "USERS:READ"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "USERS:READ"); })
             .AddPolicy("CanUserSelfManage",
-                policy => { policy.RequireClaim("Permission", "USERS:SELF_MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "USERS:SELF_MANAGE"); })
             .AddPolicy("CanManageParkingLots",
-                policy => { policy.RequireClaim("Permission", "LOTS:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "LOTS:MANAGE"); })
             .AddPolicy("CanReadParkingLots",
-                policy => { policy.RequireClaim("Permission", "LOTS:READ"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "LOTS:READ"); })
             .AddPolicy("CanViewAllFinance",
-                policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_ALL"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_ALL"); })
             .AddPolicy("CanManageParkingSessions",
-                policy => { policy.RequireClaim("Permission", "SESSIONS:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "SESSIONS:MANAGE"); })
             .AddPolicy("CanReadAllParkingSessions",
-                policy => { policy.RequireClaim("Permission", "SESSIONS:READ_ALL"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "SESSIONS:READ_ALL"); })
             .AddPolicy("CanManageReservations",
-                policy => { policy.RequireClaim("Permission", "RESERVATIONS:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:MANAGE"); })
             .AddPolicy("CanSelfManageReservations",
-                policy => { policy.RequireClaim("Permission", "RESERVATIONS:SELF_MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:SELF_MANAGE"); })
             .AddPolicy("CanManagePlates",
-                policy => { policy.RequireClaim("Permission", "PLATES:MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "PLATES:MANAGE"); })
             .AddPolicy("CanSelfManagePlates",
-                policy => { policy.RequireClaim("Permission", "PLATES:SELF_MANAGE"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "PLATES:SELF_MANAGE"); })
             .AddPolicy("CanProcessPayments",
-                policy => { policy.RequireClaim("Permission", "PAYMENTS:PROCESS"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "PAYMENTS:PROCESS"); })
             .AddPolicy("CanCancelReservations",
-                policy => { policy.RequireClaim("Permission", "RESERVATIONS:CANCEL"); });
-
-        services.AddAuthorizationBuilder()
+                policy => { policy.RequireClaim("Permission", "RESERVATIONS:CANCEL"); })
             .AddPolicy("CanViewSelfFinance",
                 policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); });
-
-
+        
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();
 

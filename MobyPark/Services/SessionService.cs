@@ -28,11 +28,16 @@ public class SessionService : ISessionService
 
         var claims = new List<Claim>
         {
-            new (ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new (ClaimTypes.Name, user.Username),
-            new (ClaimTypes.Email, user.Email),
-            new (ClaimTypes.Role, user.Role.Name)
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role.Name),
         };
+
+        claims.AddRange(
+            from rolePermission in user.Role.RolePermissions
+            where !string.IsNullOrEmpty(rolePermission.Permission.Key)
+            select new Claim("Permission", rolePermission.Permission.Key!));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

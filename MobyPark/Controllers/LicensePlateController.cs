@@ -65,10 +65,10 @@ public class LicensePlateController : BaseController
         if (userPlate is not GetUserPlateResult.Success successUserPlate)
             return NotFound(new { error = "License plate does not exist", data = request.LicensePlate });
 
-        var lot = await _parkingLots.GetParkingLotById(request.ParkingLotId);
-        if (lot is not GetLotResult.Success successLot) return NotFound(new { error = "Parking lot does not exist", data = request.ParkingLotId });
-
-        if (successLot.Lot.AvailableSpots <= 0)
+        var lot = await _parkingLots.GetParkingLotById((int)request.ParkingLotId);
+        if (lot is null)
+            return NotFound(new { error = "Parking lot does not exist", data = request.ParkingLotId });
+        if (lot.AvailableSpots <= 0)
             return Conflict(new { error = "No available spots in the parking lot", data = request.ParkingLotId });
 
         return Ok(new { status = "Accepted", plate = new { successUserPlate.Plate.LicensePlateNumber, successUserPlate.Plate.UserId } });
