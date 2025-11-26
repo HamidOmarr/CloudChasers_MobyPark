@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MobyPark.DTOs.Hotel;
 using Moq;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
@@ -30,6 +31,7 @@ public sealed class ParkingSessionServiceTests
     private Mock<IGateService> _mockGateService = null!;
     private Mock<IPreAuthService> _mockPreAuthService = null!;
     private Mock<IParkingLotService> _mockParkingLotService = null!;
+    private Mock<IHotelPassService> _mockHotelPassService = null;
     
     
 
@@ -42,6 +44,8 @@ public sealed class ParkingSessionServiceTests
         _mockPricingService = new Mock<IPricingService>();
         _mockGateService = new Mock<IGateService>();
         _mockPreAuthService = new Mock<IPreAuthService>();
+        _mockHotelPassService = new Mock<IHotelPassService>();
+        
 
         _sessionService = new ParkingSessionService(
             _mockSessionsRepo.Object,
@@ -49,7 +53,8 @@ public sealed class ParkingSessionServiceTests
             _mockUserPlateService.Object,
             _mockPricingService.Object,
             _mockGateService.Object,
-            _mockPreAuthService.Object
+            _mockPreAuthService.Object,
+            _mockHotelPassService.Object
         );
     }
 
@@ -1481,6 +1486,98 @@ public sealed class ParkingSessionServiceTests
         var result = await _sessionService.StartSession(dto, token, m, user);
 
         Assert.IsInstanceOfType(result, typeof(StartSessionResult.Error));
+    }
+
+    [TestMethod]
+    public async Task StartSession_HasHotelPass_ReturnsSuccess()
+    {
+        // Arrange
+        long lotId = 1;
+        int capacity = 50;
+        int reserved = 10;
+        string plate = "AB-12-CD";
+        string token = "token";  
+        decimal amount = 10m;      
+        string user = "user";
+        long newSessionId = 123L;
+
+        var dto = new CreateParkingSessionDto
+        {
+            ParkingLotId = lotId,
+            LicensePlate = plate
+        };
+
+        string p = plate.ToUpper();
+
+        // Lot data from parking lot service
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = reserved,
+            Capacity = capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        // No active session yet for this plate
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        // Hotel pass exists & is active
+        var hotelPassDto = new ReadHotelPassDto
+        {
+            Id = 42,
+            LicensePlate = p,
+            ParkingLotId = (int)lotId,
+            Start = DateTime.UtcNow.AddDays(-1),
+            End = DateTime.UtcNow.AddDays(1),
+            ExtraTime = TimeSpan.FromMinutes(30)
+        };
+
+        _mockHotelPassService
+            .Setup(s => s.GetActiveHotelPassByLicensePlateAndLotIdAsync(lotId, p))
+            .ReturnsAsync(ServiceResult<ReadHotelPassDto>.Ok(hotelPassDto));
+
+        // Session persists successfully; make sure it's the hotel-pass session
+        _mockSessionsRepo
+            .Setup(r => r.CreateWithId(It.Is<ParkingSessionModel>(s =>
+                s.LicensePlateNumber == p &&
+                s.ParkingLotId == lotId &&
+                s.PaymentStatus == ParkingSessionStatus.HotelPass &&
+                s.HotelPassId == hotelPassDto.Id)))
+            .ReturnsAsync((true, newSessionId));
+
+        // Gate opens fine
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .ReturnsAsync(true);
+
+        // We expect NO pre-auth call in this path
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Throws(new Exception("PreAuth should not be called when hotel pass exists"));
+
+        // Act
+        var result = await _sessionService.StartSession(dto, token, amount, user);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Success));
+
+        var success = (StartSessionResult.Success)result;
+        var session = success.Session;
+
+        Assert.AreEqual(ParkingSessionStatus.HotelPass, session.PaymentStatus);
+        Assert.AreEqual(hotelPassDto.Id, session.HotelPassId);
+        Assert.AreEqual(p, session.LicensePlateNumber);
+        Assert.AreEqual(lotId, session.ParkingLotId);
     }
 
     #endregion

@@ -23,7 +23,7 @@ public class ReadHotelPassDto
     [Required]
     public string LicensePlate { get; set; }
     [Required]
-    public int ParkingLotId { get; set; }
+    public long ParkingLotId { get; set; }
     [Required]
     public DateTime Start { get; set; }
     [Required]

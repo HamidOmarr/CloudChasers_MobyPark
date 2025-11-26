@@ -24,7 +24,7 @@ public class HotelPassService : IHotelPassService
         return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
         {
             Id = id,
-            LicensePlate = pass.LicensePlate,
+            LicensePlate = pass.LicensePlateNumber,
             ParkingLotId = pass.ParkingLotId,
             Start =  pass.Start,
             End = pass.End,
@@ -39,7 +39,7 @@ public class HotelPassService : IHotelPassService
         var dtoList = passes.Select(x => new ReadHotelPassDto
         {
             Id = x.Id,
-            LicensePlate = x.LicensePlate,
+            LicensePlate = x.LicensePlateNumber,
             ParkingLotId = x.ParkingLotId,
             Start = x.Start,
             End = x.End,
@@ -51,12 +51,12 @@ public class HotelPassService : IHotelPassService
 
     public async Task<ServiceResult<List<ReadHotelPassDto>>> GetHotelPassesByLicensePlateAsync(string licensePlate)
     {
-        var passes = await _hotelRepo.GetByAsync(x => x.LicensePlate == licensePlate);
+        var passes = await _hotelRepo.GetByAsync(x => x.LicensePlateNumber == licensePlate);
         if(!passes.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound($"License plate {licensePlate} has no hotel passes.");
         var dtoList = passes.Select(x => new ReadHotelPassDto
         {
             Id = x.Id,
-            LicensePlate = x.LicensePlate,
+            LicensePlate = x.LicensePlateNumber,
             ParkingLotId = x.ParkingLotId,
             Start = x.Start,
             End = x.End,
@@ -70,7 +70,7 @@ public class HotelPassService : IHotelPassService
     {
         var now = DateTime.UtcNow;
         var pass = (await _hotelRepo
-                .GetByAsync(x => x.ParkingLotId == parkingLotId && x.LicensePlate == licensePlate && x.Start >= now && x.End + x.ExtraTime <= now))
+                .GetByAsync(x => x.ParkingLotId == parkingLotId && x.LicensePlateNumber == licensePlate && x.Start >= now && x.End + x.ExtraTime <= now))
             .FirstOrDefault(); //Ik ga ervanuit dat 1 kenteken maar 1 actieve hotel pass kan hebben bij een bepaald hotel/parkinglot.
         if (pass is null)
             return ServiceResult<ReadHotelPassDto>.NotFound(
@@ -78,7 +78,7 @@ public class HotelPassService : IHotelPassService
         return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
         {
             Id = pass.Id,
-            LicensePlate = pass.LicensePlate,
+            LicensePlate = pass.LicensePlateNumber,
             ParkingLotId = pass.ParkingLotId,
             Start = pass.Start,
             End = pass.End,
@@ -101,7 +101,7 @@ public class HotelPassService : IHotelPassService
     DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
     
     var overlappingExistingPass = (await _hotelRepo.GetByAsync(x =>
-            x.LicensePlate == plate &&
+            x.LicensePlateNumber == plate &&
             x.ParkingLotId == pass.ParkingLotId &&
             x.Start < reservationEndWithExtra &&
             (x.End + x.ExtraTime) > reservationStart
@@ -131,7 +131,7 @@ public class HotelPassService : IHotelPassService
     
     var newPass = new HotelPassModel
     {
-        LicensePlate = plate,
+        LicensePlateNumber = plate,
         ParkingLotId = pass.ParkingLotId,
         Start = reservationStart,
         End = reservationEnd,
@@ -144,7 +144,7 @@ public class HotelPassService : IHotelPassService
     return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
     {
         Id = newPass.Id,
-        LicensePlate = newPass.LicensePlate,
+        LicensePlate = newPass.LicensePlateNumber,
         ParkingLotId = newPass.ParkingLotId,
         Start = newPass.Start,
         End = newPass.End,
@@ -159,7 +159,7 @@ public class HotelPassService : IHotelPassService
         return ServiceResult<ReadHotelPassDto>.NotFound($"Update failed. No pass with id {pass.Id} found");
 
     if (!string.IsNullOrWhiteSpace(pass.LicensePlate))
-        existingPass.LicensePlate = pass.LicensePlate.Trim().ToUpperInvariant();
+        existingPass.LicensePlateNumber = pass.LicensePlate.Trim().ToUpperInvariant();
     
     if (pass.Start.HasValue)
         existingPass.Start = pass.Start.Value.ToUniversalTime();
@@ -178,7 +178,7 @@ public class HotelPassService : IHotelPassService
     var overlapping = (await _hotelRepo.GetByAsync(x =>
             x.Id != existingPass.Id &&
             x.ParkingLotId == existingPass.ParkingLotId &&
-            x.LicensePlate == existingPass.LicensePlate &&
+            x.LicensePlateNumber == existingPass.LicensePlateNumber &&
             x.Start < updatedEndWithExtra &&
             (x.End + x.ExtraTime) > existingPass.Start
         ))
@@ -207,7 +207,7 @@ public class HotelPassService : IHotelPassService
     return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
     {
         Id = existingPass.Id,
-        LicensePlate = existingPass.LicensePlate,
+        LicensePlate = existingPass.LicensePlateNumber,
         ParkingLotId = existingPass.ParkingLotId,
         Start = existingPass.Start,
         End = existingPass.End,

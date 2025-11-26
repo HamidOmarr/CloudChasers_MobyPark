@@ -1,7 +1,9 @@
+using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.Price;
@@ -60,18 +62,28 @@ public class ReservationService : IReservationService
             };
         }
 
-        var overlapCheckResult = await CheckForOverlappingReservation(lot.Id, requestingUserId, normalizedPlate, dto.StartDate, dto.EndDate);
+        var overlapCheckResult = await CheckForOverlappingReservation(lot.Data!.Id, requestingUserId, normalizedPlate, dto.StartDate, dto.EndDate);
         if (overlapCheckResult is not null)
             return overlapCheckResult;
 
-        var costResult = _pricing.CalculateParkingCost(lot, dto.StartDate, dto.EndDate);
+        var costResult = _pricing.CalculateParkingCost(new ParkingLotModel
+        {
+            Id = lot.Data.Id,
+            Name = lot.Data.Name,
+            Location = lot.Data.Location,
+            Address = lot.Data.Address,
+            Capacity = lot.Data.Capacity,
+            Reserved = lot.Data.Reserved,
+            Tariff = lot.Data.Tariff,
+            DayTariff = lot.Data.DayTariff,
+        }, dto.StartDate, dto.EndDate);
         if (costResult is not CalculatePriceResult.Success cost)
             return new CreateReservationResult.Error("Failed to calculate reservation cost.");
 
         var reservationToCreate = new ReservationModel
         {
             LicensePlateNumber = normalizedPlate,
-            ParkingLotId = lot.Id,
+            ParkingLotId = lot.Data.Id,
             StartTime = dto.StartDate,
             EndTime = dto.EndDate,
             Status = ReservationStatus.Pending,
@@ -82,14 +94,16 @@ public class ReservationService : IReservationService
         return await PersistReservation(reservationToCreate);
     }
 
-    private async Task<ParkingLotModel?> ValidateInputAndFetchLot(CreateReservationDto dto)
+    private async Task<ServiceResult<ReadParkingLotDto>> ValidateInputAndFetchLot(CreateReservationDto dto)
     {
         if (dto.EndDate <= dto.StartDate)
             return null;
         if (dto.StartDate < DateTimeOffset.UtcNow.AddMinutes(-2))
             return null;
 
-        return await _parkingLots.GetParkingLotById((int)dto.ParkingLotId);
+        var lot = await _parkingLots.GetParkingLotByIdAsync(dto.ParkingLotId);
+        if (lot.Status != ServiceStatus.Success) return ServiceResult<ReadParkingLotDto>.NotFound("Parking lot was not found");
+        return lot;
     }
 
     private async Task<ResolveUserPlateResult> ResolveTargetUserAndValidatePlate(
@@ -282,10 +296,10 @@ public class ReservationService : IReservationService
 
         if (datesChanged)
         {
-            var lot = await _parkingLots.GetParkingLotById((int)updatedReservation.ParkingLotId);
-            if (lot is not null)
+            var lot = await _parkingLots.GetParkingLotByIdAsync(updatedReservation.ParkingLotId);
+            if (lot.Status == ServiceStatus.Success)
             {
-                var costResult = _pricing.CalculateParkingCost(lot, updatedReservation.StartTime, updatedReservation.EndTime);
+                var costResult = _pricing.CalculateParkingCost(new ParkingLotModel{Id = lot.Data!.Id}, updatedReservation.StartTime, updatedReservation.EndTime);
                 if (costResult is CalculatePriceResult.Success successPrice)
                     updatedReservation.Cost = successPrice.Price;
                 else if (costResult is CalculatePriceResult.Error err)

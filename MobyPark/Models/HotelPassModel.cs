@@ -1,13 +1,18 @@
-﻿using MobyPark.Models.Repositories.Interfaces;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
 public class HotelPassModel : IHasLongId
 { 
-    public long Id { get; }
-    public int ParkingLotId { get; set; }
-    public string LicensePlate { get; set; }
+    public long Id { get; set; }
+    public long ParkingLotId { get; set; }
+    [ForeignKey(nameof(ParkingLotId))]
     public ParkingLotModel ParkingLot { get; set; }
+    public string LicensePlateNumber { get; set; }
+    [ForeignKey(nameof(LicensePlateNumber))]
+    public LicensePlateModel LicensePlate { get; set; } = null!;
+    
     public DateTime Start { get; set; }
     public DateTime End { get; set; }
     

@@ -97,5 +97,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .WithMany()
             .HasForeignKey(userPlate => userPlate.LicensePlateNumber);
 
+        modelBuilder.Entity<HotelPassModel>()
+            .HasOne(h => h.ParkingLot)
+            .WithMany()
+            .HasForeignKey(h => h.ParkingLotId);
+
+        modelBuilder.Entity<HotelPassModel>()
+            .HasOne(h => h.LicensePlate)
+            .WithMany()
+            .HasForeignKey(h => h.LicensePlateNumber);
+
     }
 }

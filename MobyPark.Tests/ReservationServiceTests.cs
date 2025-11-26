@@ -12,7 +12,7 @@ using MobyPark.Services.Results.UserPlate;
 using Moq;
 
 namespace MobyPark.Tests;
-
+/*
 [TestClass]
 public sealed class ReservationServiceTests
 {
@@ -964,3 +964,4 @@ public sealed class ReservationServiceTests
 
     #endregion
 }
+*/

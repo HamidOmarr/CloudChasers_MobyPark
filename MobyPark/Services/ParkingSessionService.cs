@@ -22,6 +22,7 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
+    private readonly IHotelPassService _passService;
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions, 
@@ -29,7 +30,7 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth
+        IPreAuthService preAuth, IHotelPassService passService
         )
     {
         _sessions = parkingSessions;
@@ -38,6 +39,7 @@ public class ParkingSessionService : IParkingSessionService
         _pricing = pricing;
         _gate = gate;
         _preAuth = preAuth;
+        _passService = passService;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
@@ -362,21 +364,34 @@ public class ParkingSessionService : IParkingSessionService
         if (activeSessionResult is GetSessionResult.Success)
             return new StartSessionResult.AlreadyActive();
 
-        var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
-        if (!preAuth.Approved)
-            return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+        var hasHotelPass =
+            await _passService.GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
 
-        var newSession = new ParkingSessionModel
+        ParkingSessionModel session = new ParkingSessionModel();
+        if (hasHotelPass.Status == ServiceStatus.Success)
         {
-            ParkingLotId = sessionDto.ParkingLotId,
-            LicensePlateNumber = licensePlate,
-            Started = DateTimeOffset.UtcNow,
-            Stopped = null,
-            PaymentStatus = ParkingSessionStatus.PreAuthorized
-        };
+            session.ParkingLotId = sessionDto.ParkingLotId;
+            session.LicensePlateNumber = licensePlate;
+            session.Started = DateTimeOffset.UtcNow;
+            session.Stopped = null;
+            session.PaymentStatus = ParkingSessionStatus.HotelPass;
+            session.HotelPassId = hasHotelPass.Data!.Id;
+        }
+        else
+        {
+            var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
+            if (!preAuth.Approved)
+                return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+            
+            session.ParkingLotId = sessionDto.ParkingLotId;
+            session.LicensePlateNumber = licensePlate;
+            session.Started = DateTimeOffset.UtcNow;
+            session.Stopped = null;
+            session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+        }
         
 
-        var persistResult = await PersistSession(newSession, parkingLot);
+        var persistResult = await PersistSession(session, parkingLot);
         if (persistResult is not PersistSessionResult.Success sPersist)
         {
             return persistResult switch
@@ -386,17 +401,17 @@ public class ParkingSessionService : IParkingSessionService
             };
         }
 
-        newSession = sPersist.Session;
+        session = sPersist.Session;
 
         try
         {
-            if (!await OpenSessionGate(newSession, licensePlate))
+            if (!await OpenSessionGate(session, licensePlate))
                 throw new InvalidOperationException("Failed to open gate");
         }
         catch (Exception ex)
         {
-            if (newSession.Id > 0)
-                await DeleteParkingSession(newSession.Id);
+            if (session.Id > 0)
+                await DeleteParkingSession(session.Id);
 
             int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
             var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
@@ -405,7 +420,7 @@ public class ParkingSessionService : IParkingSessionService
             return new StartSessionResult.Error("Failed to start session: " + ex.Message);
         }
 
-        return new StartSessionResult.Success(newSession, parkingLot.AvailableSpots);
+        return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
     }
 
     private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)
