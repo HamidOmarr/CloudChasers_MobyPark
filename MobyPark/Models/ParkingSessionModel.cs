@@ -37,11 +37,9 @@ public class ParkingSessionModel : IHasLongId, ICanBeEdited
     public LicensePlateModel LicensePlate { get; set; } = null!;
 
     [Required]
-    public DateTime Started { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset Started { get; set; } = DateTimeOffset.UtcNow;
 
-    public DateTime? Stopped { get; set; }
-
-    public int? DurationMinutes { get; set; }
+    public DateTimeOffset? Stopped { get; set; }
 
     public decimal? Cost { get; set; }
 

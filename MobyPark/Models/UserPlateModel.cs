@@ -24,7 +24,7 @@ public class UserPlateModel : IHasLongId, ICanBeEdited
     [Required]
     public bool IsPrimary { get; set; } = false;
 
-    public DateOnly CreatedAt { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public const long DefaultUserId = -1;  // Defaults to deleted (generic) user
 }

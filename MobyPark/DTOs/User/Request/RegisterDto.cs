@@ -23,8 +23,8 @@ public class RegisterDto
     [Required, MinLength(2), MaxLength(100)]
     public string LastName { get; set; } = string.Empty;
 
-    [Required, DataType(DataType.Date)]
-    public DateOnly Birthday { get; set; }
+    [Required]
+    public DateTimeOffset Birthday { get; set; }
 
     [Required, Phone]
     public string Phone { get; set; } = string.Empty;

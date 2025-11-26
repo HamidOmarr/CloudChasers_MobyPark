@@ -19,9 +19,9 @@ public class PaymentModel
     public LicensePlateModel LicensePlate { get; set; } = null!;
 
     [Required]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public DateTime? CompletedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
 
     [Required]
     public Guid TransactionId { get; set; }

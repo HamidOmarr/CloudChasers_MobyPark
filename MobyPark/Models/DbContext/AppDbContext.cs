@@ -96,5 +96,6 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(userPlate => userPlate.LicensePlate)
             .WithMany()
             .HasForeignKey(userPlate => userPlate.LicensePlateNumber);
+
     }
 }

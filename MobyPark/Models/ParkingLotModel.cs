@@ -44,7 +44,7 @@ public class ParkingLotModel : IHasLongId, ICanBeEdited
     public decimal? DayTariff { get; set; }
 
     [Required]
-    public DateOnly CreatedAt { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     [Required]
     public ParkingLotStatus Status { get; set; } = ParkingLotStatus.Open;

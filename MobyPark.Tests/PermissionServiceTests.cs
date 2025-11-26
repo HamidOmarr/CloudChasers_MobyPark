@@ -396,6 +396,7 @@ public sealed class PermissionServiceTests
         _mockPermissionsRepo.Setup(permissionRepo => permissionRepo.GetById<PermissionModel>(id)).ReturnsAsync(permission);
         var links = new List<RolePermissionModel> { new() };
         _mockRolePermissionRepo.Setup(rp => rp.GetRolesByPermissionId(id)).ReturnsAsync(links);
+        _mockRolePermissionRepo.Setup(rp => rp.RoleHasPermission(id, permission.Id)).ReturnsAsync(true);
 
         // Act
         var result = await _permissionService.DeletePermission(id);

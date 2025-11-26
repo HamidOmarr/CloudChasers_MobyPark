@@ -109,7 +109,6 @@ public class ParkingLotServiceTests
             Tariff = 7m,
             DayTariff = 30m
         };
-
         _parkingRepoMock
             .Setup(r => r.FindByIdAsync(lot.Id))
             .ReturnsAsync(lot);

@@ -25,7 +25,7 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
                 userPlate => userPlate.LicensePlateNumber,
                 (payment, userPlate) => new { payment, userPlate }
             )
-            .Where(joined => DateOnly.FromDateTime(joined.payment.CreatedAt) >= joined.userPlate.CreatedAt)
+            .Where(joined => joined.payment.CreatedAt >= joined.userPlate.CreatedAt)
             .Select(joined => joined.payment)
             .Include(payment => payment.LicensePlate)
             .Include(payment => payment.Transaction)
@@ -50,13 +50,11 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
 
         if (payment?.LicensePlate is null) return null;
 
-        DateOnly paymentDate = DateOnly.FromDateTime(payment.CreatedAt);
-
-        bool isAuthorized = await (
+          bool isAuthorized = await (
             from uPlate in Context.UserPlates
             where uPlate.UserId == requestingUserId
                   && uPlate.LicensePlateNumber == payment.LicensePlateNumber
-                  && uPlate.CreatedAt <= paymentDate
+                && uPlate.CreatedAt <= payment.CreatedAt
             select uPlate).AnyAsync();
 
         return isAuthorized ? payment : null;
@@ -71,13 +69,11 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
 
         if (payment?.LicensePlate is null) return null;
 
-        DateOnly paymentDate = DateOnly.FromDateTime(payment.CreatedAt);
-
         bool isAuthorized = await
             Context.UserPlates.AnyAsync(uPlate =>
                 uPlate.UserId == requestingUserId
                 && uPlate.LicensePlateNumber == payment.LicensePlateNumber
-                && uPlate.CreatedAt <= paymentDate);
+            && uPlate.CreatedAt <= payment.CreatedAt);
 
         return isAuthorized ? payment : null;
     }
@@ -99,7 +95,7 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
                 userPlate => userPlate.LicensePlateNumber,
                 (payment, userPlate) => new { payment, userPlate }
             )
-            .Where(joined => DateOnly.FromDateTime(joined.payment.CreatedAt) >= joined.userPlate.CreatedAt)
+            .Where(joined => joined.payment.CreatedAt >= joined.userPlate.CreatedAt)
             .Select(joined => joined.payment)
             .ToListAsync();
 

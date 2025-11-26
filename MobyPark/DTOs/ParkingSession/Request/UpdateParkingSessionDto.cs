@@ -5,7 +5,7 @@ namespace MobyPark.DTOs.ParkingSession.Request;
 
 public class UpdateParkingSessionDto : ICanBeEdited
 {
-    public DateTime? Stopped { get; set; }
+    public DateTimeOffset? Stopped { get; set; }
     public ParkingSessionStatus? PaymentStatus { get; set; }
     public decimal? Cost { get; set; }
 }

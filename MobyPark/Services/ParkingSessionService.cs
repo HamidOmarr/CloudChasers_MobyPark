@@ -139,8 +139,6 @@ public class ParkingSessionService : IParkingSessionService
             if (costResult is CalculatePriceResult.Success priceSuccess)
             {
                 existingSession.Cost = priceSuccess.Price;
-                existingSession.DurationMinutes =
-                    (int)Math.Ceiling((existingSession.Stopped.Value - existingSession.Started).TotalMinutes);
             }
             else if (costResult is CalculatePriceResult.Error e)
             {
@@ -372,7 +370,7 @@ public class ParkingSessionService : IParkingSessionService
         {
             ParkingLotId = sessionDto.ParkingLotId,
             LicensePlateNumber = licensePlate,
-            Started = DateTime.UtcNow,
+            Started = DateTimeOffset.UtcNow,
             Stopped = null,
             PaymentStatus = ParkingSessionStatus.PreAuthorized
         };
@@ -410,7 +408,7 @@ public class ParkingSessionService : IParkingSessionService
         return new StartSessionResult.Success(newSession, parkingLot.AvailableSpots);
     }
 
-    private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)
+    private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)
     {
         var userPlatesResult = await _userPlates.GetUserPlatesByUserId(userId);
 
@@ -418,10 +416,10 @@ public class ParkingSessionService : IParkingSessionService
         {
             return s.Plates.ToDictionary(
                 uPlate => uPlate.LicensePlateNumber,
-                uPlate => uPlate.CreatedAt.ToDateTime(TimeOnly.MinValue)
+                uPlate => uPlate.CreatedAt
             );
         }
 
-        return new Dictionary<string, DateTime>();
+        return new Dictionary<string, DateTimeOffset>();
     }
 }
