@@ -79,7 +79,7 @@ public class ParkingSessionService : IParkingSessionService
             return new GetSessionResult.NotFound();
         return new GetSessionResult.Success(session);
     }
-
+    
     public async Task<UpdateSessionResult> UpdateParkingSession(long id, UpdateParkingSessionDto dto)
     {
         var getResult = await GetParkingSessionById(id);
@@ -117,12 +117,24 @@ public class ParkingSessionService : IParkingSessionService
 
         if (stoppedChanged && existingSession.Stopped.HasValue)
         {
-            var lot = await _parkingLots.GetParkingLotById((int)existingSession.ParkingLotId);
-            if (lot is null)
+            var lot = await _parkingLots.GetParkingLotByIdAsync(existingSession.ParkingLotId);
+            if (lot.Status != ServiceStatus.Success)
                 return new UpdateSessionResult.Error("Failed to retrieve parking lot for cost recalculation.");
 
+            var parkingLot = new ParkingLotModel
+            {
+                Id = lot.Data!.Id,
+                Name = lot.Data.Name,
+                Location = lot.Data.Location,
+                Address = lot.Data.Address,
+                Capacity = lot.Data.Capacity,
+                Tariff = lot.Data.Tariff,
+                DayTariff = lot.Data.DayTariff
+
+            };
+            
             var costResult = _pricing.CalculateParkingCost(
-                lot,
+                parkingLot,
                 existingSession.Started,
                 existingSession.Stopped.Value
             );
@@ -151,7 +163,7 @@ public class ParkingSessionService : IParkingSessionService
         catch (Exception ex)
         { return new UpdateSessionResult.Error(ex.Message); }
     }
-
+    
     public async Task<DeleteSessionResult> DeleteParkingSession(long id)
     {
         var session = await _sessions.GetById<ParkingSessionModel>(id);
@@ -427,13 +439,23 @@ public class ParkingSessionService : IParkingSessionService
 
 
         var lotResult = await _parkingLots.GetParkingLotByIdAsync(activeSession.ParkingLotId);
-        if (lotResult is null)
+        if (lotResult.Status != ServiceStatus.Success)
             return new StopSessionResult.Error("Failed to retrieve parking lot.");
+        
+        var parkingLot = new ParkingLotModel
+        {
+            Id = lotResult.Data!.Id,
+            Name = lotResult.Data.Name,
+            Location = lotResult.Data.Location,
+            Address = lotResult.Data.Address,
+            Capacity = lotResult.Data.Capacity,
+            Tariff = lotResult.Data.Tariff,
+            DayTariff = lotResult.Data.DayTariff
 
-        var lot = lotResult;
+        };
 
 
-        var priceResult = _pricing.CalculateParkingCost(lot, activeSession.Started, DateTime.UtcNow);
+        var priceResult = _pricing.CalculateParkingCost(parkingLot, activeSession.Started, DateTime.UtcNow);
         if (priceResult is not CalculatePriceResult.Success sPrice)
             return new StopSessionResult.Error("Failed to calculate parking cost.");
 
