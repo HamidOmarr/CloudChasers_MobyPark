@@ -6,6 +6,7 @@ using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Services.Results.Price;
@@ -290,17 +291,11 @@ public class ParkingSessionService : IParkingSessionService
             Reserved = newReservedCount
         };
 
-        var lotUpdateResult = await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
+        var lotUpdateResult = await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
 
-        if (lotUpdateResult is not RegisterResult.Success)
+        if (lotUpdateResult.Status is not ServiceStatus.Success)
         {
-            var error =
-                (lotUpdateResult as RegisterResult.Error)?.Message ??
-                (lotUpdateResult as RegisterResult.NotFound)?.Message ??
-                (lotUpdateResult as RegisterResult.InvalidData)?.Message ??
-                "Failed to update parking lot capacity.";
-
-            return new PersistSessionResult.Error(error);
+            return new PersistSessionResult.Error(lotUpdateResult.Error!);
         }
 
         lot.Reserved = newReservedCount;
@@ -311,7 +306,7 @@ public class ParkingSessionService : IParkingSessionService
             if (!createdSuccessfully)
             {
                 var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-                await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
+                await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
                 return new PersistSessionResult.Error("Failed to persist parking session (database error).");
             }
             session.Id = id;
@@ -321,7 +316,7 @@ public class ParkingSessionService : IParkingSessionService
         catch (Exception ex)
         {
             var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-            await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
+            await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
 
             return new PersistSessionResult.Error(ex.Message);
         }
