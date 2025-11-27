@@ -342,6 +342,37 @@ public sealed class ReservationServiceTests
         StringAssert.Contains(((CreateReservationResult.Error)result).Message, "Failed to save reservation");
     }
 
+    [TestMethod]
+    public async Task CreateReservation_CapacityReached_ReturnsLotFull()
+    {
+        // Arrange
+        var lotId = DefaultLotId;
+        var start = DateTimeOffset.UtcNow.AddHours(1);
+        var end = start.AddHours(2);
+        var dto = CreateValidDto(lotId: lotId, plate: UserPlate, start: start, end: end);
+
+        var lot = new ParkingLotModel { Id = lotId, Tariff = 5, Capacity = 1 };
+        var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
+        var user = new UserModel { Id = RequestingUserId };
+        var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
+
+        var existingOverlap = CreateReservationModel(id: 50, lotId: lotId, plate: OtherUserPlate, start: start.AddMinutes(-30), end: start.AddMinutes(30));
+
+        _mockParkingLotsService.Setup(s => s.GetParkingLotById((int)lotId)).ReturnsAsync(lot);
+        _mockLicensePlatesService.Setup(s => s.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
+        _mockUsersService.Setup(s => s.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
+        _mockUserPlatesService.Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
+        _mockReservationsRepo.Setup(s => s.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new List<ReservationModel>());
+        _mockReservationsRepo.Setup(s => s.GetByParkingLotId(lotId)).ReturnsAsync(new List<ReservationModel> { existingOverlap });
+
+        // Act
+        var result = await _reservationService.CreateReservation(dto, RequestingUserId);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.LotFull));
+        _mockReservationsRepo.Verify(r => r.CreateWithId(It.IsAny<ReservationModel>()), Times.Never);
+    }
+
     #endregion
 
     #region GetById
