@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.ParkingSession.Request;
+using MobyPark.Models;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingSession;
@@ -59,6 +60,35 @@ public class ParkingSessionController : BaseController
             StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
             StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
             StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+
+    [HttpPost("{lotId}/sessions/stop")]
+    public async Task<IActionResult> StopSession(int lotId, [FromBody] StopParkingSessionDto request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await _parkingSessions.StopSession(request);
+
+        return result switch
+        {
+            StopSessionResult.Success success => Ok(new
+            {
+                status = "Stopped",
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                stoppedAt = success.Session.Stopped,
+                paymentStatus = success.Session.PaymentStatus
+            }),
+            StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StopSessionResult.LicensePlateNotFound => NotFound(new { error = "Active session for the provided license plate not found in this lot" }),
+            StopSessionResult.AlreadyStopped => BadRequest(new { error = "The parking session has already been stopped" }),
+            StopSessionResult.PaymentFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_FAILED" }),
+            StopSessionResult.ValidationFailed v => BadRequest(new { error = v.Reason }),
+            StopSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }
