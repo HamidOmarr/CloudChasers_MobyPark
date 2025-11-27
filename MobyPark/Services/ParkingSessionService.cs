@@ -23,7 +23,7 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
-    private readonly IHotelPassService _hotelService;
+    private readonly IHotelPassService _passService;
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
@@ -31,7 +31,7 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth, IHotelPassService hotelService
+        IPreAuthService preAuth, IHotelPassService passService
         )
     {
         _sessions = parkingSessions;
@@ -40,7 +40,7 @@ public class ParkingSessionService : IParkingSessionService
         _pricing = pricing;
         _gate = gate;
         _preAuth = preAuth;
-        _hotelService = hotelService;
+        _passService = passService;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
@@ -329,31 +329,58 @@ public class ParkingSessionService : IParkingSessionService
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
 
-        var lot = await _parkingLots.GetParkingLotById((int)sessionDto.ParkingLotId);
-        if (lot is null)
+        var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
+        if (lot.Status is ServiceStatus.NotFound or ServiceStatus.Fail )
             return new StartSessionResult.LotNotFound();
+        
+        var parkingLot = new ParkingLotModel
+        {
+            Id = lot.Data!.Id,
+            Name = lot.Data.Name,
+            Location = lot.Data.Location,
+            Address = lot.Data.Address,
+            Reserved = lot.Data.Reserved,
+            Capacity = lot.Data.Capacity,
+            Tariff = lot.Data.Tariff,
+            DayTariff = lot.Data.DayTariff
 
-        if (lot.Capacity - lot.Reserved <= 0)
+        };
+        
+        if (parkingLot.Capacity - parkingLot.Reserved <= 0)
             return new StartSessionResult.LotFull();
 
         var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
         if (activeSessionResult is GetSessionResult.Success)
             return new StartSessionResult.AlreadyActive();
 
-        var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
-        if (!preAuth.Approved)
-            return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+        var hasHotelPass =
+            await _passService.GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
 
-        var newSession = new ParkingSessionModel
+        ParkingSessionModel session = new ParkingSessionModel();
+        if (hasHotelPass.Status == ServiceStatus.Success)
         {
-            ParkingLotId = sessionDto.ParkingLotId,
-            LicensePlateNumber = licensePlate,
-            Started = DateTimeOffset.UtcNow,
-            Stopped = null,
-            PaymentStatus = ParkingSessionStatus.PreAuthorized
-        };
+            session.ParkingLotId = sessionDto.ParkingLotId;
+            session.LicensePlateNumber = licensePlate;
+            session.Started = DateTimeOffset.UtcNow;
+            session.Stopped = null;
+            session.PaymentStatus = ParkingSessionStatus.HotelPass;
+            session.HotelPassId = hasHotelPass.Data!.Id;
+        }
+        else
+        {
+            var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
+            if (!preAuth.Approved)
+                return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+            
+            session.ParkingLotId = sessionDto.ParkingLotId;
+            session.LicensePlateNumber = licensePlate;
+            session.Started = DateTimeOffset.UtcNow;
+            session.Stopped = null;
+            session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+        }
+        
 
-        var persistResult = await PersistSession(newSession, lot);
+        var persistResult = await PersistSession(session, parkingLot);
         if (persistResult is not PersistSessionResult.Success sPersist)
         {
             return persistResult switch
@@ -363,26 +390,26 @@ public class ParkingSessionService : IParkingSessionService
             };
         }
 
-        newSession = sPersist.Session;
+        session = sPersist.Session;
 
         try
         {
-            if (!await OpenSessionGate(newSession, licensePlate))
+            if (!await OpenSessionGate(session, licensePlate))
                 throw new InvalidOperationException("Failed to open gate");
         }
         catch (Exception ex)
         {
-            if (newSession.Id > 0)
-                await DeleteParkingSession(newSession.Id);
+            if (session.Id > 0)
+                await DeleteParkingSession(session.Id);
 
-            int rolledBackReservedCount = Math.Max(0, lot.Reserved - 1);
+            int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
             var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
-            await _parkingLots.UpdateParkingLotByIDAsync(lot, (int)lot.Id);
+            await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
 
             return new StartSessionResult.Error("Failed to start session: " + ex.Message);
         }
 
-        return new StartSessionResult.Success(newSession, lot.AvailableSpots);
+        return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
     }
 
     public async Task<StopSessionResult> StopSession(StopParkingSessionDto sessionDto)
@@ -399,7 +426,7 @@ public class ParkingSessionService : IParkingSessionService
             return new StopSessionResult.AlreadyStopped();
 
 
-        var lotResult = await _parkingLots.GetParkingLotById((int)activeSession.ParkingLotId);
+        var lotResult = await _parkingLots.GetParkingLotByIdAsync(activeSession.ParkingLotId);
         if (lotResult is null)
             return new StopSessionResult.Error("Failed to retrieve parking lot.");
 
