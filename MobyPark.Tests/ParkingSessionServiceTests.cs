@@ -20,7 +20,8 @@ using MobyPark.Services.Results.UserPlate;
 namespace MobyPark.Tests;
 
 [TestClass]
-public sealed class ParkingSessionServiceTests
+public sealed 
+    class ParkingSessionServiceTests
 {
     #region Setup
 

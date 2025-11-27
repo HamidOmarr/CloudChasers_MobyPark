@@ -425,68 +425,107 @@ public class ParkingSessionService : IParkingSessionService
     }
 
     public async Task<StopSessionResult> StopSession(StopParkingSessionDto sessionDto)
+{
+    var licensePlate = sessionDto.LicensePlate.ToUpper();
+
+    var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
+    if (activeSessionResult is not GetSessionResult.Success sActive)
+        return new StopSessionResult.LicensePlateNotFound();
+
+    var activeSession = sActive.Session;
+
+    if (activeSession.Stopped.HasValue)
+        return new StopSessionResult.AlreadyStopped();
+
+    var lotResult = await _parkingLots.GetParkingLotByIdAsync(activeSession.ParkingLotId);
+    if (lotResult.Status != ServiceStatus.Success)
+        return new StopSessionResult.Error("Failed to retrieve parking lot.");
+    
+    var parkingLot = new ParkingLotModel
     {
-        var licensePlate = sessionDto.LicensePlate.ToUpper();
+        Id = lotResult.Data!.Id,
+        Name = lotResult.Data.Name,
+        Location = lotResult.Data.Location,
+        Address = lotResult.Data.Address,
+        Capacity = lotResult.Data.Capacity,
+        Tariff = lotResult.Data.Tariff,
+        DayTariff = lotResult.Data.DayTariff
+    };
 
-        var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
-        if (activeSessionResult is not GetSessionResult.Success sActive)
-            return new StopSessionResult.LicensePlateNotFound();
+    DateTimeOffset chargeFrom;
+    DateTime end = DateTime.UtcNow;
+    decimal totalAmount = 0m;
+    bool paymentPerformed = false;
 
-        var activeSession = sActive.Session;
+    if (activeSession.HotelPassId.HasValue)
+    {
+        var pass = await _passService.GetHotelPassByIdAsync(activeSession.HotelPassId.Value);
+        if (pass.Status != ServiceStatus.Success)
+            return new StopSessionResult.Error("Failed to retrieve hotel pass from database.");
 
-        if (activeSession.Stopped.HasValue)
-            return new StopSessionResult.AlreadyStopped();
-
-
-        var lotResult = await _parkingLots.GetParkingLotByIdAsync(activeSession.ParkingLotId);
-        if (lotResult.Status != ServiceStatus.Success)
-            return new StopSessionResult.Error("Failed to retrieve parking lot.");
+        var endOfFree = pass.Data!.End + pass.Data.ExtraTime;
         
-        var parkingLot = new ParkingLotModel
+        if (end <= endOfFree)
         {
-            Id = lotResult.Data!.Id,
-            Name = lotResult.Data.Name,
-            Location = lotResult.Data.Location,
-            Address = lotResult.Data.Address,
-            Capacity = lotResult.Data.Capacity,
-            Tariff = lotResult.Data.Tariff,
-            DayTariff = lotResult.Data.DayTariff
+            totalAmount = 0m;
+        }
+        else
+        {
+            chargeFrom = activeSession.Started > endOfFree
+                ? activeSession.Started
+                : endOfFree;
 
-        };
+            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            if (priceResult is not CalculatePriceResult.Success sPrice)
+                return new StopSessionResult.Error("Failed to calculate parking cost.");
 
+            totalAmount = sPrice.Price;
+        }
+    }
+    else
+    {
+        chargeFrom = activeSession.Started;
 
-        var priceResult = _pricing.CalculateParkingCost(parkingLot, activeSession.Started, DateTime.UtcNow);
+        var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
         if (priceResult is not CalculatePriceResult.Success sPrice)
             return new StopSessionResult.Error("Failed to calculate parking cost.");
 
-        decimal totalAmount = sPrice.Price;
-
+        totalAmount = sPrice.Price;
+    }
+    
+    if (totalAmount > 0m)
+    {
         var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
         if (!paymentResult.Approved)
             return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
 
-        activeSession.Stopped = DateTime.UtcNow;
-        activeSession.Cost = totalAmount;
-        activeSession.PaymentStatus = ParkingSessionStatus.Paid;
+        paymentPerformed = true;
+    }
 
-        var updateDto = new UpdateParkingSessionDto
-        {
-            Stopped = activeSession.Stopped,
-            PaymentStatus = activeSession.PaymentStatus,
-            Cost = activeSession.Cost
-        };
+    activeSession.Stopped = end;
+    activeSession.Cost = totalAmount;
+    activeSession.PaymentStatus = ParkingSessionStatus.Paid;
 
-        var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
-        if (updateResult is not UpdateSessionResult.Success sUpdate)
-            return new StopSessionResult.Error("Failed to update session after payment.");
-        activeSession = sUpdate.Session;
+    var updateDto = new UpdateParkingSessionDto
+    {
+        Stopped = activeSession.Stopped,
+        PaymentStatus = activeSession.PaymentStatus,
+        Cost = activeSession.Cost
+    };
 
-        try
-        {
-            if (!await OpenSessionGate(activeSession, licensePlate))
-                throw new Exception("Failed to open gate");
-        }
-        catch (Exception ex)
+    var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
+    if (updateResult is not UpdateSessionResult.Success sUpdate)
+        return new StopSessionResult.Error("Failed to update session after payment.");
+    activeSession = sUpdate.Session;
+
+    try
+    {
+        if (!await OpenSessionGate(activeSession, licensePlate))
+            throw new Exception("Failed to open gate");
+    }
+    catch (Exception ex)
+    {
+        if (paymentPerformed)
         {
             activeSession.Stopped = null;
             activeSession.Cost = null;
@@ -504,8 +543,12 @@ public class ParkingSessionService : IParkingSessionService
             return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
         }
 
-        return new StopSessionResult.Success(activeSession, totalAmount);
+        // Free session: no payment to rollback, so just report gate error
+        return new StopSessionResult.Error($"Gate error: {ex.Message}");
     }
+
+    return new StopSessionResult.Success(activeSession, totalAmount);
+}
 
     private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)
     {
