@@ -15,6 +15,7 @@
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=13bda4a0_002Db67f_002D4854_002D8370_002D13b656bb243f/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="StartSession_HasHotelPass_ReturnsSuccess" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
     &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.ParkingSessionServiceTests.StartSession_HasHotelPass_ReturnsSuccess&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;MSTest::CE58E88F-1B08-4A81-88CE-17A61DDE3FB2::net8.0::MobyPark.Tests.HotelServiceTests&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
 
