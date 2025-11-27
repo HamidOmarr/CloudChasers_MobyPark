@@ -81,7 +81,6 @@ public class ParkingSessionController : BaseController
                 parkingLotId = success.Session.ParkingLotId,
                 startedAt = success.Session.Started,
                 stoppedAt = success.Session.Stopped,
-                totalAmount = success.totalAmount,
                 paymentStatus = success.Session.PaymentStatus
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),

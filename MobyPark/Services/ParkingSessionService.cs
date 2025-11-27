@@ -402,11 +402,11 @@ public class ParkingSessionService : IParkingSessionService
             return new StopSessionResult.AlreadyStopped();
 
 
-        var lotResult = await _parkingLots.GetParkingLotById(activeSession.ParkingLotId);
-        if (lotResult is not GetLotResult.Success sLot)
+        var lotResult = await _parkingLots.GetParkingLotById((int)activeSession.ParkingLotId);
+        if (lotResult is null)
             return new StopSessionResult.Error("Failed to retrieve parking lot.");
 
-        var lot = sLot.Lot;
+        var lot = lotResult;
 
 
         var priceResult = _pricing.CalculateParkingCost(lot, activeSession.Started, DateTime.UtcNow);
@@ -421,7 +421,6 @@ public class ParkingSessionService : IParkingSessionService
 
         activeSession.Stopped = DateTime.UtcNow;
         activeSession.Cost = totalAmount;
-        activeSession.DurationMinutes = (int)Math.Ceiling((activeSession.Stopped.Value - activeSession.Started).TotalMinutes);
         activeSession.PaymentStatus = ParkingSessionStatus.Paid;
 
         var updateDto = new UpdateParkingSessionDto
@@ -439,18 +438,30 @@ public class ParkingSessionService : IParkingSessionService
         try
         {
             if (!await OpenSessionGate(activeSession, licensePlate))
-                return new StopSessionResult.Error("Payment successful but failed to open gate.");
+                throw new Exception("Failed to open gate");
         }
         catch (Exception ex)
         {
+            activeSession.Stopped = null;
+            activeSession.Cost = null;
+            activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+
+            var rollbackDto = new UpdateParkingSessionDto
+            {
+                Stopped = null,
+                Cost = null,
+                PaymentStatus = ParkingSessionStatus.PreAuthorized
+            };
+
+            await UpdateParkingSession(activeSession.Id, rollbackDto);
+
             return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
         }
-
 
         return new StopSessionResult.Success(activeSession, totalAmount);
     }
 
-    private async Task<Dictionary<string, DateTime>> GetPlateOwnershipMapAsync(long userId)
+    private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)
     {
         var userPlatesResult = await _userPlates.GetUserPlatesByUserId(userId);
 
