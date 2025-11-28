@@ -53,19 +53,19 @@ public sealed class ReservationServiceTests
         );
     }
 
-    private CreateReservationDto CreateValidDto(long lotId = 1, string plate = UserPlate, DateTime? start = null, DateTime? end = null, string? username = null)
+    private CreateReservationDto CreateValidDto(long lotId = 1, string plate = UserPlate, DateTimeOffset? start = null, DateTimeOffset? end = null, string? username = null)
     {
         return new CreateReservationDto
         {
             ParkingLotId = lotId,
             LicensePlate = plate,
-            StartDate = start ?? DateTime.UtcNow.AddHours(1),
-            EndDate = end ?? DateTime.UtcNow.AddHours(3),
+            StartDate = start ?? DateTimeOffset.UtcNow.AddHours(1),
+            EndDate = end ?? DateTimeOffset.UtcNow.AddHours(3),
             Username = username
         };
     }
 
-    private ReservationModel CreateReservationModel(long id = 1, long lotId = DefaultLotId, string plate = UserPlate, ReservationStatus status = ReservationStatus.Pending, DateTime? start = null, DateTime? end = null)
+    private ReservationModel CreateReservationModel(long id = 1, long lotId = DefaultLotId, string plate = UserPlate, ReservationStatus status = ReservationStatus.Pending, DateTimeOffset? start = null, DateTimeOffset? end = null)
     {
         return new ReservationModel
         {
@@ -73,9 +73,9 @@ public sealed class ReservationServiceTests
             ParkingLotId = lotId,
             LicensePlateNumber = plate.ToUpper(),
             Status = status,
-            StartTime = start ?? DateTime.UtcNow.AddHours(1),
-            EndTime = end ?? DateTime.UtcNow.AddHours(3),
-            CreatedAt = DateTime.UtcNow.AddMinutes(-10)
+            StartTime = start ?? DateTimeOffset.UtcNow.AddHours(1),
+            EndTime = end ?? DateTimeOffset.UtcNow.AddHours(3),
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-10)
         };
     }
 
@@ -87,6 +87,7 @@ public sealed class ReservationServiceTests
     [DataRow(DefaultLotId, UserPlate)]
     public async Task CreateReservation_Success_ReturnsSuccess(long lotId, string plate)
     {
+        // Arrange
         var dto = CreateValidDto(lotId, plate);
         var lot = new ParkingLotModel { Id = lotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
@@ -126,8 +127,10 @@ public sealed class ReservationServiceTests
             .Setup(r => r.CreateWithId(It.IsAny<ReservationModel>()))
             .ReturnsAsync((true, newReservationId));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Success));
         Assert.AreEqual(newReservationId, ((CreateReservationResult.Success)result).Reservation.Id);
 
@@ -141,6 +144,7 @@ public sealed class ReservationServiceTests
     public async Task CreateReservation_AdminForOtherUser_Success_ReturnsSuccess(
         long lotId, string plate, string targetUsername, bool isAdmin)
     {
+        // Arrange
         var dto = CreateValidDto(lotId, plate, username: targetUsername);
         var lot = new ParkingLotModel { Id = lotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
@@ -184,8 +188,10 @@ public sealed class ReservationServiceTests
             .Setup(r => r.CreateWithId(It.IsAny<ReservationModel>()))
             .ReturnsAsync((true, newReservationId));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, AdminUserId, isAdmin);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Success));
         Assert.AreEqual(newReservationId, ((CreateReservationResult.Success)result).Reservation.Id);
     }
@@ -194,14 +200,17 @@ public sealed class ReservationServiceTests
     [DataRow(99L)]
     public async Task CreateReservation_LotNotFound_ReturnsLotNotFound(long lotId)
     {
+        // Arrange
         var dto = CreateValidDto(lotId);
 
         _mockParkingLotService
             .Setup(repo => repo.FindByIdAsync(lotId))
             .ReturnsAsync((ParkingLotModel?)null);
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.LotNotFound));
     }
 
@@ -209,13 +218,12 @@ public sealed class ReservationServiceTests
     public async Task CreateReservation_EndDateBeforeStartDate_ReturnsLotNotFound()
     {
         // Arrange
-        var dto = CreateValidDto(start: DateTime.UtcNow.AddHours(2), end: DateTime.UtcNow.AddHours(1));
+        var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddHours(2), end: DateTimeOffset.UtcNow.AddHours(1));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
         // Assert
-        // ValidateInputAndFetchLot returns null -> service returns LotNotFound
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.LotNotFound));
     }
 
@@ -223,7 +231,7 @@ public sealed class ReservationServiceTests
     public async Task CreateReservation_StartDateInPast_ReturnsLotNotFound()
     {
         // Arrange
-        var dto = CreateValidDto(start: DateTime.UtcNow.AddMinutes(-5));
+        var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddMinutes(-5));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
@@ -237,6 +245,7 @@ public sealed class ReservationServiceTests
     [DataRow("UNKNOWN-PLATE")]
     public async Task CreateReservation_PlateNotFound_ReturnsPlateNotFound(string plate)
     {
+        // Arrange
         var dto = CreateValidDto(plate: plate);
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
 
@@ -248,8 +257,10 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetByLicensePlate(plate.ToUpper()))
             .ReturnsAsync(new GetLicensePlateResult.NotFound("Not found"));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.PlateNotFound));
     }
 
@@ -257,6 +268,7 @@ public sealed class ReservationServiceTests
     [DataRow("otherUser", false)]
     public async Task CreateReservation_UserCreatesForOther_ReturnsForbidden(string targetUsername, bool isAdmin)
     {
+        // Arrange
         var dto = CreateValidDto(username: targetUsername);
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -269,8 +281,10 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetByLicensePlate(UserPlate.ToUpper()))
             .ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId, isAdmin);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Forbidden));
     }
 
@@ -278,6 +292,7 @@ public sealed class ReservationServiceTests
     [DataRow("nonExistentUser", true)]
     public async Task CreateReservation_AdminForNonExistentUser_ReturnsUserNotFound(string targetUsername, bool isAdmin)
     {
+        // Arrange
         var dto = CreateValidDto(username: targetUsername);
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -294,8 +309,10 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetUserByUsername(targetUsername))
             .ReturnsAsync(new GetUserResult.NotFound());
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, AdminUserId, isAdmin);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.UserNotFound));
     }
 
@@ -303,6 +320,7 @@ public sealed class ReservationServiceTests
     [DataRow(OtherUserPlate)]
     public async Task CreateReservation_UserPlateNotOwned_ReturnsPlateNotOwned(string plate)
     {
+        // Arrange
         var dto = CreateValidDto(plate: plate);
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
@@ -324,14 +342,17 @@ public sealed class ReservationServiceTests
             .Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, plate.ToUpper()))
             .ReturnsAsync(new GetUserPlateResult.NotFound());
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.PlateNotOwned));
     }
 
     [TestMethod]
     public async Task CreateReservation_OverlappingReservationExists_ReturnsAlreadyExists()
     {
+        // Arrange
         var dto = CreateValidDto();
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -363,14 +384,17 @@ public sealed class ReservationServiceTests
             .Setup(r => r.GetByLicensePlate(UserPlate.ToUpper()))
             .ReturnsAsync(new List<ReservationModel> { existingReservation });
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.AlreadyExists));
     }
 
     [TestMethod]
     public async Task CreateReservation_PricingFails_ReturnsError()
     {
+        // Arrange
         var dto = CreateValidDto();
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -404,8 +428,10 @@ public sealed class ReservationServiceTests
                 dto.EndDate))
             .Returns(new CalculatePriceResult.Error("Pricing error"));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Error));
         StringAssert.Contains(((CreateReservationResult.Error)result).Message, "Failed to calculate reservation cost");
     }
@@ -413,6 +439,7 @@ public sealed class ReservationServiceTests
     [TestMethod]
     public async Task CreateReservation_PersistenceFails_ReturnsError()
     {
+        // Arrange
         var dto = CreateValidDto();
         var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -451,8 +478,10 @@ public sealed class ReservationServiceTests
             .Setup(r => r.CreateWithId(It.IsAny<ReservationModel>()))
             .ReturnsAsync((false, 0L));
 
+        // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Error));
         StringAssert.Contains(((CreateReservationResult.Error)result).Message, "Failed to save reservation");
     }
@@ -806,21 +835,21 @@ public sealed class ReservationServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Success));
         Assert.AreEqual(newStatus, ((UpdateReservationResult.Success)result).Reservation.Status);
-        _mockPricingService.Verify(pricingService => pricingService.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
+        _mockPricingService.Verify(pricingService => pricingService.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
     }
 
     [TestMethod]
     [DataRow(1L)]
     public async Task UpdateReservation_DatesChange_RecalculatesCostAndReturnsSuccess(long id)
     {
-        var startTime = DateTime.UtcNow.AddHours(2);
-        var endTime = DateTime.UtcNow.AddHours(5);
+        var startTime = DateTimeOffset.UtcNow.AddHours(2);
+        var endTime = DateTimeOffset.UtcNow.AddHours(5);
         var existing = CreateReservationModel(
             id: id,
             status: ReservationStatus.Pending,
-            start: DateTime.UtcNow.AddHours(1),
-            end: DateTime.UtcNow.AddHours(3));
-    
+            start: DateTimeOffset.UtcNow.AddHours(1),
+            end: DateTimeOffset.UtcNow.AddHours(3));
+
         var dto = new UpdateReservationDto
         {
             StartTime = startTime,
@@ -864,8 +893,10 @@ public sealed class ReservationServiceTests
             .Setup(r => r.Update(It.IsAny<ReservationModel>(), dto))
             .ReturnsAsync(true);
 
+        // Act
         var result = await _reservationService.UpdateReservation(id, RequestingUserId, dto);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Success));
         var successResult = (UpdateReservationResult.Success)result;
         Assert.AreEqual(startTime, successResult.Reservation.StartTime);
@@ -933,9 +964,9 @@ public sealed class ReservationServiceTests
     public async Task UpdateReservation_CannotChangeStartedReservationDate_ReturnsError(long id)
     {
         // Arrange
-        var startTimeInPast = DateTime.UtcNow.AddHours(-2);
+        var startTimeInPast = DateTimeOffset.UtcNow.AddHours(-2);
         var existing = CreateReservationModel(id: id, status: ReservationStatus.Confirmed, start: startTimeInPast);
-        var dto = new UpdateReservationDto { StartTime = DateTime.UtcNow.AddHours(1) };
+        var dto = new UpdateReservationDto { StartTime = DateTimeOffset.UtcNow.AddHours(1) };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
 
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetById<ReservationModel>(id)).ReturnsAsync(existing);
@@ -954,8 +985,8 @@ public sealed class ReservationServiceTests
     public async Task UpdateReservation_EndTimeBeforeStartTime_ReturnsError(long id)
     {
         // Arrange
-        var startTime = DateTime.UtcNow.AddHours(5);
-        var invalidEndTime = DateTime.UtcNow.AddHours(4);
+        var startTime = DateTimeOffset.UtcNow.AddHours(5);
+        var invalidEndTime = DateTimeOffset.UtcNow.AddHours(4);
         var existing = CreateReservationModel(id: id, start: startTime);
         var dto = new UpdateReservationDto { EndTime = invalidEndTime };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
@@ -975,6 +1006,7 @@ public sealed class ReservationServiceTests
     [DataRow(1L)]
     public async Task UpdateReservation_PricingFails_ReturnsError(long id)
     {
+        // Arrange
         var startTime = DateTime.UtcNow.AddHours(2);
         var endTime = DateTime.UtcNow.AddHours(5);
         var existing = CreateReservationModel(id: id);
@@ -1011,8 +1043,10 @@ public sealed class ReservationServiceTests
                 endTime))
             .Returns(new CalculatePriceResult.Error("Pricing failed"));
 
+        // Act
         var result = await _reservationService.UpdateReservation(id, RequestingUserId, dto);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Error));
         StringAssert.Contains(((UpdateReservationResult.Error)result).Message, "Failed to recalculate cost");
     }

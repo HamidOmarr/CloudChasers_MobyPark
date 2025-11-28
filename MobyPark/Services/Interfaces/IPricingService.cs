@@ -5,5 +5,5 @@ namespace MobyPark.Services.Interfaces;
 
 public interface IPricingService
 {
-    CalculatePriceResult CalculateParkingCost(ParkingLotModel parkingLot, DateTime startTime, DateTime endTime);
+    CalculatePriceResult CalculateParkingCost(ParkingLotModel parkingLot, DateTimeOffset startTime, DateTimeOffset endTime);
 }

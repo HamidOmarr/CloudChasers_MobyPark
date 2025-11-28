@@ -46,7 +46,7 @@ public class UserPlateService : IUserPlateService
         {
             UserId = userId,
             LicensePlateNumber = plate,
-            CreatedAt = DateOnly.FromDateTime(DateTime.UtcNow),
+            CreatedAt = DateTimeOffset.UtcNow,
             IsPrimary = isFirstPlate
         };
 

@@ -20,4 +20,11 @@ public class UserRepository : Repository<UserModel>, IUserRepository
             .Where(user => user.Role.Name == roleName)
             .ToListAsync();
     }
+
+    public async Task<UserModel> GetByIdWithRoleAndPermissions(long id) =>
+        await DbSet
+            .Include(user => user.Role)
+                .ThenInclude(role => role.RolePermissions)
+                    .ThenInclude(rp => rp.Permission)
+            .FirstAsync(user => user.Id == id);
 }

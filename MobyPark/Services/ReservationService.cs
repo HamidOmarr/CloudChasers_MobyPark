@@ -5,7 +5,6 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
-using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
 using MobyPark.Services.Results.User;
@@ -45,7 +44,7 @@ public class ReservationService : IReservationService
         var lot = await ValidateInputAndFetchLot(dto);
         if (lot.Status is not ServiceStatus.Success)
             return new CreateReservationResult.LotNotFound();
-        
+
         var parkingLot = new ParkingLotModel
         {
             Id = lot.Data!.Id,
@@ -55,7 +54,6 @@ public class ReservationService : IReservationService
             Capacity = lot.Data.Capacity,
             Tariff = lot.Data.Tariff,
             DayTariff = lot.Data.DayTariff
-
         };
 
         string normalizedPlate = dto.LicensePlate.Upper();
@@ -89,7 +87,7 @@ public class ReservationService : IReservationService
             StartTime = dto.StartDate,
             EndTime = dto.EndDate,
             Status = ReservationStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
             Cost = cost.Price
         };
 
@@ -101,7 +99,7 @@ public class ReservationService : IReservationService
         if (dto.EndDate <= dto.StartDate)
             return ServiceResult<ReadParkingLotDto>.BadRequest("Start date must be before end date");
 
-        if (dto.StartDate < DateTime.UtcNow.AddMinutes(-2))
+        if (dto.StartDate < DateTimeOffset.UtcNow.AddMinutes(-2))
             return ServiceResult<ReadParkingLotDto>.BadRequest("Start date can't be in the future");
 
         return await _parkingLots.GetParkingLotByIdAsync(dto.ParkingLotId);
@@ -145,7 +143,7 @@ public class ReservationService : IReservationService
         };
     }
 
-    private async Task<CreateReservationResult?> CheckForOverlappingReservation(long parkingLotId, long requestingUserId, string licensePlateNumber, DateTime start, DateTime end)
+    private async Task<CreateReservationResult?> CheckForOverlappingReservation(long parkingLotId, long requestingUserId, string licensePlateNumber, DateTimeOffset start, DateTimeOffset end)
     {
         var existingReservations = await GetReservationsByLicensePlate(licensePlateNumber, requestingUserId);
 
@@ -345,7 +343,7 @@ public class ReservationService : IReservationService
 
         if (dto.StartTime.HasValue && dto.StartTime.Value != existingReservation.StartTime)
         {
-            if (existingReservation.StartTime < DateTime.UtcNow)
+            if (existingReservation.StartTime < DateTimeOffset.UtcNow)
                 return new ApplyUpdateResult.CannotChangeStartedReservation();
 
             existingReservation.StartTime = dto.StartTime.Value;

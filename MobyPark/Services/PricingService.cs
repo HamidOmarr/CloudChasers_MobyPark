@@ -6,7 +6,7 @@ namespace MobyPark.Services;
 
 public class PricingService : IPricingService
 {
-    public CalculatePriceResult CalculateParkingCost(ParkingLotModel parkingLot, DateTime startTime, DateTime endTime)
+    public CalculatePriceResult CalculateParkingCost(ParkingLotModel parkingLot, DateTimeOffset startTime, DateTimeOffset endTime)
     {
         if (endTime <= startTime)
             return new CalculatePriceResult.Error("End time must be after start time");

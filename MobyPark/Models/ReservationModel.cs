@@ -37,16 +37,16 @@ public class ReservationModel : IHasLongId, ICanBeEdited
     public ParkingLotModel ParkingLot { get; set; } = null!;
 
     [Required]
-    public DateTime StartTime { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset StartTime { get; set; } = DateTimeOffset.UtcNow;
 
     [Required]
-    public DateTime EndTime { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset EndTime { get; set; } = DateTimeOffset.UtcNow;
 
     [Required]
     public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
 
     [Required]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     [Required]
     public decimal Cost { get; set; } = 0m;
