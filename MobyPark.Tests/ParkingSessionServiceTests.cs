@@ -1237,7 +1237,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(s => s.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(new ServiceResult<ReadParkingLotDto>
             {
-                Status = ServiceStatus.NotFound, // This triggers the specific return type
+                Status = ServiceStatus.NotFound,
                 Data = null
             });
 
