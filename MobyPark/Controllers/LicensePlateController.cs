@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.LicensePlate.Request;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
-using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.User;
 using MobyPark.Services.Results.UserPlate;
 
@@ -65,10 +65,11 @@ public class LicensePlateController : BaseController
         if (userPlate is not GetUserPlateResult.Success successUserPlate)
             return NotFound(new { error = "License plate does not exist", data = request.LicensePlate });
 
-        var lot = await _parkingLots.GetParkingLotById((int)request.ParkingLotId);
-        if (lot is null)
+        var lot = await _parkingLots.GetParkingLotByIdAsync(request.ParkingLotId);
+        if (lot is not { Status: ServiceStatus.Success } || lot.Data is null)
             return NotFound(new { error = "Parking lot does not exist", data = request.ParkingLotId });
-        if (lot.AvailableSpots <= 0)
+
+        if (lot.Data.Capacity - lot.Data.Reserved <= 0)
             return Conflict(new { error = "No available spots in the parking lot", data = request.ParkingLotId });
 
         return Ok(new { status = "Accepted", plate = new { successUserPlate.Plate.LicensePlateNumber, successUserPlate.Plate.UserId } });

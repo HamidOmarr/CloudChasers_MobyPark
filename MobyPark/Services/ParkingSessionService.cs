@@ -16,7 +16,7 @@ namespace MobyPark.Services;
 public class ParkingSessionService : IParkingSessionService
 {
     private readonly IParkingSessionRepository _sessions;
-    private readonly ParkingLotService _parkingLots;
+    private readonly IParkingLotService _parkingLots;
     private readonly IUserPlateService _userPlates;
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
@@ -24,7 +24,7 @@ public class ParkingSessionService : IParkingSessionService
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
-        ParkingLotService parkingLots,
+        IParkingLotService parkingLots,
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,

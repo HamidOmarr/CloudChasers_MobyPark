@@ -4,7 +4,6 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.LicensePlate;
-using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
 using MobyPark.Services.Results.User;
@@ -24,7 +23,6 @@ public sealed class ReservationServiceTests
     private Mock<IUserPlateService> _mockUserPlatesService = null!;
     private Mock<IPricingService> _mockPricingService = null!;
     private ReservationService _reservationService = null!;
-    private ParkingLotService _parkingLotService = null!;
 
     private const long RequestingUserId = 1L;
     private const long OtherUserId = 2L;
@@ -45,7 +43,7 @@ public sealed class ReservationServiceTests
 
         _reservationService = new ReservationService(
             _mockReservationsRepo.Object,
-            _parkingLotService = new ParkingLotService(_mockParkingLotService.Object),
+            new ParkingLotService(_mockParkingLotService.Object),
             _mockLicensePlatesService.Object,
             _mockUsersService.Object,
             _mockUserPlatesService.Object,

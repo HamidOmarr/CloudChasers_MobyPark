@@ -3,12 +3,10 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.ParkingLot;
-using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class ParkingLotService
+public class ParkingLotService : IParkingLotService
 {
     private readonly IRepository<ParkingLotModel> _parkingRepo;
 
@@ -42,9 +40,9 @@ public class ParkingLotService
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByIdAsync(long id)
     {
         try
@@ -68,13 +66,13 @@ public class ParkingLotService
         {
             return ServiceResult<ReadParkingLotDto>.Fail("Unexpected error occurred.");
         }
-        
+
     }
 
     public async Task<ServiceResult<ReadParkingLotDto>> CreateParkingLotAsync(CreateParkingLotDto parkingLot)
     {
         var normalized = parkingLot.Address.Trim().ToLower();
-        
+
         try
         {
             var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
@@ -112,7 +110,7 @@ public class ParkingLotService
         }
     }
 
-    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot) 
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot)
     {
         var normalized = address.Trim().ToLower();
         try
@@ -148,14 +146,14 @@ public class ParkingLotService
                     DayTariff = exists.DayTariff
                 });
         }
-        
+
         catch (Exception ex)
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
         }
     }
-    
-    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot) 
+
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot)
     {
         try
         {
@@ -190,7 +188,7 @@ public class ParkingLotService
                     DayTariff = exists.DayTariff
                 });
         }
-        
+
         catch (Exception ex)
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
@@ -213,7 +211,7 @@ public class ParkingLotService
             return ServiceResult<bool>.Fail("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<bool>> DeleteParkingLotByAddressAsync(string address)
     {
         try
@@ -257,5 +255,5 @@ public class ParkingLotService
             return ServiceResult<List<ReadParkingLotDto>>.Fail("Unexpected error occurred.");
         }
     }
-    
+
 }

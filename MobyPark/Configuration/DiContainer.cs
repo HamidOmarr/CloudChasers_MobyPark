@@ -40,7 +40,7 @@ public static class DiContainer
 
         // Business Logic Services: Scoped to manage state per request.
         services.AddScoped<ILicensePlateService, LicensePlateService>();
-        services.AddScoped<ParkingLotService>();
+        services.AddScoped<IParkingLotService, ParkingLotService>();
         services.AddScoped<IParkingSessionService, ParkingSessionService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IPermissionService, PermissionService>();
