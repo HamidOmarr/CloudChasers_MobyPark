@@ -12,13 +12,24 @@ namespace MobyPark.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:Enum:parking_lot_status", "open,closed,maintenance")
-                .Annotation("Npgsql:Enum:parking_session_status", "preauthorized,pending,paid,failed,refunded,hotelpass")
-                .Annotation("Npgsql:Enum:reservation_status", "pending,confirmed,cancelled,completed,no_show")
-                .OldAnnotation("Npgsql:Enum:parking_lot_status", "open,closed,maintenance")
-                .OldAnnotation("Npgsql:Enum:parking_session_status", "preauthorized,pending,paid,failed,refunded")
-                .OldAnnotation("Npgsql:Enum:reservation_status", "pending,confirmed,cancelled,completed,no_show");
+            migrationBuilder.Sql(@"
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'parking_session_status') THEN
+                    CREATE TYPE parking_session_status AS ENUM ('preauthorized','pending','paid','failed','refunded');
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_enum e
+                    JOIN pg_type t ON e.enumtypid = t.oid
+                    WHERE t.typname = 'parking_session_status'
+                      AND e.enumlabel = 'hotelpass'
+                ) THEN
+                    ALTER TYPE parking_session_status ADD VALUE 'hotelpass';
+                END IF;
+            END
+            $$;
+            ");
 
             migrationBuilder.AddColumn<long>(
                 name: "HotelPassId",
