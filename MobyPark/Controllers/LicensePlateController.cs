@@ -4,7 +4,6 @@ using MobyPark.DTOs.LicensePlate.Request;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
-using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.User;
 using MobyPark.Services.Results.UserPlate;
 
