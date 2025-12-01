@@ -16,7 +16,9 @@ public enum ParkingSessionStatus
     [PgName("failed")]
     Failed,
     [PgName("refunded")]
-    Refunded
+    Refunded,
+    [PgName("hotelpass")]
+    HotelPass
 }
 
 public class ParkingSessionModel : IHasLongId, ICanBeEdited
@@ -40,6 +42,9 @@ public class ParkingSessionModel : IHasLongId, ICanBeEdited
     public DateTimeOffset Started { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? Stopped { get; set; }
+
+    public long? HotelPassId { get; set; } = null;
+    [ForeignKey(nameof(HotelPassId))] public HotelPassModel HotelPass { get; set; } = null;
 
     public decimal? Cost { get; set; }
 

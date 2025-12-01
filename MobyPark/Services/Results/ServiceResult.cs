@@ -6,7 +6,8 @@ public enum ServiceStatus
     Fail,
     NotFound,
     BadRequest,
-    Exception
+    Exception,
+    Conflict
 }
 
 public class ServiceResult<T>
@@ -24,23 +25,6 @@ public class ServiceResult<T>
     public static ServiceResult<T> BadRequest(string error) => new ServiceResult<T> { Status = ServiceStatus.BadRequest, Error = error };
     
     public static ServiceResult<T> Exception(string error) => new ServiceResult<T> { Status = ServiceStatus.Exception, Error = error };
+    public static ServiceResult<T> Conflict(string error) => new ServiceResult<T> { Status = ServiceStatus.Conflict, Error = error };
     
 }
-
-// public record ServiceResult<T>
-// (
-//     ServiceStatus Status,
-//     string? Error = null,
-//     T? Data = default
-// )
-// {
-//     public static ServiceResult<T> Ok(T data) => new(ServiceStatus.Success, null, data);
-//
-//     public static ServiceResult<T> Fail(string error) => new(ServiceStatus.Fail, error, default);
-//
-//     public static ServiceResult<T> NotFound(string error) => new(ServiceStatus.NotFound, error, default);
-//
-//     public static ServiceResult<T> BadRequest(string error) => new(ServiceStatus.BadRequest, error, default);
-//
-//     public static ServiceResult<T> Exception(string error) => new(ServiceStatus.Exception, error, default);
-// }

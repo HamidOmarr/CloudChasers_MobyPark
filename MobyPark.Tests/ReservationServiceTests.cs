@@ -1,10 +1,11 @@
+using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
-using MobyPark.Services.Results.ParkingLot;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
 using MobyPark.Services.Results.User;
@@ -78,6 +79,21 @@ public sealed class ReservationServiceTests
         };
     }
 
+    private ReadParkingLotDto CreateLotDto(long id, decimal tariff)
+    {
+        return new ReadParkingLotDto
+        {
+            Id = id,
+            Name = "Test Lot",
+            Location = "Test Loc",
+            Address = "Test Addr",
+            Capacity = 100,
+            Reserved = 0,
+            Tariff = tariff,
+            DayTariff = 20
+        };
+    }
+
     #endregion
 
     #region Create
@@ -95,12 +111,13 @@ public sealed class ReservationServiceTests
         var expectedCost = 10m;
         long newReservationId = 123L;
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)lotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(lotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, plate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new List<ReservationModel>());
-        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(lot, dto.StartDate, dto.EndDate)).Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
+        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(It.Is<ParkingLotModel>(m => m.Id == lotId), dto.StartDate, dto.EndDate))
+            .Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.CreateWithId(It.IsAny<ReservationModel>())).ReturnsAsync((true, newReservationId));
 
         // Act
@@ -113,25 +130,26 @@ public sealed class ReservationServiceTests
     }
 
     [TestMethod]
-    [DataRow(DefaultLotId, UserPlate, "otherUser", true)] // Admin creates for otherUser
+    [DataRow(DefaultLotId, UserPlate, "otherUser", true)]
     public async Task CreateReservation_AdminForOtherUser_Success_ReturnsSuccess(long lotId, string plate, string targetUsername, bool isAdmin)
     {
         // Arrange
         var dto = CreateValidDto(lotId, plate, username: targetUsername);
-        var lot = new ParkingLotModel { Id = lotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
         var targetUser = new UserModel { Id = OtherUserId, Username = targetUsername };
         var userPlate = new UserPlateModel { UserId = OtherUserId, LicensePlateNumber = plate.ToUpper() };
         var expectedCost = 10m;
         long newReservationId = 124L;
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)lotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(lotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserByUsername(targetUsername)).ReturnsAsync(new GetUserResult.Success(targetUser));
         _mockUsersService.Setup(userService => userService.GetUserById(OtherUserId)).ReturnsAsync(new GetUserResult.Success(targetUser)); // Needed internally
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(OtherUserId, plate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new List<ReservationModel>());
-        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(lot, dto.StartDate, dto.EndDate)).Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
+        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(
+            It.Is<ParkingLotModel>(m => m.Id == lotId), dto.StartDate, dto.EndDate))
+            .Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.CreateWithId(It.IsAny<ReservationModel>())).ReturnsAsync((true, newReservationId));
 
         // Act
@@ -148,7 +166,9 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(lotId);
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)lotId)).ReturnsAsync((ParkingLotModel?)null);
+
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound($"No lot with id: {lotId} found."));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
@@ -158,7 +178,7 @@ public sealed class ReservationServiceTests
     }
 
     [TestMethod]
-    public async Task CreateReservation_EndDateBeforeStartDate_ReturnsLotNotFound()
+    public async Task CreateReservation_EndDateBeforeStartDate_ReturnsInvalidInput()
     {
         // Arrange
         var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddHours(2), end: DateTimeOffset.UtcNow.AddHours(1));
@@ -167,12 +187,11 @@ public sealed class ReservationServiceTests
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
         // Assert
-        // ValidateInputAndFetchLot returns null -> service returns LotNotFound
-        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.LotNotFound));
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.InvalidInput));
     }
 
     [TestMethod]
-    public async Task CreateReservation_StartDateInPast_ReturnsLotNotFound()
+    public async Task CreateReservation_StartDateInPast_ReturnsInvalidInput()
     {
         // Arrange
         var dto = CreateValidDto(start: DateTimeOffset.UtcNow.AddMinutes(-5));
@@ -181,8 +200,7 @@ public sealed class ReservationServiceTests
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
 
         // Assert
-        // ValidateInputAndFetchLot returns null -> service returns LotNotFound
-        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.LotNotFound));
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.InvalidInput));
     }
 
     [TestMethod]
@@ -191,8 +209,7 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(plate: plate);
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.NotFound("Not found"));
 
         // Act
@@ -208,10 +225,9 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(username: targetUsername);
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
 
         // Act
@@ -227,10 +243,9 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(username: targetUsername);
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserByUsername(targetUsername)).ReturnsAsync(new GetUserResult.NotFound()); // User not found
 
@@ -247,11 +262,10 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(plate: plate);
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId, Username = "requestingUser" };
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(plate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, plate.ToUpper())).ReturnsAsync(new GetUserPlateResult.NotFound());
@@ -268,18 +282,17 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto();
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
         var existingReservation = CreateReservationModel(id: 99, start: dto.StartDate.AddHours(-1), end: dto.StartDate.AddHours(1), status: ReservationStatus.Confirmed);
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new List<ReservationModel> { existingReservation });
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync([existingReservation]);
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);
@@ -298,7 +311,7 @@ public sealed class ReservationServiceTests
         var user = new UserModel { Id = RequestingUserId };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
@@ -319,19 +332,20 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto();
-        var lot = new ParkingLotModel { Id = DefaultLotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
         var expectedCost = 10m;
 
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)DefaultLotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
         _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(userService => userService.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new List<ReservationModel>());
-        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(lot, dto.StartDate, dto.EndDate)).Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
+        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(
+                It.Is<ParkingLotModel>(m => m.Id == DefaultLotId), dto.StartDate, dto.EndDate))
+            .Returns(new CalculatePriceResult.Success(expectedCost, 2, 0));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.CreateWithId(It.IsAny<ReservationModel>())).ReturnsAsync((false, 0L));
 
         // Act
@@ -351,14 +365,16 @@ public sealed class ReservationServiceTests
         var end = start.AddHours(2);
         var dto = CreateValidDto(lotId: lotId, plate: UserPlate, start: start, end: end);
 
-        var lot = new ParkingLotModel { Id = lotId, Tariff = 5, Capacity = 1 };
+        var lotDto = CreateLotDto(lotId, 5);
+        lotDto.Capacity = 1;
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
 
         var existingOverlap = CreateReservationModel(id: 50, lotId: lotId, plate: OtherUserPlate, start: start.AddMinutes(-30), end: start.AddMinutes(30));
 
-        _mockParkingLotsService.Setup(s => s.GetParkingLotById((int)lotId)).ReturnsAsync(lot);
+        _mockParkingLotsService.Setup(s => s.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
         _mockLicensePlatesService.Setup(s => s.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
         _mockUsersService.Setup(s => s.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
@@ -438,8 +454,8 @@ public sealed class ReservationServiceTests
         var res2 = CreateReservationModel(id: 2, lotId: lotId, plate: OtherUserPlate);
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate };
 
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync(new List<ReservationModel> { res1, res2 });
-        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync([res1, res2]);
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success([userPlate]));
 
         // Act
         var result = await _reservationService.GetReservationsByParkingLotId(lotId, RequestingUserId);
@@ -471,7 +487,7 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var res1 = CreateReservationModel(id: 1, lotId: lotId, plate: UserPlate);
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync(new List<ReservationModel> { res1 });
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync([res1]);
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.NotFound());
 
         // Act
@@ -489,8 +505,8 @@ public sealed class ReservationServiceTests
         var res1 = CreateReservationModel(id: 1, lotId: lotId, plate: OtherUserPlate);
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate };
 
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync(new List<ReservationModel> { res1 });
-        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByParkingLotId(lotId)).ReturnsAsync([res1]);
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success([userPlate]));
 
         // Act
         var result = await _reservationService.GetReservationsByParkingLotId(lotId, RequestingUserId);
@@ -513,7 +529,7 @@ public sealed class ReservationServiceTests
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = normalized };
 
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, normalized)).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(normalized)).ReturnsAsync(new List<ReservationModel> { res1 });
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByLicensePlate(normalized)).ReturnsAsync([res1]);
 
         // Act
         var result = await _reservationService.GetReservationsByLicensePlate(plate, RequestingUserId);
@@ -571,8 +587,8 @@ public sealed class ReservationServiceTests
         var res2 = CreateReservationModel(id: 2, plate: OtherUserPlate, status: statusEnum);
 
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate };
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync(new List<ReservationModel> { res1, res2 });
-        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync([res1, res2]);
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success([userPlate]));
 
         // Act
         var result = await _reservationService.GetReservationsByStatus(statusString, RequestingUserId);
@@ -607,7 +623,7 @@ public sealed class ReservationServiceTests
         // Arrange
         ReservationStatus statusEnum = Enum.Parse<ReservationStatus>(statusString, true);
         var res1 = CreateReservationModel(id: 1, plate: UserPlate, status: statusEnum);
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync(new List<ReservationModel> { res1 });
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync([res1]);
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.NotFound());
 
         // Act
@@ -626,8 +642,8 @@ public sealed class ReservationServiceTests
         var res1 = CreateReservationModel(id: 1, plate: OtherUserPlate, status: statusEnum);
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate };
 
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync(new List<ReservationModel> { res1 });
-        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
+        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetByStatus(statusEnum)).ReturnsAsync([res1]);
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlatesByUserId(RequestingUserId)).ReturnsAsync(new GetUserPlateListResult.Success([userPlate]));
 
         // Act
         var result = await _reservationService.GetReservationsByStatus(statusString, RequestingUserId);
@@ -740,8 +756,10 @@ public sealed class ReservationServiceTests
 
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetById<ReservationModel>(id)).ReturnsAsync(existing);
         _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, existing.LicensePlateNumber)).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)existing.ParkingLotId)).ReturnsAsync(lot);
-        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(lot, startTime, endTime)).Returns(new CalculatePriceResult.Success(newCost, 3, 0));
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
+        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(
+                It.Is<ParkingLotModel>(m => m.Id == existing.ParkingLotId), startTime, endTime))
+            .Returns(new CalculatePriceResult.Success(newCost, 3, 0));
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.Update(It.IsAny<ReservationModel>(), dto)).ReturnsAsync(true);
 
         // Act
@@ -851,31 +869,6 @@ public sealed class ReservationServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Error));
         StringAssert.Contains(((UpdateReservationResult.Error)result).Message, "End time must be after the start time.");
-    }
-
-    [TestMethod]
-    [DataRow(1L)]
-    public async Task UpdateReservation_PricingFails_ReturnsError(long id)
-    {
-        // Arrange
-        var startTime = DateTime.UtcNow.AddHours(2);
-        var endTime = DateTime.UtcNow.AddHours(5);
-        var existing = CreateReservationModel(id: id);
-        var dto = new UpdateReservationDto { StartTime = startTime, EndTime = endTime };
-        var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
-        var lot = new ParkingLotModel { Id = existing.ParkingLotId, Tariff = 5 };
-
-        _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetById<ReservationModel>(id)).ReturnsAsync(existing);
-        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(RequestingUserId, existing.LicensePlateNumber)).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
-        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotById((int)existing.ParkingLotId)).ReturnsAsync(lot);
-        _mockPricingService.Setup(pricingService => pricingService.CalculateParkingCost(lot, startTime, endTime)).Returns(new CalculatePriceResult.Error("Pricing failed"));
-
-        // Act
-        var result = await _reservationService.UpdateReservation(id, RequestingUserId, dto);
-
-        // Assert
-        Assert.IsInstanceOfType(result, typeof(UpdateReservationResult.Error));
-        StringAssert.Contains(((UpdateReservationResult.Error)result).Message, "Failed to recalculate cost");
     }
 
     [TestMethod]

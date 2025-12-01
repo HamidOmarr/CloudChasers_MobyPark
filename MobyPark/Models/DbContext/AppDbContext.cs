@@ -17,6 +17,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<PaymentModel> Payments => Set<PaymentModel>();
     public DbSet<TransactionModel> Transactions => Set<TransactionModel>();
     public DbSet<UserPlateModel> UserPlates => Set<UserPlateModel>();
+    public DbSet<HotelPassModel> HotelPasses => Set<HotelPassModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +96,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(userPlate => userPlate.LicensePlate)
             .WithMany()
             .HasForeignKey(userPlate => userPlate.LicensePlateNumber);
+
+        modelBuilder.Entity<HotelPassModel>()
+            .HasOne(h => h.ParkingLot)
+            .WithMany()
+            .HasForeignKey(h => h.ParkingLotId);
+
+        modelBuilder.Entity<HotelPassModel>()
+            .HasOne(h => h.LicensePlate)
+            .WithMany()
+            .HasForeignKey(h => h.LicensePlateNumber);
 
     }
 }
