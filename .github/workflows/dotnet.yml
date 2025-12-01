@@ -13,8 +13,8 @@ jobs:
   build:
     runs-on: [self-hosted, linux, x64, mobypark]
     env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-      DOTNET_ROOT: ${{ runner.temp }}/dotnet
+      DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
+      DOTNET_ROOT: ${{ github.workspace }}/.dotnet
 
     steps:
     - uses: actions/checkout@v4
@@ -24,8 +24,8 @@ jobs:
         dotnet-version: 8.0.416
         dotnet-quality: 'ga'
       env:
-        DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
-        DOTNET_ROOT: ${{ runner.temp }}/dotnet
+        DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
+        DOTNET_ROOT: ${{ github.workspace }}/.dotnet
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
