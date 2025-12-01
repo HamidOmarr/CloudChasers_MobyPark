@@ -42,9 +42,24 @@ public class ReservationService : IReservationService
 
     public async Task<CreateReservationResult> CreateReservation(CreateReservationDto dto, long requestingUserId, bool isAdminRequest = false)
     {
-        var lot = await ValidateInputAndFetchLot(dto);
-        if (lot is null)
-            return new CreateReservationResult.LotNotFound();
+        var lotResult = await ValidateInputAndFetchLot(dto);
+        switch (lotResult.Status)
+        {
+            case ServiceStatus.BadRequest:
+                return new CreateReservationResult.InvalidInput(lotResult.Error ?? "Invalid input data.");
+            case ServiceStatus.NotFound:
+                return new CreateReservationResult.LotNotFound();
+            case ServiceStatus.Fail:
+            case ServiceStatus.Exception:
+            case ServiceStatus.Conflict:
+                return new CreateReservationResult.Error("Failed to retrieve parking lot data.");
+            case ServiceStatus.Success:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+
+        var lot = lotResult.Data;
 
         string normalizedPlate = dto.LicensePlate.Upper();
         var userPlateValidationResult = await ResolveTargetUserAndValidatePlate(dto, normalizedPlate, requestingUserId, isAdminRequest);
@@ -62,20 +77,20 @@ public class ReservationService : IReservationService
             };
         }
 
-        var overlapCheckResult = await CheckForOverlappingReservation(lot.Data!.Id, requestingUserId, normalizedPlate, dto.StartDate, dto.EndDate);
+        var overlapCheckResult = await CheckForOverlappingReservation(lot.Id, requestingUserId, normalizedPlate, dto.StartDate, dto.EndDate);
         if (overlapCheckResult is not null)
             return overlapCheckResult;
 
         var costResult = _pricing.CalculateParkingCost(new ParkingLotModel
         {
-            Id = lot.Data.Id,
-            Name = lot.Data.Name,
-            Location = lot.Data.Location,
-            Address = lot.Data.Address,
-            Capacity = lot.Data.Capacity,
-            Reserved = lot.Data.Reserved,
-            Tariff = lot.Data.Tariff,
-            DayTariff = lot.Data.DayTariff,
+            Id = lot.Id,
+            Name = lot.Name,
+            Location = lot.Location,
+            Address = lot.Address,
+            Capacity = lot.Capacity,
+            Reserved = lot.Reserved,
+            Tariff = lot.Tariff,
+            DayTariff = lot.DayTariff,
         }, dto.StartDate, dto.EndDate);
         if (costResult is not CalculatePriceResult.Success cost)
             return new CreateReservationResult.Error("Failed to calculate reservation cost.");
@@ -83,7 +98,7 @@ public class ReservationService : IReservationService
         var reservationToCreate = new ReservationModel
         {
             LicensePlateNumber = normalizedPlate,
-            ParkingLotId = lot.Data.Id,
+            ParkingLotId = lot.Id,
             StartTime = dto.StartDate,
             EndTime = dto.EndDate,
             Status = ReservationStatus.Pending,
@@ -97,9 +112,9 @@ public class ReservationService : IReservationService
     private async Task<ServiceResult<ReadParkingLotDto>> ValidateInputAndFetchLot(CreateReservationDto dto)
     {
         if (dto.EndDate <= dto.StartDate)
-            return null;
+            return ServiceResult<ReadParkingLotDto>.BadRequest("End date must be after start date.");
         if (dto.StartDate < DateTimeOffset.UtcNow.AddMinutes(-2))
-            return null;
+            return ServiceResult<ReadParkingLotDto>.BadRequest("Start date cannot be in the past.");
 
         var lot = await _parkingLots.GetParkingLotByIdAsync(dto.ParkingLotId);
         if (lot.Status != ServiceStatus.Success) return ServiceResult<ReadParkingLotDto>.NotFound("Parking lot was not found");
