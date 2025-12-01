@@ -17,8 +17,9 @@ public static class DiContainer
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         // Repository: Scoped. New instance per HTTP request.
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>)); // toegevoegd door mij
         services.AddScoped<ILicensePlateRepository, LicensePlateRepository>();
-        services.AddScoped<IParkingLotRepository, ParkingLotRepository>();
+        services.AddScoped<IParkingLotService, ParkingLotService>();
         services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
@@ -30,6 +31,7 @@ public static class DiContainer
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IGateService, GateService>();
         services.AddScoped<IPreAuthService, PreAuthService>();
+        services.AddScoped<IHotelPassService, HotelPassService>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<ISessionService, SessionService>();

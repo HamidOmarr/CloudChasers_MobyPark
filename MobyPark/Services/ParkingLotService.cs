@@ -1,21 +1,29 @@
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
+using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 using MobyPark.Services.Results.ParkingLot;
+using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
-public class ParkingLotService
+public class ParkingLotService : IParkingLotService
 {
     private readonly IRepository<ParkingLotModel> _parkingRepo;
+    private readonly IRepository<HotelPassModel> _hotelRepo;
+    private readonly IRepository<ParkingSessionModel> _sessionRepo;
+    private readonly IRepository<ReservationModel> _reservationRepo;
 
 
-    public ParkingLotService(IRepository<ParkingLotModel> parkingLots)
+    public ParkingLotService(IRepository<ParkingLotModel> parkingLots, IRepository<ParkingSessionModel> sessionRepo, IRepository<ReservationModel> reservationRepo, IRepository<HotelPassModel> hotelRepo)
     {
         _parkingRepo = parkingLots;
+        _sessionRepo = sessionRepo;
+        _reservationRepo = reservationRepo;
+        _hotelRepo = hotelRepo;
     }
 
     public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByAddressAsync(string address)
@@ -32,6 +40,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -57,6 +66,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -84,6 +94,7 @@ public class ParkingLotService
                 Location = parkingLot.Location,
                 Address = parkingLot.Address,
                 Capacity = parkingLot.Capacity,
+                Reserved = 0,
                 Tariff = parkingLot.Tariff,
                 DayTariff = parkingLot.DayTariff
             };
@@ -96,6 +107,7 @@ public class ParkingLotService
                 Name = lot.Name,
                 Location = lot.Location,
                 Address = lot.Address,
+                Reserved = lot.Reserved,
                 Capacity = lot.Capacity,
                 Tariff = lot.Tariff,
                 DayTariff = lot.DayTariff
@@ -138,6 +150,7 @@ public class ParkingLotService
                     Name = exists.Name,
                     Location = exists.Location,
                     Address = exists.Address,
+                    Reserved = exists.Reserved,
                     Capacity = exists.Capacity,
                     Tariff = exists.Tariff,
                     DayTariff = exists.DayTariff
@@ -179,6 +192,7 @@ public class ParkingLotService
                     Name = exists.Name,
                     Location = exists.Location,
                     Address = exists.Address,
+                    Reserved = exists.Reserved,
                     Capacity = exists.Capacity,
                     Tariff = exists.Tariff,
                     DayTariff = exists.DayTariff
@@ -237,6 +251,7 @@ public class ParkingLotService
                 Name = p.Name,
                 Location = p.Location,
                 Address = p.Address,
+                Reserved = p.Reserved,
                 Capacity = p.Capacity,
                 Tariff = p.Tariff,
                 DayTariff = p.DayTariff
@@ -251,4 +266,121 @@ public class ParkingLotService
         }
     }
     
+    public async Task<ServiceResult<int>> GetAvailableSpotsByLotIdAsync(long id)
+    {
+        var lot = await _parkingRepo.FindByIdAsync(id);
+        if (lot is null) return ServiceResult<int>.NotFound("Parking lot not found");
+
+        var now = DateTime.UtcNow;
+
+        int activeSessions = (await _sessionRepo
+                .GetByAsync(x => x.ParkingLotId == lot.Id && !x.Stopped.HasValue))
+            .Count();
+
+        int activeReservations = (await _reservationRepo
+                .GetByAsync(x =>
+                    x.ParkingLotId == lot.Id &&
+                    (x.Status == ReservationStatus.Pending ||
+                     x.Status == ReservationStatus.Confirmed) &&
+                    x.StartTime < now &&
+                    x.EndTime > now))
+            .Count();
+
+        int activeHotelPasses = (await _hotelRepo
+                .GetByAsync(x =>
+                    x.ParkingLotId == lot.Id &&
+                    x.Start < now &&
+                    (x.End + x.ExtraTime) > now))
+            .Count();
+
+        int occupied = activeSessions + activeReservations + activeHotelPasses;
+        int availableSpots = lot.Capacity - occupied;
+        if (availableSpots < 0)
+            availableSpots = 0;
+
+        return ServiceResult<int>.Ok(availableSpots);
+    }
+    public async Task<ServiceResult<int>> GetAvailableSpotsByAddressAsync(string address)
+    {
+        var trimmedAddress = address.Trim().ToLower();
+        var lot = (await _parkingRepo
+                .GetByAsync(x => x.Address.ToLower() == trimmedAddress))
+            .FirstOrDefault();
+
+        if (lot is null) return ServiceResult<int>.NotFound("Parking lot not found");
+
+        var now = DateTime.UtcNow;
+
+        int activeSessions = (await _sessionRepo
+                .GetByAsync(x => x.ParkingLotId == lot.Id && !x.Stopped.HasValue))
+            .Count();
+
+        int activeReservations = (await _reservationRepo
+                .GetByAsync(x =>
+                    x.ParkingLotId == lot.Id &&
+                    (x.Status == ReservationStatus.Pending ||
+                     x.Status == ReservationStatus.Confirmed) &&
+                    x.StartTime < now &&
+                    x.EndTime > now))
+            .Count();
+
+        int activeHotelPasses = (await _hotelRepo
+                .GetByAsync(x =>
+                    x.ParkingLotId == lot.Id &&
+                    x.Start < now &&
+                    (x.End + x.ExtraTime) > now))
+            .Count();
+
+        int occupied = activeSessions + activeReservations + activeHotelPasses;
+        int availableSpots = lot.Capacity - occupied;
+        if (availableSpots < 0)
+            availableSpots = 0;
+
+        return ServiceResult<int>.Ok(availableSpots);
+    }
+    
+    public async Task<ServiceResult<int>> GetAvailableSpotsForPeriodAsync(
+        long lotId,
+        DateTime start,
+        DateTime end)
+    {
+        var lot = await _parkingRepo.FindByIdAsync(lotId);
+        if (lot is null)
+            return ServiceResult<int>.NotFound("Parking lot not found");
+
+        if (end <= start)
+            return ServiceResult<int>.BadRequest("End time must be after start time.");
+
+        var overlappingSessions = await _sessionRepo.GetByAsync(x =>
+            x.ParkingLotId == lotId &&
+            // sessie is (nog) niet gestopt of stopt na de start
+            (!x.Stopped.HasValue || x.Stopped.Value > start) &&
+            // sessie is gestart voor het einde van de gevraage periode
+            x.Started < end
+        );
+        int activeSessions = overlappingSessions.Count();
+        
+        var overlappingReservations = await _reservationRepo.GetByAsync(x =>
+            x.ParkingLotId == lotId &&
+            (x.Status == ReservationStatus.Pending ||
+             x.Status == ReservationStatus.Confirmed) &&
+            x.StartTime < end &&
+            x.EndTime > start
+        );
+        int activeReservations = overlappingReservations.Count();
+
+        var overlappingHotelPasses = await _hotelRepo.GetByAsync(x =>
+            x.ParkingLotId == (int)lotId &&
+            x.Start < end &&
+            (x.End + x.ExtraTime) > start
+        );
+        int activeHotelPasses = overlappingHotelPasses.Count();
+
+        int occupied = activeSessions + activeReservations + activeHotelPasses;
+        int availableSpots = lot.Capacity - occupied;
+        if (availableSpots < 0)
+            availableSpots = 0;
+
+        return ServiceResult<int>.Ok(availableSpots);
+    }
 }

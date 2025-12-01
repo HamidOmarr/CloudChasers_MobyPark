@@ -104,7 +104,7 @@ namespace MobyPark.Migrations
                     Started = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Stopped = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     Cost = table.Column<decimal>(type: "numeric", nullable: true),
-                    PaymentStatus = table.Column<int>(type: "payment_status", nullable: false)
+                    PaymentStatus = table.Column<int>(type: "parking_session_status", nullable: false)
                 },
                 constraints: table =>
                 {

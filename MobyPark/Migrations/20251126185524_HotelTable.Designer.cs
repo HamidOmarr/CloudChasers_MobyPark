@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MobyPark.Models.DbContext;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MobyPark.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251126185524_HotelTable")]
+    partial class HotelTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -55,7 +58,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("ParkingLotId");
 
-                    b.ToTable("HotelPasses", (string)null);
+                    b.ToTable("HotelPasses");
                 });
 
             modelBuilder.Entity("MobyPark.Models.LicensePlateModel", b =>
@@ -65,7 +68,7 @@ namespace MobyPark.Migrations
 
                     b.HasKey("LicensePlateNumber");
 
-                    b.ToTable("LicensePlates", (string)null);
+                    b.ToTable("LicensePlates");
                 });
 
             modelBuilder.Entity("MobyPark.Models.ParkingLotModel", b =>
@@ -108,7 +111,7 @@ namespace MobyPark.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ParkingLots", (string)null);
+                    b.ToTable("ParkingLots");
                 });
 
             modelBuilder.Entity("MobyPark.Models.ParkingSessionModel", b =>
@@ -149,7 +152,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("ParkingLotId");
 
-                    b.ToTable("ParkingSessions", (string)null);
+                    b.ToTable("ParkingSessions");
                 });
 
             modelBuilder.Entity("MobyPark.Models.PaymentModel", b =>
@@ -180,7 +183,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("TransactionId");
 
-                    b.ToTable("Payments", (string)null);
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("MobyPark.Models.PermissionModel", b =>
@@ -207,7 +210,7 @@ namespace MobyPark.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("MobyPark.Models.ReservationModel", b =>
@@ -246,7 +249,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("ParkingLotId");
 
-                    b.ToTable("Reservations", (string)null);
+                    b.ToTable("Reservations");
                 });
 
             modelBuilder.Entity("MobyPark.Models.RoleModel", b =>
@@ -268,7 +271,7 @@ namespace MobyPark.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles", (string)null);
+                    b.ToTable("Roles");
                 });
 
             modelBuilder.Entity("MobyPark.Models.RolePermissionModel", b =>
@@ -283,7 +286,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("MobyPark.Models.TransactionModel", b =>
@@ -309,7 +312,7 @@ namespace MobyPark.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("MobyPark.Models.UserModel", b =>
@@ -362,7 +365,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("MobyPark.Models.UserPlateModel", b =>
@@ -392,7 +395,7 @@ namespace MobyPark.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserPlates", (string)null);
+                    b.ToTable("UserPlates");
                 });
 
             modelBuilder.Entity("MobyPark.Models.HotelPassModel", b =>
