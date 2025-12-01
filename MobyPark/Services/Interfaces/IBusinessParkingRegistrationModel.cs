@@ -1,6 +1,6 @@
 ﻿namespace MobyPark.Services.Interfaces;
 
-public interface IBusinessPassService
+public interface IBusinessParkingRegistrationModel
 {
     
 }

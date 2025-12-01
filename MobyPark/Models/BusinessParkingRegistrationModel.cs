@@ -3,7 +3,7 @@ using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
 
-public class BusinessPassModel : IHasLongId
+public class BusinessParkingRegistrationModel : IHasLongId
 {
     public long Id { get; set; }
     // even vragen of dit erbij moet
