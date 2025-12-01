@@ -1,0 +1,45 @@
+name: dotnet tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  build-and-test:
+
+    runs-on: [self-hosted, linux, x64, mobypark]
+
+    env:
+      ASPNETCORE_URLS: "http://+:8500"
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+    - name: Run Tests
+      run: dotnet test --no-build --logger "trx;LogFileName=test-results.trx"
+
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Mobypark Test Results
+        path: "**/test-results.trx"                            
+        reporter: dotnet-trx
