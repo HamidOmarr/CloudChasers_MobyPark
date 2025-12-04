@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MobyPark.DTOs.Reservation.Request;
 
-public class CreateReservationDto
+public class ReservationCostEstimateRequest
 {
     [Required]
     public long ParkingLotId { get; set; }
@@ -15,6 +15,4 @@ public class CreateReservationDto
 
     [Required]
     public DateTimeOffset EndDate { get; set; }
-
-    public string? Username { get; set; }
 }
