@@ -19,12 +19,28 @@ public class HotelPassesController : BaseController
         _hotelService = hotelService;
         _authorizationService = authorizationService;
     }
+    
+    [HttpPost]
+    [Authorize(Policy = "Admin")]
+    public async Task<IActionResult> CreateHotelPass([FromBody] AdminCreateHotelPassDto pass)
+    {
+        var result = await _hotelService.CreateHotelPassAsync(pass);
+        return result.Status switch
+        {
+            ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
+            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.BadRequest => BadRequest(result.Error),
+            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Exception => StatusCode(500, result.Error),
+            _ => BadRequest("Unknown error")
+        };
+    }
 
     [HttpPost]
     [Authorize(Policy = "CanManageHotelPasses")]
-    public async Task<IActionResult> CreateHotelPass([FromBody] CreateHotelPassDto pass)
+    public async Task<IActionResult> CreateHotelPass([FromBody] CreateHotelPassDto pass, long currentUserId)
     {
-        var result = await _hotelService.CreateHotelPassAsync(pass);
+        var result = await _hotelService.CreateHotelPassAsync(pass, currentUserId);
         return result.Status switch
         {
             ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
@@ -98,7 +114,7 @@ public class HotelPassesController : BaseController
     }
 
     [HttpPatch]
-    [Authorize(Policy = "CanManageHotelPasses")]
+    [Authorize(Policy = "Admin")] //deze policies nog updaten
     public async Task<IActionResult> PatchHotelPass([FromBody] PatchHotelPassDto pass)
     {
         var result = await _hotelService.PatchHotelPassAsync(pass);
@@ -109,6 +125,23 @@ public class HotelPassesController : BaseController
             ServiceStatus.BadRequest => BadRequest(result.Error),
             ServiceStatus.Fail      => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
+            _ => BadRequest("Unknown error")
+        };
+    }
+    
+    [HttpPatch]
+    [Authorize(Policy = "CanManageHotelPasses")]
+    public async Task<IActionResult> PatchHotelPass([FromBody] PatchHotelPassDto pass, long currentUserId)
+    {
+        var result = await _hotelService.PatchHotelPassAsync(pass, currentUserId);
+        return result.Status switch
+        {
+            ServiceStatus.Success   => Ok(result.Data),
+            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.BadRequest => BadRequest(result.Error),
+            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Exception => StatusCode(500, result.Error),
+            ServiceStatus.Forbidden => StatusCode(403, result.Error),
             _ => BadRequest("Unknown error")
         };
     }

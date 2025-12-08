@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories;
@@ -78,6 +79,7 @@ public class ParkingLotService : IParkingLotService
         
     }
 
+    [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<ReadParkingLotDto>> CreateParkingLotAsync(CreateParkingLotDto parkingLot)
     {
         var normalized = parkingLot.Address.Trim().ToLower();
@@ -119,6 +121,7 @@ public class ParkingLotService : IParkingLotService
         }
     }
 
+    [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot) 
     {
         var normalized = address.Trim().ToLower();
@@ -162,6 +165,7 @@ public class ParkingLotService : IParkingLotService
         }
     }
     
+    [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot) 
     {
         try
@@ -204,6 +208,7 @@ public class ParkingLotService : IParkingLotService
         }
     }
 
+    [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<bool>> DeleteParkingLotByIdAsync(long id)
     {
         try
@@ -221,6 +226,7 @@ public class ParkingLotService : IParkingLotService
         }
     }
     
+    [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<bool>> DeleteParkingLotByAddressAsync(string address)
     {
         try

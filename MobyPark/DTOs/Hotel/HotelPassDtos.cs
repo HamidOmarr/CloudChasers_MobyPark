@@ -7,6 +7,18 @@ public class CreateHotelPassDto
     [Required]
     public string LicensePlate { get; set; }
     [Required]
+    public DateTime Start { get; set; }
+    [Required]
+    public DateTime End { get; set; }
+
+    public TimeSpan ExtraTime { get; set; } = new TimeSpan(0, 30, 0);
+}
+
+public class AdminCreateHotelPassDto
+{
+    [Required]
+    public string LicensePlate { get; set; }
+    [Required]
     public int ParkingLotId { get; set; }
     [Required]
     public DateTime Start { get; set; }

@@ -7,7 +7,8 @@ public enum ServiceStatus
     NotFound,
     BadRequest,
     Exception,
-    Conflict
+    Conflict,
+    Forbidden
 }
 
 public class ServiceResult<T>
@@ -26,5 +27,6 @@ public class ServiceResult<T>
     
     public static ServiceResult<T> Exception(string error) => new ServiceResult<T> { Status = ServiceStatus.Exception, Error = error };
     public static ServiceResult<T> Conflict(string error) => new ServiceResult<T> { Status = ServiceStatus.Conflict, Error = error };
+    public static ServiceResult<T> Forbidden(string error) => new ServiceResult<T> { Status = ServiceStatus.Forbidden, Error = error };
     
 }
