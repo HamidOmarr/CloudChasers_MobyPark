@@ -119,8 +119,7 @@ public class HotelPassService : IHotelPassService
         }
 
     }
-
-    [Authorize("Admin")] // still have to update this
+    
     public async Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(AdminCreateHotelPassDto pass)
     {
         try
@@ -191,7 +190,6 @@ public class HotelPassService : IHotelPassService
         }
     }
     
-    [Authorize("CanManageHotelPasses")]
     public async Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass, long currentUserId)
     {
         try
@@ -273,8 +271,7 @@ public class HotelPassService : IHotelPassService
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
     }
-
-    [Authorize("Admin")] //still have to update this
+    
     public async Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass)
     {
         try
@@ -434,6 +431,37 @@ public class HotelPassService : IHotelPassService
         {
             var pass = await _passRepo.FindByIdAsync(id);
             if (pass is null) return ServiceResult<bool>.NotFound($"No hotel pass with id {id} found.");
+
+            _passRepo.Deletee(pass);
+            await _passRepo.SaveChangesAsync();
+            return ServiceResult<bool>.Ok(true);
+        } catch (Exception ex)
+        {
+            return ServiceResult<bool>.Exception("Unexpected error occurred.");
+        }
+    }
+    
+    public async Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id, long currentUserId)
+    {
+        try
+        {
+            var user = await _userRepo.FindByIdAsync(currentUserId);
+            if (user is null) return ServiceResult<bool>.NotFound("user not found");
+            if (user.HotelId is null)
+            {
+                return ServiceResult<bool>.Conflict(
+                    "This user is not authorized to delete hotel passes for any hotel");
+            }
+            var hotel = await _hotelRepo.FindByIdAsync(user.HotelId);
+            if (hotel is null) return ServiceResult<bool>.NotFound("hotel not found");
+            var parkingLot = await _lotRepo.FindByIdAsync(hotel.HotelParkingLotId);
+            if (parkingLot is null) return ServiceResult<bool>.NotFound("parking lot not found");
+            
+            var pass = await _passRepo.FindByIdAsync(id);
+            if (pass is null) return ServiceResult<bool>.NotFound($"No hotel pass with id {id} found.");
+
+            if (parkingLot.Id != pass.ParkingLot.Id)
+                return ServiceResult<bool>.Forbidden("Hotel is only authorized to delete its own hotel passes");
 
             _passRepo.Deletee(pass);
             await _passRepo.SaveChangesAsync();

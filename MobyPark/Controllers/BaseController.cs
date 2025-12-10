@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.Models;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
@@ -35,5 +36,19 @@ public abstract class BaseController : ControllerBase
             throw new UnauthorizedAccessException("Authenticated user record not found.");
 
         return success.User;
+    }
+    
+    protected IActionResult FromServiceResult<T>(ServiceResult<T> result)
+    {
+        return result.Status switch
+        {
+            ServiceStatus.Success    => Ok(result.Data),
+            ServiceStatus.NotFound   => NotFound(result.Error),
+            ServiceStatus.BadRequest => BadRequest(result.Error),
+            ServiceStatus.Fail       => Conflict(result.Error),
+            ServiceStatus.Forbidden  => StatusCode(403, result.Error),
+            ServiceStatus.Exception  => StatusCode(500, result.Error),
+            _                        => BadRequest("Unknown error")
+        };
     }
 }

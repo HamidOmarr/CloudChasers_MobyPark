@@ -6,7 +6,7 @@ using MobyPark.Services.Results;
 
 namespace MobyPark.Services;
 
-public class HotelService
+public class HotelService : IHotelService
 {
     private readonly IRepository<HotelModel> _hotels;
     private readonly IRepository<ParkingLotModel> _lots;
@@ -24,9 +24,9 @@ public class HotelService
         if (parkingLotExists is null) return ServiceResult<ReadHotelDto>.NotFound("There was no parking lot found with that id");
         
         var addressTaken = await _hotels.GetByAsync(x => x.Address == hotel.Address);
-        if (addressTaken.Any()) return ServiceResult<ReadHotelDto>.Conflict("Address already taken"); // PO moet nog bevestigen of dit moet
+        if (addressTaken.Any()) return ServiceResult<ReadHotelDto>.Conflict("Address already taken");
         var parkingLotTaken = await _hotels.GetByAsync(x => x.HotelParkingLotId == hotel.HotelParkingLotId);
-        if (parkingLotTaken.Any()) return ServiceResult<ReadHotelDto>.Conflict("Parking lot already taken"); // PO moet nog bevestigen of dit moet
+        if (parkingLotTaken.Any()) return ServiceResult<ReadHotelDto>.Conflict("Parking lot already taken");
 
         var newHotel = new HotelModel
         {
@@ -63,7 +63,14 @@ public class HotelService
         }
         if (!string.IsNullOrWhiteSpace(hotelToUpdate.Name)) hotel.Name = hotelToUpdate.Name;
         
-        if (!string.IsNullOrWhiteSpace(hotelToUpdate.Address)) hotel.Address = hotelToUpdate.Address; //Wachten op reactie van PO of address uniek moet zijn, zoja -> eerst controlleren
+        if (!string.IsNullOrWhiteSpace(hotelToUpdate.Address))
+        {
+            var addressTaken = await _hotels.GetByAsync(x => x.Address == hotelToUpdate.Address);
+            if (addressTaken.Any())
+                return ServiceResult<PatchHotelDto>.Conflict(
+                    "There is already another hotel registered at the newly given address");
+            hotel.Address = hotelToUpdate.Address;
+}
         if (!string.IsNullOrWhiteSpace(hotelToUpdate.IBAN)) hotel.IBAN = hotelToUpdate.IBAN;
 
         _hotels.Update(hotel);

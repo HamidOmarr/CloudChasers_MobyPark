@@ -14,4 +14,5 @@ public interface IHotelPassService
     Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass);
     Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass, long currentUserId);
     Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id);
+    Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id, long currentUserId);
 }

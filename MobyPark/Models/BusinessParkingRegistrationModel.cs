@@ -7,7 +7,10 @@ public class BusinessParkingRegistrationModel : IHasLongId
 {
     public long Id { get; set; }
     public long BusinessId { get; set; }
-    public string BusinessName { get; set; } //later weg
+    
+    [ForeignKey(nameof(BusinessId))]
+    public BusinessModel Business { get; set; }
+
     public string LicensePlateNumber { get; set; }
     public bool Active { get; set; } = true;
     public DateTimeOffset LastSinceActive { get; set; } = DateTimeOffset.Now;
