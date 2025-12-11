@@ -44,6 +44,13 @@ public sealed class ReservationCostEstimateTests
             _mockUsersService.Object,
             _mockUserPlatesService.Object,
             _mockPricingService.Object);
+
+        _mockParkingLotsService
+            .Setup(s => s.GetAvailableSpotsForPeriodAsync(
+                It.IsAny<long>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(ServiceResult<int>.Ok(100));
     }
 
     private ReservationCostEstimateRequest MakeDto(DateTimeOffset? start = null, DateTimeOffset? end = null)
@@ -75,7 +82,12 @@ public sealed class ReservationCostEstimateTests
         _mockParkingLotsService.Setup(s => s.GetParkingLotByIdAsync(LotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
         _mockUserPlatesService.Setup(s => s.GetUserPlatesByUserId(UserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
-        _mockReservationsRepo.Setup(s => s.GetByParkingLotId(LotId)).ReturnsAsync(new List<ReservationModel> { existing });
+
+        _mockParkingLotsService.Setup(s => s.GetAvailableSpotsForPeriodAsync(
+                LotId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         // Act
         var result = await _service.GetReservationCostEstimate(dto, UserId);
@@ -96,7 +108,6 @@ public sealed class ReservationCostEstimateTests
         _mockParkingLotsService.Setup(s => s.GetParkingLotByIdAsync(LotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
         _mockUserPlatesService.Setup(s => s.GetUserPlatesByUserId(UserId)).ReturnsAsync(new GetUserPlateListResult.Success(new List<UserPlateModel> { userPlate }));
-        _mockReservationsRepo.Setup(s => s.GetByParkingLotId(LotId)).ReturnsAsync(new List<ReservationModel>());
         _mockPricingService.Setup(p => p.CalculateParkingCost(It.Is<ParkingLotModel>(m => m.Id == LotId), dto.StartDate, dto.EndDate))
             .Returns(new CalculatePriceResult.Success(12m, 2, 0));
 

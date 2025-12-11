@@ -51,6 +51,13 @@ public sealed class ReservationServiceTests
             _mockUserPlatesService.Object,
             _mockPricingService.Object
         );
+
+        _mockParkingLotsService
+            .Setup(s => s.GetAvailableSpotsForPeriodAsync(
+                It.IsAny<long>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(ServiceResult<int>.Ok(100));
     }
 
     private CreateReservationDto CreateValidDto(long lotId = 1, string plate = UserPlate, DateTimeOffset? start = null, DateTimeOffset? end = null, string? username = null)
@@ -379,7 +386,12 @@ public sealed class ReservationServiceTests
         _mockUsersService.Setup(s => s.GetUserById(RequestingUserId)).ReturnsAsync(new GetUserResult.Success(user));
         _mockUserPlatesService.Setup(s => s.GetUserPlateByUserIdAndPlate(RequestingUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(userPlate));
         _mockReservationsRepo.Setup(s => s.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new List<ReservationModel>());
-        _mockReservationsRepo.Setup(s => s.GetByParkingLotId(lotId)).ReturnsAsync(new List<ReservationModel> { existingOverlap });
+
+        _mockParkingLotsService.Setup(s => s.GetAvailableSpotsForPeriodAsync(
+                lotId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         // Act
         var result = await _reservationService.CreateReservation(dto, RequestingUserId);

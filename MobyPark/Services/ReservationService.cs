@@ -194,13 +194,17 @@ public class ReservationService : IReservationService
 
     private async Task<AvailabilityResult> CheckLotAvailability(long lotId, DateTimeOffset start, DateTimeOffset end, int capacity)
     {
-        var lotReservations = await _reservations.GetByParkingLotId(lotId) ?? new List<ReservationModel>();
-        int overlapCount = lotReservations
-            .Where(r => r.Status != ReservationStatus.Cancelled && r.Status != ReservationStatus.NoShow)
-            .Count(r => r.StartTime < end && start < r.EndTime);
-        if (capacity > 0 && overlapCount >= capacity)
+        var availability = await _parkingLots.GetAvailableSpotsForPeriodAsync(
+            lotId,
+            start.UtcDateTime,
+            end.UtcDateTime);
+
+        if (availability.Status != ServiceStatus.Success)
             return AvailabilityResult.LotClosed;
-        return AvailabilityResult.Ok;
+
+        return availability.Data > 0
+            ? AvailabilityResult.Ok
+            : AvailabilityResult.LotClosed;
     }
 
     public async Task<GetReservationResult> GetReservationById(long id, long requestingUserId)
