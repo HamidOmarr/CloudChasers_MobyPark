@@ -18,6 +18,8 @@ public sealed class UserServiceTests
     private Mock<IUserPlateRepository> _mockUserPlatesRepo = null!;
     private Mock<IParkingSessionRepository> _mockParkingSessionsRepo = null!;
     private Mock<IRoleRepository> _mockRolesRepo = null!;
+    private Mock<IRepository<HotelModel>> _mockHotelRepo = null!;
+    private Mock<IRepository<BusinessModel>> _mockBusinessRepo = null!;
     private Mock<IPasswordHasher<UserModel>> _mockHasher = null!;
     private Mock<ISessionService> _mockSessionService = null!;
     private UserService _userService = null!;
@@ -59,6 +61,8 @@ public sealed class UserServiceTests
         _mockUserPlatesRepo = new Mock<IUserPlateRepository>();
         _mockParkingSessionsRepo = new Mock<IParkingSessionRepository>();
         _mockRolesRepo = new Mock<IRoleRepository>();
+        _mockBusinessRepo = new Mock<IRepository<BusinessModel>>();
+        _mockHotelRepo = new Mock<IRepository<HotelModel>>();
         _mockHasher = new Mock<IPasswordHasher<UserModel>>();
         _mockSessionService = new Mock<ISessionService>();
 
@@ -68,7 +72,7 @@ public sealed class UserServiceTests
             _mockParkingSessionsRepo.Object,
             _mockRolesRepo.Object,
             _mockHasher.Object,
-            _mockSessionService.Object
+            _mockSessionService.Object, _mockHotelRepo.Object, _mockBusinessRepo.Object
         );
     }
 

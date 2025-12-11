@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
@@ -7,6 +8,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
 using MobyPark.Validation;
@@ -21,6 +23,8 @@ public partial class UserService : IUserService
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher<UserModel> _hasher;
     private readonly ISessionService _sessions;
+    private readonly IRepository<HotelModel> _hotels;
+    private readonly IRepository<BusinessModel> _businesses;
 
     private const string PasswordPattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$";
     private const string PhoneTrimPattern = @"\D";
@@ -45,7 +49,7 @@ public partial class UserService : IUserService
         IParkingSessionRepository parkingSessions,
         IRoleRepository roles,
         IPasswordHasher<UserModel> hasher,
-        ISessionService sessions)
+        ISessionService sessions, IRepository<HotelModel> hotels, IRepository<BusinessModel> businesses)
     {
         _users = users;
         _userPlates = userPlates;
@@ -53,6 +57,8 @@ public partial class UserService : IUserService
         _roles = roles;
         _hasher = hasher;
         _sessions = sessions;
+        _hotels = hotels;
+        _businesses = businesses;
     }
 
     private async Task<UserModel> CreateUser(UserModel user)
@@ -374,6 +380,64 @@ public partial class UserService : IUserService
         user.RoleId = dto.RoleId;
 
         return await UpdateUser(user);
+    }
+
+    [Authorize("CanManageUsers")]
+    public async Task<ServiceResult<UserHotelProfileDto>> GiveUserHotelManagementPermission(long userId, int hotelId)
+    {
+        var user = await _users.FindByIdAsync(userId);
+        if (user is null) return ServiceResult<UserHotelProfileDto>.NotFound("no user found with that id");
+        
+        var hotel = await _hotels.FindByIdAsync(hotelId);
+        if (hotel is null) return ServiceResult<UserHotelProfileDto>.NotFound("no hotel found with that id");
+
+        user.HotelId = hotelId;
+        _users.Update(user);
+        await _users.SaveChangesAsync();
+
+        return ServiceResult<UserHotelProfileDto>.Ok(new UserHotelProfileDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Phone = user.Phone,
+            Birthday = user.Birthday,
+            HotelId = hotel.Id,
+            HotelName = hotel.Name,
+            HotelAddress = hotel.Address,
+            HotelIBAN = hotel.IBAN,
+            HotelParkingLotId = hotel.HotelParkingLotId
+        });
+    }
+
+    [Authorize("CanManageUsers")]
+    public async Task<ServiceResult<UserBusinessProfileDto>> GiveUserBusinessManagementPermission(long userId,
+        int businessId)
+    {
+        var user = await _users.FindByIdAsync(userId);
+        if (user is null) return ServiceResult<UserBusinessProfileDto>.NotFound("no user found with that id");
+        var business = await _businesses.FindByIdAsync(businessId);
+        if (business is null) return ServiceResult<UserBusinessProfileDto>.NotFound("no business found with that id");
+
+        user.BusinessId = businessId;
+        _businesses.Update(business);
+        await _businesses.SaveChangesAsync();
+        return ServiceResult<UserBusinessProfileDto>.Ok(new UserBusinessProfileDto
+        {
+            Id = user.Id,
+            Username = user.Username,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Phone = user.Phone,
+            Birthday = user.Birthday,
+            BusinessId = business.Id,
+            BusinessName = business.Name,
+            BusinessAddress = business.Address,
+            BusinessIBAN = business.IBAN,
+        }); 
     }
 
     private static UpdateUserResult ValidatePasswordIntegrity(string password)
