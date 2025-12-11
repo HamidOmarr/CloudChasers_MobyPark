@@ -1,7 +1,6 @@
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.ParkingLot;
 
 namespace MobyPark.Services.Interfaces;
 

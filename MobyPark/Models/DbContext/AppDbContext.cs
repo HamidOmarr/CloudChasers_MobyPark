@@ -18,6 +18,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<TransactionModel> Transactions => Set<TransactionModel>();
     public DbSet<UserPlateModel> UserPlates => Set<UserPlateModel>();
     public DbSet<HotelPassModel> HotelPasses => Set<HotelPassModel>();
+    public DbSet<HotelModel> Hotels => Set<HotelModel>();
+    public DbSet<BusinessModel> Businesses => Set<BusinessModel>();
+
+    public DbSet<BusinessParkingRegistrationModel> BusinessParkingRegistrations =>
+        Set<BusinessParkingRegistrationModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +111,21 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(h => h.LicensePlate)
             .WithMany()
             .HasForeignKey(h => h.LicensePlateNumber);
+
+        modelBuilder.Entity<HotelModel>()
+            .HasOne(h => h.ParkingLot)
+            .WithOne()
+            .HasForeignKey<HotelModel>(h => h.HotelParkingLotId);
+
+        modelBuilder.Entity<HotelModel>()
+            .HasIndex(h => h.HotelParkingLotId)
+            .IsUnique();
+        
+        modelBuilder.Entity<BusinessParkingRegistrationModel>()
+            .HasOne(r => r.Business)
+            .WithMany()
+            .HasForeignKey(r => r.BusinessId)
+            .OnDelete(DeleteBehavior.Cascade);
 
     }
 }

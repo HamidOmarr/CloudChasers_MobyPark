@@ -9,7 +9,10 @@ public interface IHotelPassService
     Task<ServiceResult<List<ReadHotelPassDto>>> GetHotelPassesByParkingLotIdAsync(long parkingLotId);
     Task<ServiceResult<List<ReadHotelPassDto>>> GetHotelPassesByLicensePlateAsync(string licensePlate);
     Task<ServiceResult<ReadHotelPassDto>> GetActiveHotelPassByLicensePlateAndLotIdAsync(long parkingLotId, string licensePlate);
-    Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass);
+    Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass, long currentUserId);
+    Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(AdminCreateHotelPassDto pass);
     Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass);
+    Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass, long currentUserId);
     Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id);
+    Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id, long currentUserId);
 }

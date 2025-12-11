@@ -3,7 +3,7 @@ using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.DTOs.ParkingLot.Request;
 
-public class PatchParkingLotDto : ICanBeEdited
+public class PatchParkingLotDto
 {
     public string? Name { get; set; }
     public string? Location { get; set; }
