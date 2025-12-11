@@ -12,10 +12,24 @@ namespace MobyPark.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:Enum:parking_lot_status", "open,closed,maintenance")
-                .Annotation("Npgsql:Enum:parking_session_status", "preauthorized,pending,paid,failed,refunded")
-                .Annotation("Npgsql:Enum:reservation_status", "pending,confirmed,cancelled,completed,no_show");
+            // Ensure enums exist without failing when already present
+            migrationBuilder.Sql(@"DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'parking_lot_status') THEN
+    CREATE TYPE parking_lot_status AS ENUM ('open','closed','maintenance');
+END IF;
+END $$;");
+
+            migrationBuilder.Sql(@"DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'parking_session_status') THEN
+    CREATE TYPE parking_session_status AS ENUM ('preauthorized','pending','paid','failed','refunded');
+END IF;
+END $$;");
+
+            migrationBuilder.Sql(@"DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'reservation_status') THEN
+    CREATE TYPE reservation_status AS ENUM ('pending','confirmed','cancelled','completed','no_show');
+END IF;
+END $$;");
 
             migrationBuilder.CreateTable(
                 name: "LicensePlates",
