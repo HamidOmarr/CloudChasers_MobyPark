@@ -4,6 +4,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
+using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
 using MobyPark.Validation;
