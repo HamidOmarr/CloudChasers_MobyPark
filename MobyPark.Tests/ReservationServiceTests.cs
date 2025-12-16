@@ -264,6 +264,88 @@ public sealed class ReservationServiceTests
     }
 
     [TestMethod]
+    public async Task CreateReservation_AdminCannotCreateForAdmin_ReturnsForbidden()
+    {
+        // Arrange
+        var targetUsername = "admin";
+        var dto = CreateValidDto(username: targetUsername);
+        var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
+        var targetUser = new UserModel { Id = OtherUserId, Username = targetUsername, RoleId = UserModel.AdminRoleId };
+
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
+        _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
+        _mockUsersService.Setup(userService => userService.GetUserByUsername(targetUsername)).ReturnsAsync(new GetUserResult.Success(targetUser));
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(OtherUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(new UserPlateModel { UserId = OtherUserId, LicensePlateNumber = UserPlate.ToUpper() }));
+
+        // Act
+        var result = await _reservationService.CreateReservation(dto, AdminUserId, true);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Forbidden));
+    }
+
+    [TestMethod]
+    public async Task CreateReservation_AdminCannotCreateForSelf_ReturnsForbidden()
+    {
+        // Arrange
+        var adminUsername = "adminuser";
+        var dto = CreateValidDto(username: adminUsername);
+        var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
+        var adminUser = new UserModel { Id = AdminUserId, Username = adminUsername, RoleId = UserModel.AdminRoleId };
+
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
+        _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
+        _mockUsersService.Setup(userService => userService.GetUserByUsername(adminUsername)).ReturnsAsync(new GetUserResult.Success(adminUser));
+        _mockUserPlatesService.Setup(uPlateService => uPlateService.GetUserPlateByUserIdAndPlate(AdminUserId, UserPlate.ToUpper())).ReturnsAsync(new GetUserPlateResult.Success(new UserPlateModel { UserId = AdminUserId, LicensePlateNumber = UserPlate.ToUpper() }));
+
+        // Act
+        var result = await _reservationService.CreateReservation(dto, AdminUserId, true);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Forbidden));
+    }
+
+    [TestMethod]
+    public async Task CreateReservation_AdminCannotCreateForAdminWithBusinessId_ReturnsForbidden()
+    {
+        // Arrange 
+        var targetUsername = "businessuser";
+        var dto = CreateValidDto(username: targetUsername);
+        var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
+        var targetUser = new UserModel { Id = OtherUserId, Username = targetUsername, RoleId = UserModel.AdminRoleId, BusinessId = 42 };
+
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
+        _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
+        _mockUsersService.Setup(userService => userService.GetUserByUsername(targetUsername)).ReturnsAsync(new GetUserResult.Success(targetUser));
+
+        // Act
+        var result = await _reservationService.CreateReservation(dto, AdminUserId, true);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Forbidden));
+    }
+
+    [TestMethod]
+    public async Task CreateReservation_AdminCannotCreateForAdminWithHotelId_ReturnsForbidden()
+    {
+        // Arrange
+        var targetUsername = "hoteluser";
+        var dto = CreateValidDto(username: targetUsername);
+        var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
+        var targetUser = new UserModel { Id = OtherUserId, Username = targetUsername, RoleId = UserModel.AdminRoleId, HotelId = 99 };
+
+        _mockParkingLotsService.Setup(lotService => lotService.GetParkingLotByIdAsync(DefaultLotId)).ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(CreateLotDto(DefaultLotId, 5)));
+        _mockLicensePlatesService.Setup(plateService => plateService.GetByLicensePlate(UserPlate.ToUpper())).ReturnsAsync(new GetLicensePlateResult.Success(licensePlate));
+        _mockUsersService.Setup(userService => userService.GetUserByUsername(targetUsername)).ReturnsAsync(new GetUserResult.Success(targetUser));
+
+        // Act
+        var result = await _reservationService.CreateReservation(dto, AdminUserId, true);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(CreateReservationResult.Forbidden));
+    }
+
+    [TestMethod]
     [DataRow(OtherUserPlate)]
     public async Task CreateReservation_UserPlateNotOwned_ReturnsPlateNotOwned(string plate)
     {

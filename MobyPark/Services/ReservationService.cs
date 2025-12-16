@@ -95,7 +95,6 @@ public class ReservationService : IReservationService
         if (plateLookup is Services.Results.LicensePlate.GetLicensePlateResult.NotFound)
             return new CreateReservationResult.PlateNotFound();
 
-        // Determine target user (admin create for others, normal users cannot)
         if (!string.IsNullOrWhiteSpace(dto.Username))
         {
             if (!isAdminRequest)
@@ -104,7 +103,19 @@ public class ReservationService : IReservationService
             var userLookup = await _users.GetUserByUsername(dto.Username);
             if (userLookup is GetUserResult.NotFound)
                 return new CreateReservationResult.UserNotFound(dto.Username!);
-            targetUserId = ((GetUserResult.Success)userLookup).User.Id;
+
+            var targetUser = ((GetUserResult.Success)userLookup).User;
+
+            // Admins are not allowed to create reservations for themselves
+            if (targetUser.Id == requesterUserId)
+                return new CreateReservationResult.Forbidden("Admins cannot create reservations for themselves.");
+
+            if (targetUser.RoleId == UserModel.AdminRoleId)
+            {
+                return new CreateReservationResult.Forbidden("Cannot create reservations for admin users.");
+            }
+
+            targetUserId = targetUser.Id;
         }
 
         // Verify plate ownership
