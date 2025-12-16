@@ -20,6 +20,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<HotelPassModel> HotelPasses => Set<HotelPassModel>();
     public DbSet<HotelModel> Hotels => Set<HotelModel>();
     public DbSet<BusinessModel> Businesses => Set<BusinessModel>();
+    public DbSet<InvoiceModel> Invoices => Set<InvoiceModel>();
 
     public DbSet<BusinessParkingRegistrationModel> BusinessParkingRegistrations =>
         Set<BusinessParkingRegistrationModel>();
@@ -120,7 +121,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<HotelModel>()
             .HasIndex(h => h.HotelParkingLotId)
             .IsUnique();
-        
+
         modelBuilder.Entity<BusinessParkingRegistrationModel>()
             .HasOne(r => r.Business)
             .WithMany()
