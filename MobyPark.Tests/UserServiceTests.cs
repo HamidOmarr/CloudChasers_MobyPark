@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Identity;
+using MobyPark.DTOs.Token;
 using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 using Moq;
 using MobyPark.Services.Interfaces;
@@ -21,7 +22,7 @@ public sealed class UserServiceTests
     private Mock<IRepository<HotelModel>> _mockHotelRepo = null!;
     private Mock<IRepository<BusinessModel>> _mockBusinessRepo = null!;
     private Mock<IPasswordHasher<UserModel>> _mockHasher = null!;
-    private Mock<ISessionService> _mockSessionService = null!;
+    private Mock<ITokenService> _mockSessionService = null!;
     private UserService _userService = null!;
 
     private readonly UserModel _defaultUser = new()
@@ -44,16 +45,6 @@ public sealed class UserServiceTests
         RoleId = 1
     };
 
-    private readonly UserModel _itManagerUser = new()
-    {
-        Id = 3,
-        Username = "itmanager",
-        Email = "itmanager@user.com",
-        PasswordHash = "hashed_password",
-        Role = new RoleModel { Id = 2, Name = "IT MANAGER" },
-        RoleId = 2
-    };
-
     [TestInitialize]
     public void TestInitialize()
     {
@@ -64,7 +55,7 @@ public sealed class UserServiceTests
         _mockBusinessRepo = new Mock<IRepository<BusinessModel>>();
         _mockHotelRepo = new Mock<IRepository<HotelModel>>();
         _mockHasher = new Mock<IPasswordHasher<UserModel>>();
-        _mockSessionService = new Mock<ISessionService>();
+        _mockSessionService = new Mock<ITokenService>();
 
         _userService = new UserService(
             _mockUsersRepo.Object,
@@ -214,16 +205,25 @@ public sealed class UserServiceTests
     {
         // Arrange
         var dto = new LoginDto { Identifier = identifier, Password = password };
+        var expectedRefreshToken = "generated-refresh-token";
+        var expectedSliding = DateTimeOffset.UtcNow.AddMinutes(30);
+        var expectedAbsolute = DateTimeOffset.UtcNow.AddDays(7);
+
         _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync((UserModel?)null);
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
-
         _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
             .ReturnsAsync(_defaultUser);
 
-        _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
+        _mockSessionService.Setup(token => token.CreateToken(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
+        _mockSessionService.Setup(token => token.GenerateRefreshToken()).Returns(expectedRefreshToken);
+        _mockSessionService.Setup(token => token.GetSlidingTokenExpiryTime()).Returns(expectedSliding);
+        _mockSessionService.Setup(token => token.GetAbsoluteTokenExpiryTime()).Returns(expectedAbsolute);
+
+        _mockUsersRepo.Setup(userRepo => userRepo.Update(_defaultUser, It.IsAny<TokenDto>()))
+            .ReturnsAsync(true);
 
         // Act
         var result = await _userService.Login(dto);
@@ -231,6 +231,10 @@ public sealed class UserServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(LoginResult.Success));
         Assert.AreEqual("test_token", ((LoginResult.Success)result).Response.Token);
+        _mockUsersRepo.Verify(repo => repo.Update(_defaultUser, It.Is<TokenDto>(t =>
+            t.RefreshToken == expectedRefreshToken &&
+            t.SlidingTokenExpiryTime == expectedSliding &&
+            t.AbsoluteTokenExpiryTime == expectedAbsolute)), Times.Once);
     }
 
     [TestMethod]
@@ -239,6 +243,8 @@ public sealed class UserServiceTests
     {
         // Arrange
         var dto = new LoginDto { Identifier = identifier, Password = password };
+        var expectedRefreshToken = "email-login-refresh-token";
+
         _mockUsersRepo.Setup(userRepo => userRepo.GetByEmail(identifier)).ReturnsAsync(_defaultUser);
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
@@ -246,8 +252,15 @@ public sealed class UserServiceTests
         _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(_defaultUser.Id))
             .ReturnsAsync(_defaultUser);
 
-        _mockSessionService.Setup(s => s.CreateSession(_defaultUser))
+        _mockSessionService.Setup(token => token.CreateToken(_defaultUser))
             .Returns(new CreateJwtResult.Success("test_token"));
+        _mockSessionService.Setup(token => token.GenerateRefreshToken()).Returns(expectedRefreshToken);
+
+        _mockSessionService.Setup(token => token.GetSlidingTokenExpiryTime()).Returns(DateTimeOffset.UtcNow);
+        _mockSessionService.Setup(token => token.GetAbsoluteTokenExpiryTime()).Returns(DateTimeOffset.UtcNow);
+
+        _mockUsersRepo.Setup(repo => repo.Update(_defaultUser, It.IsAny<TokenDto>()))
+            .ReturnsAsync(true);
 
         // Act
         var result = await _userService.Login(dto);
@@ -256,6 +269,7 @@ public sealed class UserServiceTests
         Assert.IsInstanceOfType(result, typeof(LoginResult.Success));
         Assert.AreEqual("test_token", ((LoginResult.Success)result).Response.Token);
         _mockUsersRepo.Verify(userRepo => userRepo.GetByUsername(It.IsAny<string>()), Times.Never);
+        _mockUsersRepo.Verify(repo => repo.Update(_defaultUser, It.IsAny<TokenDto>()), Times.Once);
     }
 
     [TestMethod]
@@ -303,7 +317,10 @@ public sealed class UserServiceTests
         _mockHasher.Setup(hasher => hasher.VerifyHashedPassword(_defaultUser, "hashed_password", password))
             .Returns(PasswordVerificationResult.Success);
 
-        _mockSessionService.Setup(session => session.CreateSession(_defaultUser))
+        _mockUsersRepo.Setup(u => u.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
+        _mockSessionService.Setup(session => session.CreateToken(_defaultUser))
             .Returns(new CreateJwtResult.ConfigError("JWT Key not configured."));
 
         // Act
@@ -311,7 +328,94 @@ public sealed class UserServiceTests
 
         // Assert
         Assert.IsInstanceOfType(result, typeof(LoginResult.Error));
-        StringAssert.Contains(((LoginResult.Error)result).Message, "Failed to create authentication token");
+        StringAssert.Contains(((LoginResult.Error)result).Message, "Log in failed.");
+    }
+
+    [TestMethod]
+    public async Task Login_SuccessRehashNeeded_UpdatesPasswordAndTokens()
+    {
+        // Arrange
+        var identifier = "legacyuser";
+        var password = "password123";
+        var dto = new LoginDto { Identifier = identifier, Password = password };
+        var newRefreshToken = "new-refresh-token";
+        var newHash = "new-modern-hash";
+
+        _mockUsersRepo.Setup(user => user.GetByUsername(identifier)).ReturnsAsync(_defaultUser);
+
+        _mockHasher.Setup(hash =>
+            hash.VerifyHashedPassword(_defaultUser, "hashed_password", password))
+            .Returns(PasswordVerificationResult.SuccessRehashNeeded);
+
+        _mockUsersRepo.Setup(u => u.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync(_defaultUser);
+
+        _mockHasher.Setup(hash =>
+            hash.HashPassword(_defaultUser, password))
+            .Returns(newHash);
+
+        _mockUsersRepo.Setup(repo => repo.Update(_defaultUser));
+
+        _mockSessionService.Setup(token => token.CreateToken(It.IsAny<UserModel>()))
+            .Returns(new CreateJwtResult.Success("jwt"));
+        _mockSessionService.Setup(token => token.GenerateRefreshToken())
+            .Returns(newRefreshToken);
+        _mockSessionService.Setup(token => token.GetSlidingTokenExpiryTime())
+            .Returns(DateTimeOffset.UtcNow.AddMinutes(30));
+        _mockSessionService.Setup(token => token.GetAbsoluteTokenExpiryTime())
+            .Returns(DateTimeOffset.UtcNow.AddDays(7));
+
+        // Act
+        await _userService.Login(dto);
+
+        // Assert
+        _mockUsersRepo.Verify(repo => repo.Update(_defaultUser, It.Is<TokenDto>(
+            token => token.RefreshToken == newRefreshToken)), Times.Once);
+        _mockUsersRepo.Verify(repo => repo.Update(_defaultUser), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task Login_TokenUpdateFails_ReturnsError()
+    {
+        // Arrange
+        var dto = new LoginDto { Identifier = "testuser", Password = "password123" };
+        _mockUsersRepo.Setup(u => u.GetByUsername(It.IsAny<string>())).ReturnsAsync(_defaultUser);
+        _mockHasher.Setup(h => h.VerifyHashedPassword(It.IsAny<UserModel>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(u => u.GetByIdWithRoleAndPermissions(It.IsAny<long>())).ReturnsAsync(_defaultUser);
+        _mockSessionService.Setup(s => s.CreateToken(It.IsAny<UserModel>())).Returns(new CreateJwtResult.Success("jwt"));
+
+        _mockUsersRepo.Setup(repo => repo.Update(_defaultUser, It.IsAny<TokenDto>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.Error));
+    }
+
+    [TestMethod]
+    public async Task Login_UserReloadFails_ReturnsError()
+    {
+        var dto = new LoginDto { Identifier = "testuser", Password = "password123" };
+
+        _mockUsersRepo.Setup(user => user.GetByEmail(dto.Identifier)).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(user => user.GetByUsername(dto.Identifier)).ReturnsAsync(_defaultUser);
+
+        _mockHasher.Setup(hasher =>
+            hasher.VerifyHashedPassword(_defaultUser, It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(PasswordVerificationResult.Success);
+
+        _mockUsersRepo.Setup(user => user.GetByIdWithRoleAndPermissions(_defaultUser.Id))
+            .ReturnsAsync((UserModel?)null);
+
+        // Act
+        var result = await _userService.Login(dto);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(LoginResult.InvalidCredentials));
     }
 
     #endregion
@@ -742,9 +846,14 @@ public sealed class UserServiceTests
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
+        var createdUser = new UserModel { Id = 1L, Username = "ValidUser" };
+
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), "ValidPassword1!")).Returns("hashed_password");
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);
@@ -868,9 +977,14 @@ public sealed class UserServiceTests
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
+        var createdUser = new UserModel { Id = 1L, Username = "ValidUser" };
+
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
         _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
         _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), "ValidPassword1!")).Returns("hashed_password");
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);
@@ -897,7 +1011,14 @@ public sealed class UserServiceTests
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
+        var createdUser = new UserModel { Id = 1L, Username = "ValidUser" };
+
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("ValidUser")).ReturnsAsync((UserModel?)null);
+        _mockUsersRepo.Setup(userRepo => userRepo.CreateWithId(It.IsAny<UserModel>())).ReturnsAsync((true, 1L));
+        _mockHasher.Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), "ValidPassword1!")).Returns("hashed_password");
+
+        _mockUsersRepo.Setup(userRepo => userRepo.GetByIdWithRoleAndPermissions(1L))
+            .ReturnsAsync(createdUser);
 
         // Act
         var result = await _userService.CreateUserAsync(dto);

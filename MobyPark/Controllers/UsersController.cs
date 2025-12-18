@@ -4,7 +4,7 @@ using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
 using MobyPark.Services;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
@@ -13,11 +13,11 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly SessionService _sessionService;
+    private readonly TokenService _tokenService;
 
-    public UsersController(UserService users, SessionService sessions) : base(users)
+    public UsersController(UserService users, TokenService tokens) : base(users)
     {
-        _sessionService = sessions;
+        _tokenService = tokens;
     }
 
     [HttpPost("register")]
@@ -38,7 +38,7 @@ public class UsersController : BaseController
 
         IActionResult HandleRegistrationSuccess(UserModel user)
         {
-            var tokenResult = _sessionService.CreateSession(user);
+            var tokenResult = _tokenService.CreateToken(user);
 
             if (tokenResult is not CreateJwtResult.Success tokenSuccess)
             {

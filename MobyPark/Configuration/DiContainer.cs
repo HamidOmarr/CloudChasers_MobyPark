@@ -34,10 +34,11 @@ public static class DiContainer
         services.AddScoped<IHotelPassService, HotelPassService>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
-        services.AddSingleton<ISessionService, SessionService>();
+        services.AddSingleton<ITokenService, TokenService>();
 
         // Password Hasher: Must be Singleton as it is stateless and resource-intensive.
-        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        // services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHashingService>();
 
         // Business Logic Services: Scoped to manage state per request.
         services.AddScoped<ILicensePlateService, LicensePlateService>();
