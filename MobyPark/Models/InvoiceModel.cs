@@ -3,6 +3,14 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MobyPark.Models;
 
+public enum InvoiceStatus
+{
+    Pending,
+    Paid,
+    Overdue,
+    Cancelled
+}
+
 public class InvoiceModel
 {
     [Key]
@@ -19,6 +27,8 @@ public class InvoiceModel
 
     [Required]
     public DateTimeOffset Stopped { get; set; }
+
+    public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal? Cost { get; set; }

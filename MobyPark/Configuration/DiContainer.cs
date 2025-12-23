@@ -52,5 +52,7 @@ public static class DiContainer
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserPlateService, UserPlateService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IAutomatedInvoiceService, AutomatedInvoiceService>();
     }
 }
