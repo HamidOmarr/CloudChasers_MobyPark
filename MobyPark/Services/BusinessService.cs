@@ -12,6 +12,11 @@ public class BusinessService :IBusinessService
 {
     private readonly IRepository<BusinessModel> _businessRepo;
     private static readonly IbanValidator _ibanValidator = new();
+
+    public BusinessService(IRepository<BusinessModel> businessRepo)
+    {
+        _businessRepo = businessRepo;
+    }
     
     //Create business
     [Authorize("CanManageBusinesses")]

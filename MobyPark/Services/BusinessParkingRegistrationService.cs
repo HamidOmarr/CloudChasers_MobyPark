@@ -30,14 +30,13 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             var businessExists = await _businessRepo.FindByIdAsync(bReg.BusinessId);
             if (businessExists is null)
                 return ServiceResult<ReadBusinessRegDto>.NotFound("No business found with that id");
-            var alreadyMade = await _regRepo.Query().Where(x =>
-                    x.LicensePlateNumber == bReg.LicensePlateNumber && x.BusinessId == bReg.BusinessId)
-                .FirstOrDefaultAsync();
+            var alreadyMade = (await _regRepo.GetByAsync(x =>
+                    x.LicensePlateNumber == bReg.LicensePlateNumber && x.BusinessId == bReg.BusinessId))
+                .FirstOrDefault();
             if (alreadyMade is not null)
                 return ServiceResult<ReadBusinessRegDto>.Conflict(
                     "This licenseplate already has a business registration at this business, patch it instead");
-            var alreadyActive = await _regRepo.Query()
-                .Where(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true).FirstOrDefaultAsync();
+            var alreadyActive = (await _regRepo.GetByAsync(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true)).FirstOrDefault();
             if(alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
                 "This licenseplate already has an active business registration, deactivate that one first");
             var reg = new BusinessParkingRegistrationModel
@@ -80,8 +79,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             var business = await _businessRepo.FindByIdAsync(user.BusinessId.Value);
             if (business is null) return ServiceResult<ReadBusinessRegDto>.NotFound("business not found");
             
-            var alreadyActive = await _regRepo.Query()
-                .Where(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true).FirstOrDefaultAsync();
+            var alreadyActive = (await _regRepo.GetByAsync(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true)).FirstOrDefault();
             if(alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
                 "This licenseplate already has an active business registration, deactivate that one first");
 
@@ -276,8 +274,8 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
     {
         try
         {
-            var reg = await _regRepo.Query().Where(x => x.LicensePlateNumber == licensePlate && x.Active == true)
-                .FirstOrDefaultAsync();
+            var reg = (await _regRepo.GetByAsync(x => x.LicensePlateNumber == licensePlate && x.Active == true)
+                ).FirstOrDefault();
             if (reg is null) return ServiceResult<ReadBusinessRegDto>.NotFound("No active business parking registration found for this licenseplate");
             return ServiceResult<ReadBusinessRegDto>.Ok(new ReadBusinessRegDto
             {

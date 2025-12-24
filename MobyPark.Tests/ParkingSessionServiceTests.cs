@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MobyPark.DTOs.Business;
 using MobyPark.DTOs.Hotel;
 using Moq;
 using MobyPark.DTOs.ParkingLot.Request;
@@ -30,7 +31,8 @@ public sealed class ParkingSessionServiceTests
     private Mock<IGateService> _mockGateService = null!;
     private Mock<IPreAuthService> _mockPreAuthService = null!;
     private Mock<IParkingLotService> _mockParkingLotService = null!;
-    private Mock<IHotelPassService> _mockHotelPassService = null;
+    private Mock<IHotelPassService> _mockHotelPassService = null!;
+    private Mock<IBusinessParkingRegistrationService> _mockRegistrationService = null!;
     
     
 
@@ -44,6 +46,7 @@ public sealed class ParkingSessionServiceTests
         _mockGateService = new Mock<IGateService>();
         _mockPreAuthService = new Mock<IPreAuthService>();
         _mockHotelPassService = new Mock<IHotelPassService>();
+        _mockRegistrationService = new Mock<IBusinessParkingRegistrationService>();
         
 
         _sessionService = new ParkingSessionService(
@@ -53,7 +56,8 @@ public sealed class ParkingSessionServiceTests
             _mockPricingService.Object,
             _mockGateService.Object,
             _mockPreAuthService.Object,
-            _mockHotelPassService.Object
+            _mockHotelPassService.Object,
+            _mockRegistrationService.Object
         );
     }
 
@@ -1205,11 +1209,11 @@ public sealed class ParkingSessionServiceTests
     #endregion
 
     #region StartSession
-
+    
     [TestMethod]
     [DataRow(99, "AB-12-CD", "token", 10, "user")]
     [DataRow(404, "WX-99YZ", "token2", 15.5, "user2")]
-    public async Task StartSession_LotNotFound_ReturnsLotNotFound(
+    public async Task StartSession_LotNotFound_ReturnsError(
         long lotId, string plate, string token, double amount, string user)
     {
         var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
@@ -1220,7 +1224,10 @@ public sealed class ParkingSessionServiceTests
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
-        Assert.IsInstanceOfType(result, typeof(StartSessionResult.LotNotFound));
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Error));
+
+        var err = (StartSessionResult.Error)result;
+        Assert.AreEqual("Parking lot not found", err.Message);
     }
 
     [TestMethod]
@@ -1315,6 +1322,10 @@ public sealed class ParkingSessionServiceTests
         _mockParkingLotService
             .Setup(r => r.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+        
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockSessionsRepo
             .Setup(r => r.GetActiveSessionByLicensePlate(p))
@@ -1367,10 +1378,16 @@ public sealed class ParkingSessionServiceTests
         _mockHotelPassService
             .Setup(s => s.GetActiveHotelPassByLicensePlateAndLotIdAsync(lotId, p))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
+        
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockPreAuthService
             .Setup(pr => pr.PreauthorizeAsync(token, m, false))
             .ReturnsAsync(new PreAuthDto { Approved = true });
+        
+        
 
         _mockParkingLotService
             .Setup(s => s.PatchParkingLotByIdAsync(
@@ -1431,6 +1448,10 @@ public sealed class ParkingSessionServiceTests
                 lotId,
                 It.IsAny<PatchParkingLotDto>()))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+        
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockSessionsRepo
             .Setup(r =>
@@ -1499,6 +1520,10 @@ public sealed class ParkingSessionServiceTests
         _mockGateService
             .Setup(g => g.OpenGateAsync((int)lotId, p))
             .ReturnsAsync(false);
+        
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockSessionsRepo
             .Setup(r => r.GetById<ParkingSessionModel>(newId))
@@ -1604,6 +1629,169 @@ public sealed class ParkingSessionServiceTests
         Assert.AreEqual(hotelPassDto.Id, session.HotelPassId);
         Assert.AreEqual(p, session.LicensePlateNumber);
         Assert.AreEqual(lotId, session.ParkingLotId);
+    }
+    
+    [TestMethod]
+    public async Task StartSession_HasActiveBusinessRegistration_ReturnsSuccess_WithoutPreAuth()
+    {
+        // Arrange
+        long lotId = 1;
+        int capacity = 50;
+        int reserved = 10;
+        string plate = "AB-12-CD";
+        string token = "token";
+        decimal amount = 10m;
+        string user = "user";
+        long newSessionId = 123L;
+        long regId = 777L;
+
+        var dto = new CreateParkingSessionDto
+        {
+            ParkingLotId = lotId,
+            LicensePlate = plate
+        };
+
+        string p = plate.ToUpper();
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = reserved,
+            Capacity = capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+        
+        _mockHotelPassService
+            .Setup(s => s.GetActiveHotelPassByLicensePlateAndLotIdAsync(lotId, p))
+            .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
+        
+        var regDto = new ReadBusinessRegDto
+        {
+            Id = regId,
+            LicensePlateNumber = p,
+            Active = true,
+            BusinessId = 42,
+            LastSinceActive = DateTimeOffset.MinValue
+        };
+
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.Ok(regDto));
+        
+        _mockParkingLotService
+            .Setup(s => s.PatchParkingLotByIdAsync(lotId, It.IsAny<PatchParkingLotDto>()))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.CreateWithId(It.Is<ParkingSessionModel>(s =>
+                s.LicensePlateNumber == p &&
+                s.ParkingLotId == lotId &&
+                s.PaymentStatus == ParkingSessionStatus.BusinessParking &&
+                s.BusinessParkingRegistrationId == regId)))
+            .ReturnsAsync((true, newSessionId));
+
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .ReturnsAsync(true);
+        
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Throws(new Exception("PreAuth should not be called when business registration exists"));
+
+        // Act
+        var result = await _sessionService.StartSession(dto, token, amount, user);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Success));
+
+        var success = (StartSessionResult.Success)result;
+        var session = success.Session;
+
+        Assert.AreEqual(ParkingSessionStatus.BusinessParking, session.PaymentStatus);
+        Assert.AreEqual(regId, session.BusinessParkingRegistrationId);
+        Assert.AreEqual(p, session.LicensePlateNumber);
+        Assert.AreEqual(lotId, session.ParkingLotId);
+    }
+    
+    [TestMethod]
+    public async Task StartSession_NoHotelPass_NoBusinessRegistration_CallsPreAuth()
+    {
+        long lotId = 1;
+        int capacity = 50;
+        int reserved = 10;
+        string plate = "AB-12-CD";
+        string token = "token";
+        decimal amount = 10m;
+        string user = "user";
+        long newSessionId = 123L;
+
+        var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
+        string p = plate.ToUpper();
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = reserved,
+            Capacity = capacity,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync((ParkingSessionModel?)null);
+
+        _mockHotelPassService
+            .Setup(s => s.GetActiveHotelPassByLicensePlateAndLotIdAsync(lotId, p))
+            .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
+
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
+
+        _mockPreAuthService
+            .Setup(pr => pr.PreauthorizeAsync(token, amount, false))
+            .ReturnsAsync(new PreAuthDto { Approved = true });
+
+        _mockParkingLotService
+            .Setup(s => s.PatchParkingLotByIdAsync(lotId, It.IsAny<PatchParkingLotDto>()))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockSessionsRepo
+            .Setup(r => r.CreateWithId(It.Is<ParkingSessionModel>(s =>
+                s.LicensePlateNumber == p &&
+                s.ParkingLotId == lotId &&
+                s.PaymentStatus == ParkingSessionStatus.PreAuthorized)))
+            .ReturnsAsync((true, newSessionId));
+
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .ReturnsAsync(true);
+
+        var result = await _sessionService.StartSession(dto, token, amount, user);
+
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Success));
+
+        _mockPreAuthService.Verify(pr => pr.PreauthorizeAsync(token, amount, false), Times.Once);
     }
 
     #endregion
@@ -2001,7 +2189,7 @@ public sealed class ParkingSessionServiceTests
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         var success = (StopSessionResult.Success)result;
         Assert.AreEqual(0m, success.totalAmount);
-        Assert.AreEqual(ParkingSessionStatus.Paid, success.Session.PaymentStatus);
+        Assert.AreEqual(ParkingSessionStatus.HotelPass, success.Session.PaymentStatus);
         _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
     }
 
@@ -2015,12 +2203,13 @@ public sealed class ParkingSessionServiceTests
         var sessionId = 1L;
         var p = plate.ToUpper();
 
-        var activeSession = new ParkingSessionModel
+        // "Database session" die we consistent teruggeven en muteren via Update callback
+        var dbSession = new ParkingSessionModel
         {
             Id = sessionId,
             LicensePlateNumber = p,
             ParkingLotId = lotId,
-            Started = DateTime.UtcNow.AddHours(-5),
+            Started = DateTimeOffset.UtcNow.AddHours(-5),
             Stopped = null,
             PaymentStatus = ParkingSessionStatus.PreAuthorized,
             HotelPassId = 42
@@ -2050,7 +2239,7 @@ public sealed class ParkingSessionServiceTests
 
         _mockSessionsRepo
             .Setup(r => r.GetActiveSessionByLicensePlate(p))
-            .ReturnsAsync(activeSession);
+            .ReturnsAsync(dbSession);
 
         _mockParkingLotService
             .Setup(r => r.GetParkingLotByIdAsync(lotId))
@@ -2061,40 +2250,54 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.Ok(hotelPassDto));
 
         _mockPricingService
-            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+            .Setup(pr => pr.CalculateParkingCost(
+                It.IsAny<ParkingLotModel>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .Returns(new CalculatePriceResult.Success(15m, 1, 0));
 
+        _mockRegistrationService
+            .Setup(s => s.GetActiveBusinessRegistrationByLicencePlateAsync(p))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
+
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 15m, It.IsAny<bool>()))
+            .Setup(pa => pa.PreauthorizeAsync("token", 15m, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockSessionsRepo
-            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
-            .ReturnsAsync(new ParkingSessionModel
-            {
-                Id = activeSession.Id,
-                LicensePlateNumber = activeSession.LicensePlateNumber,
-                ParkingLotId = activeSession.ParkingLotId,
-                Started = activeSession.Started,
-                PaymentStatus = activeSession.PaymentStatus,
-                Stopped = activeSession.Stopped
-            });
-
+        // Update slaagt, en we muteren dbSession alsof dit de DB is
         _mockSessionsRepo
             .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
+            .Callback<ParkingSessionModel, UpdateParkingSessionDto>((model, updateDto) =>
+            {
+                if (updateDto.PaymentStatus is null)
+                    throw new InvalidOperationException("PaymentStatus should never be null");
+
+                dbSession.Stopped = updateDto.Stopped;
+                dbSession.Cost = updateDto.Cost;
+                dbSession.PaymentStatus = updateDto.PaymentStatus.Value;
+            })
             .ReturnsAsync(true);
+
+        // Als de service na update opnieuw ophaalt, geef dezelfde dbSession terug
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
+            .ReturnsAsync(dbSession);
 
         _mockGateService
             .Setup(g => g.OpenGateAsync((int)lotId, p))
             .ReturnsAsync(true);
 
+        // Act
         var result = await _sessionService.StopSession(dto);
 
+        // Assert
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         var success = (StopSessionResult.Success)result;
+
         Assert.AreEqual(15m, success.totalAmount);
         Assert.AreEqual(ParkingSessionStatus.Paid, success.Session.PaymentStatus);
-        _mockPreAuthService.Verify(p => p.PreauthorizeAsync("token", 15m, It.IsAny<bool>()), Times.Once);
+
+        _mockPreAuthService.Verify(pa => pa.PreauthorizeAsync("token", 15m, It.IsAny<bool>()), Times.Once);
     }
 
     [TestMethod]
@@ -2145,6 +2348,154 @@ public sealed class ParkingSessionServiceTests
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve hotel pass from database");
+    }
+    
+    [TestMethod]
+    [DataRow("AB-12-CD")]
+    [DataRow("WX-99-YZ")]
+    public async Task StopSession_BusinessParking_DoesNotChargeCard_SetsPendingInvoice_ReturnsSuccess(string plate)
+    {
+        var p = plate.ToUpper();
+        var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token_should_not_be_used" };
+        var lotId = 1L;
+        var sessionId = 1L;
+        var regId = 777L;
+
+        var activeSession = new ParkingSessionModel
+        {
+            Id = sessionId,
+            LicensePlateNumber = p,
+            ParkingLotId = lotId,
+            Started = DateTimeOffset.UtcNow.AddHours(-2),
+            Stopped = null,
+            PaymentStatus = ParkingSessionStatus.BusinessParking,
+            BusinessParkingRegistrationId = regId
+        };
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+        
+        var regDto = new ReadBusinessRegDto
+        {
+            Id = regId,
+            BusinessId = 42,
+            LicensePlateNumber = p,
+            Active = true,
+            LastSinceActive = DateTimeOffset.MinValue
+        };
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync(activeSession);
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockRegistrationService
+            .Setup(r => r.GetBusinessRegistrationByIdAsync(regId))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.Ok(regDto));
+
+        _mockPricingService
+            .Setup(pr => pr.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+            .Returns(new CalculatePriceResult.Success(12m, 1, 0));
+
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
+            .ReturnsAsync(new ParkingSessionModel
+            {
+                Id = activeSession.Id,
+                LicensePlateNumber = activeSession.LicensePlateNumber,
+                ParkingLotId = activeSession.ParkingLotId,
+                Started = activeSession.Started,
+                PaymentStatus = activeSession.PaymentStatus,
+                Stopped = activeSession.Stopped,
+                BusinessParkingRegistrationId = regId
+            });
+
+        _mockSessionsRepo
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
+            .ReturnsAsync(true);
+
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .ReturnsAsync(true);
+        
+        _mockPreAuthService
+            .Setup(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Throws(new Exception("PreAuth should not be called for BusinessParking stop"));
+
+        var result = await _sessionService.StopSession(dto);
+
+        Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
+        var success = (StopSessionResult.Success)result;
+
+        Assert.AreEqual(12m, success.totalAmount);
+        Assert.AreEqual(ParkingSessionStatus.PendingInvoice, success.Session.PaymentStatus);
+
+        _mockPreAuthService.Verify(pa =>
+            pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+    
+    [TestMethod]
+    [DataRow("AB-12-CD")]
+    [DataRow("WX-99-YZ")]
+    public async Task StopSession_BusinessParking_RegistrationLookupFails_ReturnsError(string plate)
+    {
+        var p = plate.ToUpper();
+        var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
+        var lotId = 1L;
+        var regId = 777L;
+
+        var activeSession = new ParkingSessionModel
+        {
+            Id = 1,
+            LicensePlateNumber = p,
+            ParkingLotId = lotId,
+            Started = DateTimeOffset.UtcNow.AddHours(-1),
+            Stopped = null,
+            PaymentStatus = ParkingSessionStatus.BusinessParking,
+            BusinessParkingRegistrationId = regId
+        };
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = 0m,
+            DayTariff = 0m
+        };
+
+        _mockSessionsRepo
+            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .ReturnsAsync(activeSession);
+
+        _mockParkingLotService
+            .Setup(r => r.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockRegistrationService
+            .Setup(r => r.GetBusinessRegistrationByIdAsync(regId))
+            .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No registration"));
+
+        var result = await _sessionService.StopSession(dto);
+
+        Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
+        StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve business registration");
     }
 
     #endregion
