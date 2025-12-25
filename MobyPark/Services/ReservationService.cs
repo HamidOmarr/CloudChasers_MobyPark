@@ -7,14 +7,17 @@ using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
+using MobyPark.Validation;
 using MobyPark.Services.Results.User;
 using MobyPark.Services.Results.UserPlate;
-using MobyPark.Validation;
+using System.Collections.Concurrent;
 
 namespace MobyPark.Services;
 
 public class ReservationService : IReservationService
 {
+    private static readonly ConcurrentDictionary<long, SemaphoreSlim> LotLocks = new();
+
     private readonly IReservationRepository _reservations;
     private readonly IParkingLotService _parkingLots;
     private readonly ILicensePlateService _licensePlates;
@@ -28,8 +31,7 @@ public class ReservationService : IReservationService
         ILicensePlateService licensePlates,
         IUserService users,
         IUserPlateService userPlates,
-        IPricingService pricing
-        )
+        IPricingService pricing)
     {
         _reservations = reservations;
         _parkingLots = parkingLots;
@@ -39,157 +41,182 @@ public class ReservationService : IReservationService
         _pricing = pricing;
     }
 
-    public async Task<CreateReservationResult> CreateReservation(CreateReservationDto dto, long requestingUserId, bool isAdminRequest = false)
+    public async Task<GetReservationCostEstimateResult> GetReservationCostEstimate(ReservationCostEstimateRequest dto, long userId)
     {
-        var lotResult = await ValidateInputAndFetchLot(dto);
-        switch (lotResult.Status)
+        var timeLotValidation = await ValidateTimeWindowAndGetLot(dto.ParkingLotId, dto.StartDate, dto.EndDate);
+        if (timeLotValidation is ValidateResult.InvalidTimeWindow tw)
+            return new GetReservationCostEstimateResult.InvalidTimeWindow(tw.Message);
+        if (timeLotValidation is ValidateResult.LotNotFound)
+            return new GetReservationCostEstimateResult.LotNotFound();
+        var lotDto = ((ValidateResult.Success)timeLotValidation).Lot;
+
+        var plate = dto.LicensePlate.Upper();
+        var userPlatesResult = await _userPlates.GetUserPlatesByUserId(userId);
+        if (userPlatesResult is not GetUserPlateListResult.Success platesSuccess ||
+            !platesSuccess.Plates.Any(p => p.LicensePlateNumber == plate))
+            return new GetReservationCostEstimateResult.Error("License plate not owned by user.");
+
+        var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate, lotDto.Capacity);
+        if (availability is AvailabilityResult.LotClosed)
+            return new GetReservationCostEstimateResult.LotClosed();
+
+        // Pricing based on lot and time window
+        var price = _pricing.CalculateParkingCost(new ParkingLotModel
         {
-            case ServiceStatus.BadRequest:
-                return new CreateReservationResult.InvalidInput(lotResult.Error ?? "Invalid input data.");
-            case ServiceStatus.NotFound:
-                return new CreateReservationResult.LotNotFound();
-            case ServiceStatus.Fail:
-            case ServiceStatus.Exception:
-            case ServiceStatus.Conflict:
-                return new CreateReservationResult.Error("Failed to retrieve parking lot data.");
-            case ServiceStatus.Success:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        var lot = lotResult.Data;
-
-        string normalizedPlate = dto.LicensePlate.Upper();
-        var userPlateValidationResult = await ResolveTargetUserAndValidatePlate(dto, normalizedPlate, requestingUserId, isAdminRequest);
-
-        if (userPlateValidationResult is not ResolveUserPlateResult.Success)
-        {
-            return userPlateValidationResult switch
-            {
-                ResolveUserPlateResult.PlateNotFound                 => new CreateReservationResult.PlateNotFound(),
-                ResolveUserPlateResult.UserNotFound notFound         => new CreateReservationResult.UserNotFound(notFound.Username),
-                ResolveUserPlateResult.PlateNotOwned notOwned        => new CreateReservationResult.PlateNotOwned(notOwned.Message),
-                ResolveUserPlateResult.Forbidden forbidden           => new CreateReservationResult.Forbidden(forbidden.Message),
-                ResolveUserPlateResult.Error err                     => new CreateReservationResult.Error(err.Message),
-                _                                                    => new CreateReservationResult.Error("Failed to validate user or plate ownership.")
-            };
-        }
-
-        var overlapCheckResult = await CheckForOverlappingReservation(lot.Id, requestingUserId, normalizedPlate, dto.StartDate, dto.EndDate);
-        if (overlapCheckResult is not null)
-            return overlapCheckResult;
-
-        var costResult = _pricing.CalculateParkingCost(new ParkingLotModel
-        {
-            Id = lot.Id,
-            Name = lot.Name,
-            Location = lot.Location,
-            Address = lot.Address,
-            Capacity = lot.Capacity,
-            Reserved = lot.Reserved,
-            Tariff = lot.Tariff,
-            DayTariff = lot.DayTariff,
+            Id = lotDto.Id,
+            Name = lotDto.Name,
+            Location = lotDto.Location,
+            Address = lotDto.Address,
+            Capacity = lotDto.Capacity,
+            Reserved = lotDto.Reserved,
+            Tariff = lotDto.Tariff,
+            DayTariff = lotDto.DayTariff,
         }, dto.StartDate, dto.EndDate);
-        if (costResult is not CalculatePriceResult.Success cost)
-            return new CreateReservationResult.Error("Failed to calculate reservation cost.");
-
-        var reservationToCreate = new ReservationModel
-        {
-            LicensePlateNumber = normalizedPlate,
-            ParkingLotId = lot.Id,
-            StartTime = dto.StartDate,
-            EndTime = dto.EndDate,
-            Status = ReservationStatus.Pending,
-            CreatedAt = DateTimeOffset.UtcNow,
-            Cost = cost.Price
-        };
-
-        return await PersistReservation(reservationToCreate);
+        if (price is not CalculatePriceResult.Success priceSuccess)
+            return new GetReservationCostEstimateResult.Error("Failed to calculate price.");
+        return new GetReservationCostEstimateResult.Success(priceSuccess.Price);
     }
 
-    private async Task<ServiceResult<ReadParkingLotDto>> ValidateInputAndFetchLot(CreateReservationDto dto)
+    public async Task<CreateReservationResult> CreateReservation(CreateReservationDto dto, long requesterUserId, bool isAdminRequest = false)
     {
-        if (dto.EndDate <= dto.StartDate)
-            return ServiceResult<ReadParkingLotDto>.BadRequest("End date must be after start date.");
-        if (dto.StartDate < DateTimeOffset.UtcNow.AddMinutes(-2))
-            return ServiceResult<ReadParkingLotDto>.BadRequest("Start date cannot be in the past.");
+        var timeLotValidation = await ValidateTimeWindowAndGetLot(dto.ParkingLotId, dto.StartDate, dto.EndDate);
+        if (timeLotValidation is ValidateResult.InvalidTimeWindow tw)
+            return new CreateReservationResult.InvalidInput(tw.Message);
+        if (timeLotValidation is ValidateResult.LotNotFound)
+            return new CreateReservationResult.LotNotFound();
+        var lotDto2 = ((ValidateResult.Success)timeLotValidation).Lot;
 
-        var lot = await _parkingLots.GetParkingLotByIdAsync(dto.ParkingLotId);
-        if (lot.Status != ServiceStatus.Success) return ServiceResult<ReadParkingLotDto>.NotFound("Parking lot was not found");
-        return lot;
-    }
+        long targetUserId = requesterUserId;
 
-    private async Task<ResolveUserPlateResult> ResolveTargetUserAndValidatePlate(
-        CreateReservationDto dto, string licensePlate, long requestingUserId, bool isAdminRequest)
-    {
-        licensePlate = licensePlate.Upper();
+        var plate = dto.LicensePlate.Upper();
 
-        var plateResult = await _licensePlates.GetByLicensePlate(licensePlate);
-        if (plateResult is not GetLicensePlateResult.Success plateSuccess)
-            return new ResolveUserPlateResult.PlateNotFound();
+        // Check that the license plate exists
+        var plateLookup = await _licensePlates.GetByLicensePlate(plate);
+        if (plateLookup is Services.Results.LicensePlate.GetLicensePlateResult.NotFound)
+            return new CreateReservationResult.PlateNotFound();
 
-        long targetUserId = requestingUserId;
-        string? targetUsername = dto.Username;
-
-        if (!string.IsNullOrWhiteSpace(targetUsername))
+        if (!string.IsNullOrWhiteSpace(dto.Username))
         {
             if (!isAdminRequest)
-                return new ResolveUserPlateResult.Forbidden("Not authorized to create reservations for other users.");
+                return new CreateReservationResult.Forbidden();
 
-            var userResult = await _users.GetUserByUsername(targetUsername);
-            if (userResult is not GetUserResult.Success userSuccess)
-                return new ResolveUserPlateResult.UserNotFound(targetUsername);
-            targetUserId = userSuccess.User.Id;
+            var userLookup = await _users.GetUserByUsername(dto.Username);
+            if (userLookup is GetUserResult.NotFound)
+                return new CreateReservationResult.UserNotFound(dto.Username!);
+
+            var targetUser = ((GetUserResult.Success)userLookup).User;
+
+            // Admins are not allowed to create reservations for themselves
+            if (targetUser.Id == requesterUserId)
+                return new CreateReservationResult.Forbidden("Admins cannot create reservations for themselves.");
+
+            if (targetUser.RoleId == UserModel.AdminRoleId)
+            {
+                return new CreateReservationResult.Forbidden("Cannot create reservations for admin users.");
+            }
+
+            targetUserId = targetUser.Id;
         }
 
-        var user = await _users.GetUserById(targetUserId);
-        if (user is not GetUserResult.Success getUserSuccess)
-            return new ResolveUserPlateResult.UserNotFound($"User ID {targetUserId} not found.");
+        // Verify plate ownership
+        var ownershipResult = await _userPlates.GetUserPlateByUserIdAndPlate(targetUserId, plate);
+        if (ownershipResult is GetUserPlateResult.NotFound)
+            return new CreateReservationResult.PlateNotOwned("License plate is not registered to the specified user.");
 
-        var ownershipResult = await _userPlates.GetUserPlateByUserIdAndPlate(targetUserId, licensePlate);
-        return ownershipResult switch
-        {
-            GetUserPlateResult.NotFound => new ResolveUserPlateResult.PlateNotOwned(
-                $"User {getUserSuccess.User.Username} does not own license plate {licensePlate}."),
-            GetUserPlateResult.Error errorResult => new ResolveUserPlateResult.Error(
-                $"Error checking plate ownership: {errorResult.Message}"),
-            _ => new ResolveUserPlateResult.Success(targetUserId, plateSuccess.Plate.LicensePlateNumber)
-        };
-    }
-
-    private async Task<CreateReservationResult?> CheckForOverlappingReservation(long parkingLotId, long requestingUserId, string licensePlateNumber, DateTimeOffset start, DateTimeOffset end)
-    {
-        var existingReservations = await GetReservationsByLicensePlate(licensePlateNumber, requestingUserId);
-
-        return existingReservations switch
-        {
-            GetReservationListResult.NotFound => null,
-            GetReservationListResult.InvalidInput invalidInput => new CreateReservationResult.InvalidInput(invalidInput.Message),
-            GetReservationListResult.Success success when success.Reservations.Any(reservation =>
-                reservation.ParkingLotId == parkingLotId && reservation.Status != ReservationStatus.Cancelled &&
-                reservation.StartTime < end &&
-                reservation.EndTime > start) => new CreateReservationResult.AlreadyExists(
-                "A reservation already exists for this license plate in the specified time range at this location."),
-            _ => null
-        };
-    }
-
-    private async Task<CreateReservationResult> PersistReservation(ReservationModel reservation)
-    {
+        var lotLock = LotLocks.GetOrAdd(dto.ParkingLotId, _ => new SemaphoreSlim(1, 1));
+        await lotLock.WaitAsync();
         try
         {
-            (bool success, long id) = await _reservations.CreateWithId(reservation);
-             if (!success)
-                 return new CreateReservationResult.Error("Failed to save reservation to database.");
+            // 1) Plate overlap check at same lot and time window
+            var plateReservations = await _reservations.GetByLicensePlate(plate) ?? new List<ReservationModel>();
+            bool plateOverlap = plateReservations.Any(r =>
+                r.ParkingLotId == dto.ParkingLotId &&
+                r.Status != ReservationStatus.Cancelled && r.Status != ReservationStatus.NoShow &&
+                r.StartTime < dto.EndDate && dto.StartDate < r.EndTime);
+            if (plateOverlap)
+                return new CreateReservationResult.AlreadyExists("A reservation already exists for this plate in the selected window.");
 
+            // 2) Capacity check for the lot/time window
+            var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate, lotDto2.Capacity);
+            if (availability is AvailabilityResult.LotClosed)
+                return new CreateReservationResult.LotFull();
+
+            // 3) Price and create
+            var price = _pricing.CalculateParkingCost(new ParkingLotModel
+            {
+                Id = lotDto2.Id,
+                Name = lotDto2.Name,
+                Location = lotDto2.Location,
+                Address = lotDto2.Address,
+                Capacity = lotDto2.Capacity,
+                Reserved = lotDto2.Reserved,
+                Tariff = lotDto2.Tariff,
+                DayTariff = lotDto2.DayTariff,
+            }, dto.StartDate, dto.EndDate);
+            if (price is not CalculatePriceResult.Success priceSuccess)
+                return new CreateReservationResult.Error("Failed to calculate reservation cost.");
+
+            var reservation = new ReservationModel
+            {
+                ParkingLotId = dto.ParkingLotId,
+                LicensePlateNumber = plate,
+                StartTime = dto.StartDate,
+                EndTime = dto.EndDate,
+                Status = ReservationStatus.Pending,
+                Cost = priceSuccess.Price,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            (bool ok, long id) = await _reservations.CreateWithId(reservation);
+            if (!ok) return new CreateReservationResult.Error("Failed to save reservation.");
             reservation.Id = id;
-            var createdReservation = reservation;
-
-            return new CreateReservationResult.Success(createdReservation);
+            return new CreateReservationResult.Success(reservation, priceSuccess.Price);
         }
-        catch(Exception ex)
-        { return new CreateReservationResult.Error($"An error occurred while saving: {ex.Message}"); }
+        finally
+        {
+            lotLock.Release();
+        }
+    }
+
+    private enum AvailabilityResult
+    {
+        Ok,
+        LotClosed
+    }
+
+    private abstract class ValidateResult
+    {
+        public sealed class Success : ValidateResult { public ReadParkingLotDto Lot { get; set; } = null!; }
+        public sealed class LotNotFound : ValidateResult { }
+        public sealed class InvalidTimeWindow : ValidateResult { public string Message { get; set; } = "Invalid time window"; }
+    }
+
+    private async Task<ValidateResult> ValidateTimeWindowAndGetLot(long lotId, DateTimeOffset start, DateTimeOffset end)
+    {
+        if (start >= end)
+            return new ValidateResult.InvalidTimeWindow { Message = "Start must be before End." };
+        if (start < DateTimeOffset.UtcNow)
+            return new ValidateResult.InvalidTimeWindow { Message = "Start cannot be in the past." };
+
+        var lotResult = await _parkingLots.GetParkingLotByIdAsync(lotId);
+        if (lotResult.Status != ServiceStatus.Success || lotResult.Data is null)
+            return new ValidateResult.LotNotFound();
+        return new ValidateResult.Success { Lot = lotResult.Data };
+    }
+
+    private async Task<AvailabilityResult> CheckLotAvailability(long lotId, DateTimeOffset start, DateTimeOffset end, int capacity)
+    {
+        var availability = await _parkingLots.GetAvailableSpotsForPeriodAsync(
+            lotId,
+            start.UtcDateTime,
+            end.UtcDateTime);
+
+        if (availability.Status != ServiceStatus.Success)
+            return AvailabilityResult.LotClosed;
+
+        return availability.Data > 0
+            ? AvailabilityResult.Ok
+            : AvailabilityResult.LotClosed;
     }
 
     public async Task<GetReservationResult> GetReservationById(long id, long requestingUserId)
