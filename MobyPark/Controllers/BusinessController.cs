@@ -11,7 +11,7 @@ public class BusinessController : BaseController
 {
     private readonly IBusinessService _businessService;
 
-    public BusinessController(UserService users, IBusinessService businessService) :base(users)
+    public BusinessController(IUserService users, IBusinessService businessService) :base(users)
     {
         _businessService = businessService;
     }

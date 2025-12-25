@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.Hotel;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 
 namespace MobyPark.Controllers;
@@ -12,7 +13,7 @@ public class HotelsController : BaseController
 {
     private readonly IHotelService _hotelService;
     
-    public HotelsController(UserService users, IHotelService hotelService) : base(users)
+    public HotelsController(IUserService users, IHotelService hotelService) : base(users)
     {
         _hotelService = hotelService;
     }

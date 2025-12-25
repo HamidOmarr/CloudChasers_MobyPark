@@ -13,7 +13,7 @@ public class BusinessParkingRegistrationsController : BaseController
 {
     private readonly IBusinessParkingRegistrationService _registrationService;
 
-    public BusinessParkingRegistrationsController(UserService users,
+    public BusinessParkingRegistrationsController(IUserService users,
         IBusinessParkingRegistrationService registrationService) : base(users)
     {
         _registrationService = registrationService;
@@ -27,7 +27,7 @@ public class BusinessParkingRegistrationsController : BaseController
         return FromServiceResult(result);
     }
     
-    [HttpPost]
+    [HttpPost("self")]
     public async Task<IActionResult> CreateBusinessRegistration(CreateBusinessRegDto bReg)
     {
         long currentUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -43,7 +43,7 @@ public class BusinessParkingRegistrationsController : BaseController
         return FromServiceResult(result);
     }
     
-    [HttpPatch]
+    [HttpPatch("self")]
     public async Task<IActionResult> SetBusinessRegistrationActive(
         PatchBusinessRegDto bReg)
     {
@@ -52,7 +52,7 @@ public class BusinessParkingRegistrationsController : BaseController
         return FromServiceResult(result);
     }
     
-    [HttpDelete]
+    [HttpDelete("{id:long}")]
     [Authorize("CanManageBusinesses")]
     public async Task<IActionResult> AdminDeleteBusinessRegistration(
         long id)
@@ -61,28 +61,28 @@ public class BusinessParkingRegistrationsController : BaseController
         return FromServiceResult(result);
     }
     
-    [HttpGet]
+    [HttpGet("{id:long}")]
     public async Task<IActionResult> GetBusinessRegistrationById(long id)
     {
         var result = await _registrationService.GetBusinessRegistrationByIdAsync(id);
         return FromServiceResult(result);
     }
     
-    [HttpGet]
+    [HttpGet("business/{id:long}")]
     public async Task<IActionResult> GetBusinessRegistrationsByBusiness(long id)
     {
         var result = await _registrationService.GetBusinessRegistrationsByBusinessAsync(id);
         return FromServiceResult(result);
     }
     
-    [HttpGet]
+    [HttpGet("{licensePlate}")]
     public async Task<IActionResult> GetBusinessRegistrationByLicensePlate(string licensePlate)
     {
         var result = await _registrationService.GetBusinessRegistrationByLicensePlateAsync(licensePlate);
         return FromServiceResult(result);
     }
     
-    [HttpGet]
+    [HttpGet("active/{licensePlate}")]
     public async Task<IActionResult> GetActiveBusinessRegistrationByLicencePlate(string licensePlate)
     {
         var result = await _registrationService.GetActiveBusinessRegistrationByLicencePlateAsync(licensePlate);
