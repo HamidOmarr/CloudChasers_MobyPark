@@ -4,9 +4,9 @@ using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Reservation;
+using MobyPark.Services;
 
 namespace MobyPark.Controllers;
-
 [ApiController]
 [Route("api/[controller]")]
 public class ReservationsController : BaseController
@@ -14,7 +14,7 @@ public class ReservationsController : BaseController
     private readonly IReservationService _reservations;
     private readonly IAuthorizationService _authorization;
 
-    public ReservationsController(IUserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
+    public ReservationsController(UserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
     {
         _reservations = reservations;
         _authorization = authorizationService;
@@ -51,6 +51,7 @@ public class ReservationsController : BaseController
             CreateReservationResult.PlateNotFound => NotFound(new { error = "License plate not found." }),
             CreateReservationResult.UserNotFound notFound => NotFound(new { error = $"User '{notFound.Username}' not found." }),
             CreateReservationResult.PlateNotOwned notOwned => Unauthorized(new { error = notOwned.Message }),
+            CreateReservationResult.LotFull => Conflict(new { error = "Parking lot is full for the selected window", code = "LOT_FULL" }),
             CreateReservationResult.Forbidden => Forbid(),
             CreateReservationResult.InvalidInput i => BadRequest(new { error = i.Message }),
             CreateReservationResult.AlreadyExists a => Conflict(new { error = a.Message }),
@@ -95,7 +96,6 @@ public class ReservationsController : BaseController
     public async Task<IActionResult> DeleteReservation(long reservationId)
     {
         var user = await GetCurrentUserAsync();
-
         var result = await _reservations.DeleteReservation(reservationId, user.Id);
 
         return result switch
@@ -134,5 +134,25 @@ public class ReservationsController : BaseController
             GetReservationListResult.NotFound => Ok(new List<ReservationModel>()),
              _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
          };
+    }
+
+    [Authorize]
+    [HttpPost("estimate")]
+    public async Task<IActionResult> Estimate([FromBody] ReservationCostEstimateRequest dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var user = await GetCurrentUserAsync();
+        var result = await _reservations.GetReservationCostEstimate(dto, user.Id);
+
+        return result switch
+        {
+            GetReservationCostEstimateResult.Success s => Ok(new { estimatedCost = s.EstimatedCost }),
+            GetReservationCostEstimateResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            GetReservationCostEstimateResult.InvalidTimeWindow w => BadRequest(new { error = w.Reason }),
+            GetReservationCostEstimateResult.LotClosed => BadRequest(new { error = "Parking lot is closed for the selected time window" }),
+            GetReservationCostEstimateResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unknown estimate error." })
+        };
     }
 }
