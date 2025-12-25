@@ -19,7 +19,6 @@ public class BusinessService :IBusinessService
     }
     
     //Create business
-    [Authorize("CanManageBusinesses")]
     public async Task<ServiceResult<ReadBusinessDto>> CreateBusinessAsync(CreateBusinessDto business)
     {
         try
@@ -58,7 +57,6 @@ public class BusinessService :IBusinessService
     }
     
     //Patch business
-    [Authorize("CanManageBusinesses")]
     public async Task<ServiceResult<ReadBusinessDto>> PatchBusinessAsync(long id, PatchBusinessDto businessPatch)
     {
         try
@@ -100,7 +98,6 @@ public class BusinessService :IBusinessService
     }
     
     //Delete business
-    [Authorize("CanManageBusinesses")]
     public async Task<ServiceResult<bool>> DeleteBusinessByIdAsync(long id)
     {
         try
