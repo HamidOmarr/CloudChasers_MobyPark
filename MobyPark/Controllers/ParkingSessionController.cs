@@ -81,7 +81,8 @@ public class ParkingSessionController : BaseController
                 parkingLotId = success.Session.ParkingLotId,
                 startedAt = success.Session.Started,
                 stoppedAt = success.Session.Stopped,
-                paymentStatus = success.Session.PaymentStatus
+                paymentStatus = success.Session.PaymentStatus,
+                invoice = success.Invoice
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
             StopSessionResult.LicensePlateNotFound => NotFound(new { error = "Active session for the provided license plate not found in this lot" }),
