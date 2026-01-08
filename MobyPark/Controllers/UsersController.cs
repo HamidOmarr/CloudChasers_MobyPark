@@ -4,6 +4,7 @@ using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Session;
 using MobyPark.Services.Results.User;
 
@@ -13,9 +14,9 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly SessionService _sessionService;
+    private readonly ISessionService _sessionService;
 
-    public UsersController(UserService users, SessionService sessions) : base(users)
+    public UsersController(IUserService users, ISessionService sessions) : base(users)
     {
         _sessionService = sessions;
     }

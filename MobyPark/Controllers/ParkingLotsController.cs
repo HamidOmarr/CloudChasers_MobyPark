@@ -16,7 +16,7 @@ public class ParkingLotsController : BaseController
     private readonly IParkingLotService _parkingService;
     private readonly IAuthorizationService _authorizationService;
 
-    public ParkingLotsController(UserService users, IParkingLotService parkingService, IAuthorizationService authorizationService) : base(users)
+    public ParkingLotsController(IUserService users, IParkingLotService parkingService, IAuthorizationService authorizationService) : base(users)
     {
         _parkingService = parkingService;
         _authorizationService = authorizationService;

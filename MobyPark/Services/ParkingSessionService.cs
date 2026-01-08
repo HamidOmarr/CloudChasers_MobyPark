@@ -23,6 +23,7 @@ public class ParkingSessionService : IParkingSessionService
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
     private readonly IHotelPassService _passService;
+    private readonly IBusinessParkingRegistrationService _registrationService;
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
@@ -30,7 +31,8 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth, IHotelPassService passService
+        IPreAuthService preAuth, IHotelPassService passService, IBusinessParkingRegistrationService registrationService
+
         )
     {
         _sessions = parkingSessions;
@@ -40,6 +42,7 @@ public class ParkingSessionService : IParkingSessionService
         _gate = gate;
         _preAuth = preAuth;
         _passService = passService;
+        _registrationService = registrationService;
     }
 
     public async Task<CreateSessionResult> CreateParkingSession(CreateParkingSessionDto dto)
@@ -341,8 +344,12 @@ public class ParkingSessionService : IParkingSessionService
         var licensePlate = sessionDto.LicensePlate.Upper();
 
         var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
-        if (lot.Status is ServiceStatus.NotFound or ServiceStatus.Fail )
-            return new StartSessionResult.LotNotFound();
+        if (lot.Status != ServiceStatus.Success)
+        {
+            if (lot.Error is null)
+                throw new InvalidOperationException("ServiceResult error is null for non-success status");
+            return new StartSessionResult.Error(lot.Error);
+        }
         
         var parkingLot = new ParkingLotModel
         {
@@ -366,6 +373,7 @@ public class ParkingSessionService : IParkingSessionService
 
         var hasHotelPass =
             await _passService.GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
+        var hasActiveBusinessRegistration = await _registrationService.GetActiveBusinessRegistrationByLicencePlateAsync(licensePlate);
 
         ParkingSessionModel session = new ParkingSessionModel();
         if (hasHotelPass.Status == ServiceStatus.Success)
@@ -376,6 +384,15 @@ public class ParkingSessionService : IParkingSessionService
             session.Stopped = null;
             session.PaymentStatus = ParkingSessionStatus.HotelPass;
             session.HotelPassId = hasHotelPass.Data!.Id;
+        }
+        else if(hasActiveBusinessRegistration.Status == ServiceStatus.Success)
+        {
+            session.ParkingLotId = sessionDto.ParkingLotId;
+            session.LicensePlateNumber = licensePlate;
+            session.Started = DateTimeOffset.UtcNow;
+            session.Stopped = null;
+            session.PaymentStatus = ParkingSessionStatus.BusinessParking;
+            session.BusinessParkingRegistrationId = hasActiveBusinessRegistration.Data!.Id;
         }
         else
         {
@@ -452,7 +469,7 @@ public class ParkingSessionService : IParkingSessionService
         };
 
         DateTimeOffset chargeFrom;
-        DateTime end = DateTime.UtcNow;
+        DateTimeOffset end = DateTime.UtcNow;
         decimal totalAmount = 0m;
         bool paymentPerformed = false;
 
@@ -481,6 +498,27 @@ public class ParkingSessionService : IParkingSessionService
                 totalAmount = sPrice.Price;
             }
         }
+        else if (activeSession.BusinessParkingRegistrationId.HasValue)
+        {
+            var registrationResult =
+                await _registrationService.GetBusinessRegistrationByIdAsync(activeSession.BusinessParkingRegistrationId.Value);
+
+            if (registrationResult.Status != ServiceStatus.Success)
+                return new StopSessionResult.Error("Failed to retrieve business registration.");
+
+            if (registrationResult.Data is null)
+                throw new InvalidOperationException("ServiceResult data is null.");
+            
+            chargeFrom = activeSession.Started;
+
+            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            if (priceResult is not CalculatePriceResult.Success sPrice)
+                return new StopSessionResult.Error("Failed to calculate parking cost.");
+
+            totalAmount = sPrice.Price;
+            
+            activeSession.PaymentStatus = ParkingSessionStatus.PendingInvoice;
+        }
         else
         {
             chargeFrom = activeSession.Started;
@@ -494,16 +532,28 @@ public class ParkingSessionService : IParkingSessionService
         
         if (totalAmount > 0m)
         {
-            var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
-            if (!paymentResult.Approved)
-                return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
+            if (!activeSession.BusinessParkingRegistrationId.HasValue && !activeSession.HotelPassId.HasValue)
+            {
+                var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
+                if (!paymentResult.Approved)
+                    return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
 
-            paymentPerformed = true;
+                paymentPerformed = true;
+                activeSession.PaymentStatus = ParkingSessionStatus.Paid;
+            }
+        }
+        else
+        {
+            if (activeSession.HotelPassId.HasValue)
+                activeSession.PaymentStatus = ParkingSessionStatus.HotelPass;
+            else if (activeSession.BusinessParkingRegistrationId.HasValue)
+                activeSession.PaymentStatus = ParkingSessionStatus.PendingInvoice;
+            else
+                activeSession.PaymentStatus = ParkingSessionStatus.Paid;
         }
 
         activeSession.Stopped = end;
         activeSession.Cost = totalAmount;
-        activeSession.PaymentStatus = ParkingSessionStatus.Paid;
 
         var updateDto = new UpdateParkingSessionDto
         {

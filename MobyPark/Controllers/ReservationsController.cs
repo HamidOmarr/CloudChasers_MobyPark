@@ -14,7 +14,7 @@ public class ReservationsController : BaseController
     private readonly IReservationService _reservations;
     private readonly IAuthorizationService _authorization;
 
-    public ReservationsController(UserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
+    public ReservationsController(IUserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
     {
         _reservations = reservations;
         _authorization = authorizationService;
