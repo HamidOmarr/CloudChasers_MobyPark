@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models;
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories;
@@ -32,6 +33,8 @@ public static class DiContainer
         services.AddScoped<IGateService, GateService>();
         services.AddScoped<IPreAuthService, PreAuthService>();
         services.AddScoped<IHotelPassService, HotelPassService>();
+        services.AddScoped<IBusinessService, BusinessService>();
+        services.AddScoped<IBusinessParkingRegistrationService, BusinessParkingRegistrationService>();
 
         // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
         services.AddSingleton<ITokenService, TokenService>();

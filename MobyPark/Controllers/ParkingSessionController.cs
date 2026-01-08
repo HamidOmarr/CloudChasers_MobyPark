@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.ParkingSession.Request;
-using MobyPark.Models;
-using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingSession;
 
@@ -15,7 +14,7 @@ public class ParkingSessionController : BaseController
     private readonly IParkingSessionService _parkingSessions;
     private readonly IAuthorizationService _authorizationService;
 
-    public ParkingSessionController(UserService users, IParkingSessionService parkingSessions, IAuthorizationService authorizationService) : base(users)
+    public ParkingSessionController(IUserService users, IParkingSessionService parkingSessions, IAuthorizationService authorizationService) : base(users)
     {
         _parkingSessions = parkingSessions;
         _authorizationService = authorizationService;

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+
 using MobyPark.DTOs.Token;
 using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
@@ -6,8 +7,8 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
+
 using Moq;
-using MobyPark.Services.Interfaces;
 
 namespace MobyPark.Tests;
 
@@ -79,8 +80,14 @@ public sealed class UserServiceTests
         var birthday = DateTimeOffset.Parse(birthdayString + "T00:00:00Z");
         var dto = new RegisterDto
         {
-            Username = username, Password = password, ConfirmPassword = password,
-            FirstName = name, LastName = name, Email = email, Phone = phone, Birthday = birthday
+            Username = username,
+            Password = password,
+            ConfirmPassword = password,
+            FirstName = name,
+            LastName = name,
+            Email = email,
+            Phone = phone,
+            Birthday = birthday
         };
 
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername(username)).ReturnsAsync((UserModel?)null);
@@ -122,8 +129,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = username, Password = password, ConfirmPassword = password,
-            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
+            Username = username,
+            Password = password,
+            ConfirmPassword = password,
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test@test.com",
+            Phone = "0612345678",
             Birthday = DateTimeOffset.UtcNow.AddYears(-20),
             LicensePlate = plate
         };
@@ -181,8 +193,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = "user", Password = password, ConfirmPassword = password,
-            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = "0612345678",
+            Username = "user",
+            Password = password,
+            ConfirmPassword = password,
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test@test.com",
+            Phone = "0612345678",
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
         _mockUsersRepo.Setup(userRepo => userRepo.GetByUsername("user")).ReturnsAsync((UserModel?)null);
@@ -841,8 +858,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
-            FirstName = "Test", LastName = "User", Email = inputEmail, Phone = "0612345678",
+            Username = "ValidUser",
+            Password = "ValidPassword1!",
+            ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test",
+            LastName = "User",
+            Email = inputEmail,
+            Phone = "0612345678",
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
@@ -895,8 +917,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
-            FirstName = "Test", LastName = "User", Email = email, Phone = "0612345678",
+            Username = "ValidUser",
+            Password = "ValidPassword1!",
+            ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test",
+            LastName = "User",
+            Email = email,
+            Phone = "0612345678",
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
@@ -972,8 +999,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
-            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
+            Username = "ValidUser",
+            Password = "ValidPassword1!",
+            ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test@test.com",
+            Phone = phone,
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 
@@ -1006,8 +1038,13 @@ public sealed class UserServiceTests
         // Arrange
         var dto = new RegisterDto
         {
-            Username = "ValidUser", Password = "ValidPassword1!", ConfirmPassword = "ValidPassword1!",
-            FirstName = "Test", LastName = "User", Email = "test@test.com", Phone = phone,
+            Username = "ValidUser",
+            Password = "ValidPassword1!",
+            ConfirmPassword = "ValidPassword1!",
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test@test.com",
+            Phone = phone,
             Birthday = DateTimeOffset.UtcNow.AddYears(-20)
         };
 

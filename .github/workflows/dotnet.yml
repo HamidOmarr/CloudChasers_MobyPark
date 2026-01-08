@@ -5,7 +5,8 @@ name: .NET
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
 
@@ -21,8 +22,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Restore dependencies
+        id: restore
         run: dotnet restore
+
+      - name: Code format check
+        id: format
+        run: dotnet format --verify-no-changes
+
       - name: Build
-        run: dotnet build --no-restore
+        id: build
+        run: dotnet build --no-restore -warnaserror
+
       - name: Test
+        id: test
         run: dotnet test --no-build --verbosity normal
+
+      - name: Failure summary
+        if: failure()
+        shell: bash
+        run: |
+          bash ci/failure-summary.sh
+        env:
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+          GITHUB_STEP_FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          GITHUB_STEP_BUILD_OUTCOME: ${{ steps.build.outcome }}
+          GITHUB_STEP_TEST_OUTCOME: ${{ steps.test.outcome }}

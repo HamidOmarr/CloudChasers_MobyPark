@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using MobyPark.DTOs.Hotel;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
@@ -23,7 +22,7 @@ public class HotelPassService : IHotelPassService
         _hotelRepo = hotelRepo;
         _lotRepo = lotRepo;
     }
-    
+
     public async Task<ServiceResult<ReadHotelPassDto>> GetHotelPassByIdAsync(long id)
     {
         try
@@ -35,15 +34,16 @@ public class HotelPassService : IHotelPassService
                 Id = id,
                 LicensePlate = pass.LicensePlateNumber,
                 ParkingLotId = pass.ParkingLotId,
-                Start =  pass.Start,
+                Start = pass.Start,
                 End = pass.End,
                 ExtraTime = pass.ExtraTime
             });
-        }catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
 
     public async Task<ServiceResult<List<ReadHotelPassDto>>> GetHotelPassesByParkingLotIdAsync(long parkingLotId)
@@ -63,7 +63,8 @@ public class HotelPassService : IHotelPassService
             }).ToList();
 
             return ServiceResult<List<ReadHotelPassDto>>.Ok(dtoList);
-        }catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<List<ReadHotelPassDto>>.Exception("Unexpected error occurred.");
         }
@@ -73,13 +74,14 @@ public class HotelPassService : IHotelPassService
     {
         try
         {
-            
-        }catch (Exception ex)
+
+        }
+        catch (Exception)
         {
             return ServiceResult<List<ReadHotelPassDto>>.Exception("Unexpected error occurred.");
         }
         var passes = await _passRepo.GetByAsync(x => x.LicensePlateNumber == licensePlate);
-        if(!passes.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound($"License plate {licensePlate} has no hotel passes.");
+        if (!passes.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound($"License plate {licensePlate} has no hotel passes.");
         var dtoList = passes.Select(x => new ReadHotelPassDto
         {
             Id = x.Id,
@@ -89,7 +91,7 @@ public class HotelPassService : IHotelPassService
             End = x.End,
             ExtraTime = x.ExtraTime
         }).ToList();
-        
+
         return ServiceResult<List<ReadHotelPassDto>>.Ok(dtoList);
     }
 
@@ -113,83 +115,85 @@ public class HotelPassService : IHotelPassService
                 End = pass.End,
                 ExtraTime = pass.ExtraTime
             });
-        } catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
 
     }
-    
+
     public async Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(AdminCreateHotelPassDto pass)
     {
         try
         {
             string plate = pass.LicensePlate.Trim().ToUpperInvariant();
 
-        DateTime reservationStart = pass.Start.ToUniversalTime();
-        DateTime reservationEnd = pass.End.ToUniversalTime();
+            DateTime reservationStart = pass.Start.ToUniversalTime();
+            DateTime reservationEnd = pass.End.ToUniversalTime();
 
-        if (reservationEnd <= reservationStart)
-            return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
-        
-        DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
-        
-        var overlappingExistingPass = (await _passRepo.GetByAsync(x =>
-                x.LicensePlateNumber == plate &&
-                x.ParkingLotId == pass.ParkingLotId &&
-                x.Start < reservationEndWithExtra &&
-                (x.End + x.ExtraTime) > reservationStart
-            ))
-            .FirstOrDefault();
+            if (reservationEnd <= reservationStart)
+                return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
 
-        if (overlappingExistingPass is not null)
-        {
-            return ServiceResult<ReadHotelPassDto>.Conflict(
-                $"There is already a hotel pass for {plate} during this period.");
+            DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
+
+            var overlappingExistingPass = (await _passRepo.GetByAsync(x =>
+                    x.LicensePlateNumber == plate &&
+                    x.ParkingLotId == pass.ParkingLotId &&
+                    x.Start < reservationEndWithExtra &&
+                    (x.End + x.ExtraTime) > reservationStart
+                ))
+                .FirstOrDefault();
+
+            if (overlappingExistingPass is not null)
+            {
+                return ServiceResult<ReadHotelPassDto>.Conflict(
+                    $"There is already a hotel pass for {plate} during this period.");
+            }
+
+            var availability = await _lotService.GetAvailableSpotsForPeriodAsync(
+                pass.ParkingLotId,
+                reservationStart,
+                reservationEndWithExtra);
+
+            if (availability.Status != ServiceStatus.Success)
+                return ServiceResult<ReadHotelPassDto>.Fail(
+                    availability.Error ?? "Failed to check parking lot availability.");
+
+            if (availability.Data <= 0)
+            {
+                return ServiceResult<ReadHotelPassDto>.BadRequest(
+                    "No available spots for the selected time period.");
+            }
+
+            var newPass = new HotelPassModel
+            {
+                LicensePlateNumber = plate,
+                ParkingLotId = pass.ParkingLotId,
+                Start = reservationStart,
+                End = reservationEnd,
+                ExtraTime = pass.ExtraTime
+            };
+
+            _passRepo.Add(newPass);
+            await _passRepo.SaveChangesAsync();
+
+            return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
+            {
+                Id = newPass.Id,
+                LicensePlate = newPass.LicensePlateNumber,
+                ParkingLotId = newPass.ParkingLotId,
+                Start = newPass.Start,
+                End = newPass.End,
+                ExtraTime = newPass.ExtraTime
+            });
         }
-        
-        var availability = await _lotService.GetAvailableSpotsForPeriodAsync(
-            pass.ParkingLotId,
-            reservationStart,
-            reservationEndWithExtra);
-
-        if (availability.Status != ServiceStatus.Success)
-            return ServiceResult<ReadHotelPassDto>.Fail(
-                availability.Error ?? "Failed to check parking lot availability.");
-
-        if (availability.Data <= 0)
-        {
-            return ServiceResult<ReadHotelPassDto>.BadRequest(
-                "No available spots for the selected time period.");
-        }
-        
-        var newPass = new HotelPassModel
-        {
-            LicensePlateNumber = plate,
-            ParkingLotId = pass.ParkingLotId,
-            Start = reservationStart,
-            End = reservationEnd,
-            ExtraTime = pass.ExtraTime
-        };
-
-        _passRepo.Add(newPass);
-        await _passRepo.SaveChangesAsync();
-
-        return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
-        {
-            Id = newPass.Id,
-            LicensePlate = newPass.LicensePlateNumber,
-            ParkingLotId = newPass.ParkingLotId,
-            Start = newPass.Start,
-            End = newPass.End,
-            ExtraTime = newPass.ExtraTime
-        });
-        } catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<ReadHotelPassDto>> CreateHotelPassAsync(CreateHotelPassDto pass, long currentUserId)
     {
         try
@@ -205,7 +209,7 @@ public class HotelPassService : IHotelPassService
             if (hotel is null) return ServiceResult<ReadHotelPassDto>.NotFound("hotel not found");
             var parkingLot = await _lotRepo.FindByIdAsync(hotel.HotelParkingLotId);
             if (parkingLot is null) return ServiceResult<ReadHotelPassDto>.NotFound("parking lot not found");
-            
+
             string plate = pass.LicensePlate.Trim().ToUpperInvariant();
 
             DateTime reservationStart = pass.Start.ToUniversalTime();
@@ -213,9 +217,9 @@ public class HotelPassService : IHotelPassService
 
             if (reservationEnd <= reservationStart)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
-            
+
             DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
-            
+
             var overlappingExistingPass = (await _passRepo.GetByAsync(x =>
                     x.LicensePlateNumber == plate &&
                     x.ParkingLotId == parkingLot.Id &&
@@ -229,7 +233,7 @@ public class HotelPassService : IHotelPassService
                 return ServiceResult<ReadHotelPassDto>.Conflict(
                     $"There is already a hotel pass for {plate} during this period.");
             }
-            
+
             var availability = await _lotService.GetAvailableSpotsForPeriodAsync(
                 parkingLot.Id,
                 reservationStart,
@@ -244,7 +248,7 @@ public class HotelPassService : IHotelPassService
                 return ServiceResult<ReadHotelPassDto>.BadRequest(
                     "No available spots for the selected time period.");
             }
-            
+
             var newPass = new HotelPassModel
             {
                 LicensePlateNumber = plate,
@@ -266,12 +270,13 @@ public class HotelPassService : IHotelPassService
                 End = newPass.End,
                 ExtraTime = newPass.ExtraTime
             });
-        } catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass)
     {
         try
@@ -282,21 +287,21 @@ public class HotelPassService : IHotelPassService
 
             if (!string.IsNullOrWhiteSpace(pass.LicensePlate))
                 existingPass.LicensePlateNumber = pass.LicensePlate.Trim().ToUpperInvariant();
-            
+
             if (pass.Start.HasValue)
                 existingPass.Start = pass.Start.Value.ToUniversalTime();
 
             if (pass.End.HasValue)
                 existingPass.End = pass.End.Value.ToUniversalTime();
-            
+
             if (existingPass.End <= existingPass.Start)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
-            
+
             if (pass.ExtraTime.HasValue)
                 existingPass.ExtraTime = pass.ExtraTime.Value;
-            
+
             DateTime updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
-            
+
             var overlapping = (await _passRepo.GetByAsync(x =>
                     x.Id != existingPass.Id &&
                     x.ParkingLotId == existingPass.ParkingLotId &&
@@ -311,7 +316,7 @@ public class HotelPassService : IHotelPassService
                 return ServiceResult<ReadHotelPassDto>.Conflict(
                     $"Another hotel pass overlaps with the selected period.");
             }
-            
+
             var availability = await _lotService.GetAvailableSpotsForPeriodAsync(
                 existingPass.ParkingLotId,
                 existingPass.Start,
@@ -322,10 +327,10 @@ public class HotelPassService : IHotelPassService
 
             if (availability.Data <= 0)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("No available spots for the selected time period.");
-            
+
             _passRepo.Update(existingPass);
             await _passRepo.SaveChangesAsync();
-            
+
             return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
             {
                 Id = existingPass.Id,
@@ -334,13 +339,14 @@ public class HotelPassService : IHotelPassService
                 Start = existingPass.Start,
                 End = existingPass.End,
                 ExtraTime = existingPass.ExtraTime
-        });
-        } catch (Exception ex)
+            });
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<ReadHotelPassDto>> PatchHotelPassAsync(PatchHotelPassDto pass, long currentUserId)
     {
         try
@@ -356,7 +362,7 @@ public class HotelPassService : IHotelPassService
             if (hotel is null) return ServiceResult<ReadHotelPassDto>.NotFound("hotel not found");
             var parkingLot = await _lotRepo.FindByIdAsync(hotel.HotelParkingLotId);
             if (parkingLot is null) return ServiceResult<ReadHotelPassDto>.NotFound("parking lot not found");
-            
+
             var existingPass = await _passRepo.FindByIdAsync(pass.Id);
             if (existingPass is null)
                 return ServiceResult<ReadHotelPassDto>.NotFound($"Update failed. No pass with id {pass.Id} found");
@@ -366,21 +372,21 @@ public class HotelPassService : IHotelPassService
 
             if (!string.IsNullOrWhiteSpace(pass.LicensePlate))
                 existingPass.LicensePlateNumber = pass.LicensePlate.Trim().ToUpperInvariant();
-            
+
             if (pass.Start.HasValue)
                 existingPass.Start = pass.Start.Value.ToUniversalTime();
 
             if (pass.End.HasValue)
                 existingPass.End = pass.End.Value.ToUniversalTime();
-            
+
             if (existingPass.End <= existingPass.Start)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
-            
+
             if (pass.ExtraTime.HasValue)
                 existingPass.ExtraTime = pass.ExtraTime.Value;
-            
+
             DateTime updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
-            
+
             var overlapping = (await _passRepo.GetByAsync(x =>
                     x.Id != existingPass.Id &&
                     x.ParkingLotId == existingPass.ParkingLotId &&
@@ -395,7 +401,7 @@ public class HotelPassService : IHotelPassService
                 return ServiceResult<ReadHotelPassDto>.Conflict(
                     $"Another hotel pass overlaps with the selected period.");
             }
-            
+
             var availability = await _lotService.GetAvailableSpotsForPeriodAsync(
                 existingPass.ParkingLotId,
                 existingPass.Start,
@@ -406,10 +412,10 @@ public class HotelPassService : IHotelPassService
 
             if (availability.Data <= 0)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("No available spots for the selected time period.");
-            
+
             _passRepo.Update(existingPass);
             await _passRepo.SaveChangesAsync();
-            
+
             return ServiceResult<ReadHotelPassDto>.Ok(new ReadHotelPassDto
             {
                 Id = existingPass.Id,
@@ -418,8 +424,9 @@ public class HotelPassService : IHotelPassService
                 Start = existingPass.Start,
                 End = existingPass.End,
                 ExtraTime = existingPass.ExtraTime
-        });
-        } catch (Exception ex)
+            });
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadHotelPassDto>.Exception("Unexpected error occurred.");
         }
@@ -435,12 +442,13 @@ public class HotelPassService : IHotelPassService
             _passRepo.Deletee(pass);
             await _passRepo.SaveChangesAsync();
             return ServiceResult<bool>.Ok(true);
-        } catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<bool>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<bool>> DeleteHotelPassByIdAsync(long id, long currentUserId)
     {
         try
@@ -456,7 +464,7 @@ public class HotelPassService : IHotelPassService
             if (hotel is null) return ServiceResult<bool>.NotFound("hotel not found");
             var parkingLot = await _lotRepo.FindByIdAsync(hotel.HotelParkingLotId);
             if (parkingLot is null) return ServiceResult<bool>.NotFound("parking lot not found");
-            
+
             var pass = await _passRepo.FindByIdAsync(id);
             if (pass is null) return ServiceResult<bool>.NotFound($"No hotel pass with id {id} found.");
 
@@ -466,7 +474,8 @@ public class HotelPassService : IHotelPassService
             _passRepo.Deletee(pass);
             await _passRepo.SaveChangesAsync();
             return ServiceResult<bool>.Ok(true);
-        } catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<bool>.Exception("Unexpected error occurred.");
         }

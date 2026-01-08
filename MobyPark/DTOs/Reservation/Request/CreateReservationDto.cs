@@ -2,13 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MobyPark.DTOs.Reservation.Request;
 
-public record CreateReservationDto
+public class CreateReservationDto
 {
     [Required]
-    public string LicensePlate { get; set; } = string.Empty;
+    public long ParkingLotId { get; set; }
 
     [Required]
-    public long ParkingLotId { get; set; }
+    public string LicensePlate { get; set; } = string.Empty;
 
     [Required]
     public DateTimeOffset StartDate { get; set; }
