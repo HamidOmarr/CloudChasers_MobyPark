@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
@@ -387,7 +389,7 @@ public partial class UserService : IUserService
     {
         var user = await _users.FindByIdAsync(userId);
         if (user is null) return ServiceResult<UserHotelProfileDto>.NotFound("no user found with that id");
-        
+
         var hotel = await _hotels.FindByIdAsync(hotelId);
         if (hotel is null) return ServiceResult<UserHotelProfileDto>.NotFound("no hotel found with that id");
 
@@ -437,7 +439,7 @@ public partial class UserService : IUserService
             BusinessName = business.Name,
             BusinessAddress = business.Address,
             BusinessIBAN = business.IBAN,
-        }); 
+        });
     }
 
     private static UpdateUserResult ValidatePasswordIntegrity(string password)

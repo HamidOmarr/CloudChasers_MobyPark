@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MobyPark.DTOs;
+
 using MobyPark.DTOs.Payment.Request;
 using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Services.Interfaces;
@@ -40,7 +40,7 @@ public class PaymentsController : BaseController
 
     [Authorize(Policy = "CanProcessPayments")]
     [HttpPost("refund")]
-    public async Task<IActionResult> Refund([FromBody] PaymentRefundRequest request)
+    public async Task<IActionResult> Refund([FromBody] PaymentRefundDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -158,7 +158,7 @@ public class PaymentsController : BaseController
     [HttpDelete("{paymentId}")]
     public async Task<IActionResult> DeletePayment(string paymentId)
     {
-         var user = await GetCurrentUserAsync();
+        var user = await GetCurrentUserAsync();
         var result = await _payments.DeletePayment(paymentId, user.Id);
 
         return result switch

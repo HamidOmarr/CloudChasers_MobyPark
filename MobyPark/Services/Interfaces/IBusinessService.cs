@@ -10,6 +10,6 @@ public interface IBusinessService
     Task<ServiceResult<List<ReadBusinessDto>>> GetAllAsync();
     Task<ServiceResult<ReadBusinessDto>> GetBusinessByIdAsync(long id);
     Task<ServiceResult<ReadBusinessDto>> GetBusinessByAddressAsync(string address);
-    
+
 
 }

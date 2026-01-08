@@ -5,7 +5,7 @@
 namespace MobyPark.Migrations
 {
     /// <inheritdoc />
-    public partial class loggingpathadded : Migration
+    public partial class LoggingPathAdded : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

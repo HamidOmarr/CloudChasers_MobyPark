@@ -1,11 +1,13 @@
-﻿using MobyPark.Models;
+﻿using System.Linq.Expressions;
+
+using MobyPark.DTOs.Hotel;
+using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
+
 using Moq;
-using System.Linq.Expressions;
-using MobyPark.DTOs.Hotel;
-using MobyPark.Services;
 
 namespace MobyPark.Tests;
 
@@ -19,9 +21,9 @@ public class HotelPassServiceTests
     private Mock<IRepository<UserModel>> _mockUserRepo = null; //done
     private Mock<IRepository<HotelModel>> _mockHotelRepo = null; //doone
     private Mock<IRepository<ParkingLotModel>> _mockLotRepo = null;
-    
+
     private HotelPassService _hotelService = null;
-    
+
 
     [TestInitialize]
     public void TestInitialize()
@@ -33,11 +35,11 @@ public class HotelPassServiceTests
         _mockLotRepo = new Mock<IRepository<ParkingLotModel>>();
 
         _hotelService = new HotelPassService(
-            _mockPassRepo.Object, 
+            _mockPassRepo.Object,
             _mockLotService.Object, _mockUserRepo.Object, _mockHotelRepo.Object, _mockLotRepo.Object);
     }
     #endregion
-    
+
     #region Get
     [TestMethod]
     public async Task GetHotelPassByIdAsync_PassExists_ReturnsOkWithDto()
@@ -90,7 +92,7 @@ public class HotelPassServiceTests
         Assert.IsNull(result.Data);
         Assert.IsTrue(result.Error?.Contains("No hotel pass with that id") ?? false);
     }
-    
+
     [TestMethod]
     public async Task GetHotelPassesByLicensePlateAsync_PassesExist_ReturnsOk()
     {
@@ -141,7 +143,7 @@ public class HotelPassServiceTests
         Assert.IsNull(result.Data);
         Assert.IsTrue(result.Error?.Contains(plate) ?? false);
     }
-    
+
     [TestMethod]
     public async Task GetActiveHotelPassByLicensePlateAndLotIdAsync_NoActivePass_ReturnsNotFound()
     {
@@ -162,7 +164,7 @@ public class HotelPassServiceTests
         Assert.IsNull(result.Data);
         Assert.IsTrue(result.Error?.Contains("No active hotel pass") ?? false);
     }
-    
+
     [TestMethod]
     public async Task GetHotelPassesByParkingLotIdAsync_PassesExist_ReturnsOkWithList()
     {
@@ -223,7 +225,7 @@ public class HotelPassServiceTests
         Assert.IsTrue(result.Error?.Contains("has no hotel passes") ?? false);
     }
     #endregion
-    
+
     #region Create
 
     [TestMethod]
@@ -547,8 +549,8 @@ public class HotelPassServiceTests
     }
 
     #endregion
-    
-   #region Update
+
+    #region Update
 
     [TestMethod]
     public async Task PatchHotelPass_PassNotFound_ReturnsNotFound()
@@ -791,7 +793,7 @@ public class HotelPassServiceTests
     }
 
     #endregion
-    
+
     #region Delete
     [TestMethod]
     public async Task DeleteHotelPassById_PassNotFound_ReturnsNotFound()

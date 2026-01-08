@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
+
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories.Interfaces;
 
@@ -67,18 +69,18 @@ public class Repository<T> : IRepository<T> where T : class
         int result = await Context.SaveChangesAsync();
         return result > 0;
     }
-    
-    
-    
+
+
+
     //Methods from the class
-    
+
     //Add
     public void Add(T entity)
     {
         if (entity == null) throw new ArgumentNullException("Entity is null");
         DbSet.Add(entity);
     }
-    
+
     //Update
     public void Update(T entity) => DbSet.Update(entity);
 

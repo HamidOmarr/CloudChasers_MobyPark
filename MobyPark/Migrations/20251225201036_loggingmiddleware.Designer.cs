@@ -13,7 +13,7 @@ namespace MobyPark.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20251225201036_loggingmiddleware")]
-    partial class loggingmiddleware
+    partial class LoggingMiddleware
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

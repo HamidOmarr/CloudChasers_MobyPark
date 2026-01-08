@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
@@ -7,10 +9,9 @@ using MobyPark.Services.Results;
 using MobyPark.Services.Results.LicensePlate;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.Reservation;
-using MobyPark.Validation;
 using MobyPark.Services.Results.User;
 using MobyPark.Services.Results.UserPlate;
-using System.Collections.Concurrent;
+using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -53,10 +54,10 @@ public class ReservationService : IReservationService
         var plate = dto.LicensePlate.Upper();
         var userPlatesResult = await _userPlates.GetUserPlatesByUserId(userId);
         if (userPlatesResult is not GetUserPlateListResult.Success platesSuccess ||
-            !platesSuccess.Plates.Any(p => p.LicensePlateNumber == plate))
+            platesSuccess.Plates.All(p => p.LicensePlateNumber != plate))
             return new GetReservationCostEstimateResult.Error("License plate not owned by user.");
 
-        var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate, lotDto.Capacity);
+        var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate);
         if (availability is AvailabilityResult.LotClosed)
             return new GetReservationCostEstimateResult.LotClosed();
 
@@ -92,7 +93,7 @@ public class ReservationService : IReservationService
 
         // Check that the license plate exists
         var plateLookup = await _licensePlates.GetByLicensePlate(plate);
-        if (plateLookup is Services.Results.LicensePlate.GetLicensePlateResult.NotFound)
+        if (plateLookup is GetLicensePlateResult.NotFound)
             return new CreateReservationResult.PlateNotFound();
 
         if (!string.IsNullOrWhiteSpace(dto.Username))
@@ -128,7 +129,7 @@ public class ReservationService : IReservationService
         try
         {
             // 1) Plate overlap check at same lot and time window
-            var plateReservations = await _reservations.GetByLicensePlate(plate) ?? new List<ReservationModel>();
+            var plateReservations = await _reservations.GetByLicensePlate(plate);
             bool plateOverlap = plateReservations.Any(r =>
                 r.ParkingLotId == dto.ParkingLotId &&
                 r.Status != ReservationStatus.Cancelled && r.Status != ReservationStatus.NoShow &&
@@ -137,7 +138,7 @@ public class ReservationService : IReservationService
                 return new CreateReservationResult.AlreadyExists("A reservation already exists for this plate in the selected window.");
 
             // 2) Capacity check for the lot/time window
-            var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate, lotDto2.Capacity);
+            var availability = await CheckLotAvailability(dto.ParkingLotId, dto.StartDate, dto.EndDate);
             if (availability is AvailabilityResult.LotClosed)
                 return new CreateReservationResult.LotFull();
 
@@ -204,7 +205,7 @@ public class ReservationService : IReservationService
         return new ValidateResult.Success { Lot = lotResult.Data };
     }
 
-    private async Task<AvailabilityResult> CheckLotAvailability(long lotId, DateTimeOffset start, DateTimeOffset end, int capacity)
+    private async Task<AvailabilityResult> CheckLotAvailability(long lotId, DateTimeOffset start, DateTimeOffset end)
     {
         var availability = await _parkingLots.GetAvailableSpotsForPeriodAsync(
             lotId,
@@ -322,7 +323,7 @@ public class ReservationService : IReservationService
                     "Cannot change dates of a reservation that has already started."),
                 ApplyUpdateResult.EndTimeBeforeStartTime => new UpdateReservationResult.Error(
                     "End time must be after the start time."),
-                ApplyUpdateResult.CannotChangeCampletedStatus => new UpdateReservationResult.Error(
+                ApplyUpdateResult.CannotChangeCompletedStatus => new UpdateReservationResult.Error(
                     "Cannot change the status of a completed reservation."),
                 _ => new UpdateReservationResult.Error("An unknown error occurred while applying updates.")
             };
@@ -340,7 +341,7 @@ public class ReservationService : IReservationService
             var lot = await _parkingLots.GetParkingLotByIdAsync(updatedReservation.ParkingLotId);
             if (lot.Status == ServiceStatus.Success)
             {
-                var costResult = _pricing.CalculateParkingCost(new ParkingLotModel{Id = lot.Data!.Id}, updatedReservation.StartTime, updatedReservation.EndTime);
+                var costResult = _pricing.CalculateParkingCost(new ParkingLotModel { Id = lot.Data!.Id }, updatedReservation.StartTime, updatedReservation.EndTime);
                 if (costResult is CalculatePriceResult.Success successPrice)
                     updatedReservation.Cost = successPrice.Price;
                 else if (costResult is CalculatePriceResult.Error err)
@@ -395,7 +396,7 @@ public class ReservationService : IReservationService
         if (dto.Status.HasValue && dto.Status.Value != existingReservation.Status)
         {
             if (existingReservation.Status == ReservationStatus.Completed)
-                return new ApplyUpdateResult.CannotChangeCampletedStatus();
+                return new ApplyUpdateResult.CannotChangeCompletedStatus();
 
             existingReservation.Status = dto.Status.Value;
             modelChanged = true;

@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.ParkingSession.Request;
-using MobyPark.Models;
-using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.ParkingSession;
 

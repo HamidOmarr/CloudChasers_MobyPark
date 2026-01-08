@@ -27,7 +27,7 @@ public class TransactionService : ITransactionService
             transaction.Id = id;
             return new CreateTransactionResult.Success(id, transaction);
         }
-        catch (Exception )
+        catch (Exception)
         { return new CreateTransactionResult.Error("An error occurred while creating the transaction."); }
     }
 
@@ -101,7 +101,7 @@ public class TransactionService : ITransactionService
                        || dto.Bank != existingTransaction.Bank;
 
         if (!changed)
-             return new UpdateTransactionResult.NoChangesMade();
+            return new UpdateTransactionResult.NoChangesMade();
 
         try
         {

@@ -121,7 +121,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         modelBuilder.Entity<HotelModel>()
             .HasIndex(h => h.HotelParkingLotId)
             .IsUnique();
-        
+
         modelBuilder.Entity<BusinessParkingRegistrationModel>()
             .HasOne(r => r.Business)
             .WithMany()

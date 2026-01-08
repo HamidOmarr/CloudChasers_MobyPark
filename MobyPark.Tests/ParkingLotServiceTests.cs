@@ -1,11 +1,13 @@
 using System.Linq.Expressions;
-using Moq;
+
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
+
+using Moq;
 
 namespace MobyPark.Tests;
 
@@ -52,7 +54,7 @@ public class ParkingLotServiceTests
             DayTariff = 20m
         };
 
-        
+
         _parkingRepoMock
             .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
             .ReturnsAsync(new[] { lot }.ToList());

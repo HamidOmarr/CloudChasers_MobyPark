@@ -12,24 +12,24 @@ public interface IRepository<T> where T : class
     Task<int> Count();
     Task<bool> Update<TEdit>(T entity, TEdit edit) where TEdit : class, ICanBeEdited;
     Task<bool> Delete(T entity);
-    
-    
+
+
     //CRUD
     void Add(T entity);
     void Update(T entity);
     void Deletee(T entity);
     int SaveChanges();
-    
+
     IEnumerable<T> ReadAll();
     T? FindById(Object id);
     IEnumerable<T> GetBy(Expression<Func<T, bool>> predicate);
     IQueryable<T> Query();
-    
+
     //Asyncs
     Task<T?> FindByIdAsync(object id);
     Task<List<T>> ReadAllAsync();
     Task<List<T>> GetByAsync(Expression<Func<T, bool>> predicate);
     Task<int> SaveChangesAsync();
-    
-    
+
+
 }

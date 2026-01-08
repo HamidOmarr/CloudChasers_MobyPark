@@ -18,7 +18,7 @@ public static class MiddlewareExtensions
         app.UseHttpsRedirection();
 
         app.UseRouting();
-        
+
         app.UseMiddleware<RequestLoggingMiddleware>();
 
         app.UseAuthentication();

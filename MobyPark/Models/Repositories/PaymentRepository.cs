@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories.Interfaces;
 
@@ -50,12 +51,12 @@ public class PaymentRepository : Repository<PaymentModel>, IPaymentRepository
 
         if (payment?.LicensePlate is null) return null;
 
-          bool isAuthorized = await (
-            from uPlate in Context.UserPlates
-            where uPlate.UserId == requestingUserId
-                  && uPlate.LicensePlateNumber == payment.LicensePlateNumber
-                && uPlate.CreatedAt <= payment.CreatedAt
-            select uPlate).AnyAsync();
+        bool isAuthorized = await (
+          from uPlate in Context.UserPlates
+          where uPlate.UserId == requestingUserId
+                && uPlate.LicensePlateNumber == payment.LicensePlateNumber
+              && uPlate.CreatedAt <= payment.CreatedAt
+          select uPlate).AnyAsync();
 
         return isAuthorized ? payment : null;
     }

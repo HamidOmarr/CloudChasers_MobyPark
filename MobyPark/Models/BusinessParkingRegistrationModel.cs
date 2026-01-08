@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
@@ -7,11 +8,11 @@ public class BusinessParkingRegistrationModel : IHasLongId
 {
     public long Id { get; set; }
     public long BusinessId { get; set; }
-    
-    [ForeignKey(nameof(BusinessId))]
-    public BusinessModel Business { get; set; }
 
-    public string LicensePlateNumber { get; set; }
+    [ForeignKey(nameof(BusinessId))]
+    public BusinessModel Business { get; set; } = null!;
+
+    public string LicensePlateNumber { get; set; } = string.Empty;
     public bool Active { get; set; } = true;
     public DateTimeOffset LastSinceActive { get; set; } = DateTimeOffset.Now;
 
@@ -46,13 +47,13 @@ public class BusinessParkingRegistrationModel : IHasLongId
      * Ergens moet opgeslagen worden welke parkinglotId bij welk hotel hoort
      * en dan kan een ingelogd hotel alleen voor hun eigen parkinglotId een hotelpass toevoegen.
      * admin kan voor elke parkinglot een pass toevoegen
-     * 
+     *
      */
-    
+
     /*
      * aan de usermodel moet een id meegegeven worden die alleen de admin kan zetten.
      * die id BusinessRepresentativeFor is een foreign key naar een businessmodel id
-     * Die user kan dan passes toevoegen voor dat bedrijf/registrations doen 
+     * Die user kan dan passes toevoegen voor dat bedrijf/registrations doen
      */
-    
+
 }
