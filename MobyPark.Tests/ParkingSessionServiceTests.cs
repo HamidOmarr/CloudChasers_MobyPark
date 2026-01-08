@@ -1221,7 +1221,7 @@ public sealed class ParkingSessionServiceTests
     [TestMethod]
     [DataRow(99, "AB-12-CD", "token", 10, "user")]
     [DataRow(404, "WX-99YZ", "token2", 15.5, "user2")]
-    public async Task StartSession_LotNotFound_ReturnsError(
+    public async Task StartSession_LotNotFound_ReturnsLotNotFound(
         long lotId, string plate, string token, double amount, string user)
     {
         var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
@@ -1232,10 +1232,7 @@ public sealed class ParkingSessionServiceTests
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
-        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Error));
-
-        var err = (StartSessionResult.Error)result;
-        Assert.AreEqual("Parking lot not found", err.Message);
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.LotNotFound));
     }
 
     [TestMethod]
