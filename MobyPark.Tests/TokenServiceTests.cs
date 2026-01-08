@@ -1,15 +1,18 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using MobyPark.Models;
-using MobyPark.Services;
-using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Text;
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+
 using MobyPark.DTOs.Token;
+using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
+using MobyPark.Services;
 using MobyPark.Services.Results.Tokens;
+
+using Moq;
 
 namespace MobyPark.Tests;
 
@@ -218,7 +221,10 @@ public sealed class TokenServiceTests
         var absoluteLimit = DateTimeOffset.UtcNow.AddMinutes(5);
         var user = new UserModel
         {
-            Id = 1, Username = "u", Email = "e", Role = new RoleModel { Name = "r" },
+            Id = 1,
+            Username = "u",
+            Email = "e",
+            Role = new RoleModel { Name = "r" },
             RefreshToken = refreshToken,
             SlidingTokenExpiryTime = DateTimeOffset.UtcNow.AddMinutes(2),
             AbsoluteTokenExpiryTime = absoluteLimit

@@ -4,9 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
-using MobyPark.Services.Interfaces;
-using MobyPark.Services.Results.Session;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 

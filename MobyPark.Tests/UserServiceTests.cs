@@ -5,6 +5,7 @@ using MobyPark.DTOs.User.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
+using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 

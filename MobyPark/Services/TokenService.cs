@@ -1,10 +1,12 @@
-using System.Security.Claims;
-using System.Text;
-using MobyPark.Models;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text;
+
+using Microsoft.IdentityModel.Tokens;
+
 using MobyPark.DTOs.Token;
+using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Tokens;
@@ -125,7 +127,8 @@ public class TokenService : ITokenService
         if (newSlidingExpiry > user.AbsoluteTokenExpiryTime)
             newSlidingExpiry = user.AbsoluteTokenExpiryTime;
 
-        var updateData = new TokenDto {
+        var updateData = new TokenDto
+        {
             RefreshToken = newRefreshToken,
             SlidingTokenExpiryTime = newSlidingExpiry
         };
