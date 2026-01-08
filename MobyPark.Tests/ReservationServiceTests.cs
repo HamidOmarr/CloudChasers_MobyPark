@@ -112,7 +112,6 @@ public sealed class ReservationServiceTests
     {
         // Arrange
         var dto = CreateValidDto(lotId, plate);
-        var lot = new ParkingLotModel { Id = lotId, Tariff = 5 };
         var licensePlate = new LicensePlateModel { LicensePlateNumber = plate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId, Username = "requestingUser" };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = plate.ToUpper() };
@@ -309,7 +308,7 @@ public sealed class ReservationServiceTests
     [TestMethod]
     public async Task CreateReservation_AdminCannotCreateForAdminWithBusinessId_ReturnsForbidden()
     {
-        // Arrange 
+        // Arrange
         var targetUsername = "businessuser";
         var dto = CreateValidDto(username: targetUsername);
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
@@ -460,8 +459,6 @@ public sealed class ReservationServiceTests
         var licensePlate = new LicensePlateModel { LicensePlateNumber = UserPlate.ToUpper() };
         var user = new UserModel { Id = RequestingUserId };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = UserPlate.ToUpper() };
-
-        var existingOverlap = CreateReservationModel(id: 50, lotId: lotId, plate: OtherUserPlate, start: start.AddMinutes(-30), end: start.AddMinutes(30));
 
         _mockParkingLotsService.Setup(s => s.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
@@ -846,7 +843,6 @@ public sealed class ReservationServiceTests
         var existing = CreateReservationModel(id: id, status: ReservationStatus.Pending, start: DateTimeOffset.UtcNow.AddHours(1), end: DateTimeOffset.UtcNow.AddHours(3));
         var dto = new UpdateReservationDto { StartTime = startTime, EndTime = endTime };
         var userPlate = new UserPlateModel { UserId = RequestingUserId, LicensePlateNumber = existing.LicensePlateNumber };
-        var lot = new ParkingLotModel { Id = existing.ParkingLotId, Tariff = 5 };
         var newCost = 15m;
 
         _mockReservationsRepo.Setup(reservationRepo => reservationRepo.GetById<ReservationModel>(id)).ReturnsAsync(existing);

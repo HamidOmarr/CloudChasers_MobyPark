@@ -1,9 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 using MobyPark.DTOs.Business;
 using MobyPark.DTOs.Hotel;
 using MobyPark.DTOs.ParkingLot.Request;
@@ -224,7 +218,6 @@ public sealed class ParkingSessionServiceTests
         var startTime = stopTime.AddHours(hoursAgo);
         var dto = new UpdateParkingSessionDto { Stopped = stopTime };
         var expectedCost = (decimal)cost;
-        var expectedDuration = duration;
 
         var existingSession = new ParkingSessionModel
         {
@@ -635,7 +628,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetByParkingLotId(lotId))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync(new List<ParkingSessionModel>());
 
         // Act
         var result = await _sessionService.GetParkingSessionsByParkingLotId(lotId);
@@ -678,7 +671,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetByLicensePlateNumber(plate))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetParkingSessionsByLicensePlate(plate);
@@ -722,7 +715,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetByPaymentStatus(parsedStatus))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetParkingSessionsByPaymentStatus(statusString);
@@ -777,7 +770,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetAll())
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetAllParkingSessions();
@@ -818,7 +811,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetActiveSessions())
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetActiveParkingSessions();
@@ -901,7 +894,7 @@ public sealed class ParkingSessionServiceTests
         string normalizedPlate = plate.ToUpper();
 
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetAllRecentSessionsByLicensePlate(normalizedPlate, duration))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetAllRecentParkingSessionsByLicensePlate(plate, duration);
@@ -966,9 +959,9 @@ public sealed class ParkingSessionServiceTests
             LicensePlateNumber = plate,
             Started = sessionStartTime
         };
-        var userPlates = new System.Collections.Generic.List<UserPlateModel>
+        var userPlates = new List<UserPlateModel>
         {
-            new UserPlateModel { UserId = userId, LicensePlateNumber = plate, CreatedAt = new DateTimeOffset(plateAddedTime, TimeSpan.Zero) }
+            new() { UserId = userId, LicensePlateNumber = plate, CreatedAt = new DateTimeOffset(plateAddedTime, TimeSpan.Zero) }
         };
 
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetById<ParkingSessionModel>(sessionId))
@@ -999,9 +992,9 @@ public sealed class ParkingSessionServiceTests
             LicensePlateNumber = sessionPlate,
             Started = DateTime.UtcNow.AddDays(-1)
         };
-        var userPlates = new System.Collections.Generic.List<UserPlateModel>
+        var userPlates = new List<UserPlateModel>
         {
-            new UserPlateModel
+            new()
             {
                 UserId = userId,
                 LicensePlateNumber = userPlate,
@@ -1039,9 +1032,9 @@ public sealed class ParkingSessionServiceTests
             LicensePlateNumber = plate,
             Started = sessionStartTime
         };
-        var userPlates = new System.Collections.Generic.List<UserPlateModel>
+        var userPlates = new List<UserPlateModel>
         {
-            new UserPlateModel
+            new()
             {
                 UserId = userId,
                 LicensePlateNumber = plate,
@@ -1119,11 +1112,11 @@ public sealed class ParkingSessionServiceTests
         };
 
         _mockSessionsRepo.Setup(sessionRepo => sessionRepo.GetByParkingLotId(lotId))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel> { ownedSession, randomSession, tooOldSession });
+            .ReturnsAsync([ownedSession, randomSession, tooOldSession]);
 
-        var userPlates = new System.Collections.Generic.List<UserPlateModel>
+        var userPlates = new List<UserPlateModel>
         {
-            new UserPlateModel
+            new()
             {
                 UserId = userId,
                 LicensePlateNumber = ownedPlate,
@@ -1147,7 +1140,7 @@ public sealed class ParkingSessionServiceTests
     {
         // Arrange
         _mockSessionsRepo.Setup(r => r.GetByParkingLotId(lotId))
-            .ReturnsAsync(new System.Collections.Generic.List<ParkingSessionModel>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _sessionService.GetAuthorizedSessionsAsync(userId, lotId, false);
@@ -2019,7 +2012,7 @@ public sealed class ParkingSessionServiceTests
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
             .ReturnsAsync(true);
 
-        _mockGateService.Setup(g => g.OpenGateAsync((int)lotId, plate.ToUpper()))
+        _mockGateService.Setup(g => g.OpenGateAsync(lotId, plate.ToUpper()))
             .ReturnsAsync(true);
 
         var result = await _sessionService.StopSession(dto);
@@ -2095,7 +2088,7 @@ public sealed class ParkingSessionServiceTests
             });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
-            .Callback<ParkingSessionModel, UpdateParkingSessionDto>((updatedModel, updateDto) =>
+            .Callback<ParkingSessionModel, UpdateParkingSessionDto>((updatedModel, _) =>
             {
                 session.PaymentStatus = updatedModel.PaymentStatus;
                 session.Stopped = updatedModel.Stopped;
@@ -2193,7 +2186,7 @@ public sealed class ParkingSessionServiceTests
         var success = (StopSessionResult.Success)result;
         Assert.AreEqual(0m, success.totalAmount);
         Assert.AreEqual(ParkingSessionStatus.HotelPass, success.Session.PaymentStatus);
-        _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+        _mockPreAuthService.Verify(preAuth => preAuth.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
     }
 
 

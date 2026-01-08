@@ -46,16 +46,6 @@ public sealed class UserServiceTests
         RoleId = 1
     };
 
-    private readonly UserModel _itManagerUser = new()
-    {
-        Id = 3,
-        Username = "itmanager",
-        Email = "itmanager@user.com",
-        PasswordHash = "hashed_password",
-        Role = new RoleModel { Id = 2, Name = "IT MANAGER" },
-        RoleId = 2
-    };
-
     [TestInitialize]
     public void TestInitialize()
     {

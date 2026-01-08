@@ -4,9 +4,7 @@ using MobyPark.DTOs.Hotel;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
-using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.LicensePlate;
 
 using Moq;
 
@@ -17,10 +15,10 @@ public class HotelServiceTests
 {
     #region Setup
 
-    private Mock<IRepository<HotelModel>> _mockHotelRepo = null;
-    private Mock<IRepository<ParkingLotModel>> _mockLotRepo = null;
+    private Mock<IRepository<HotelModel>> _mockHotelRepo = null!;
+    private Mock<IRepository<ParkingLotModel>> _mockLotRepo = null!;
 
-    private HotelService _hotelService = null;
+    private HotelService _hotelService = null!;
 
     [TestInitialize]
     public void TestInitialize()
@@ -48,7 +46,7 @@ public class HotelServiceTests
 
         _mockLotRepo
             .Setup(r => r.FindByIdAsync(dto.HotelParkingLotId))
-            .ReturnsAsync((ParkingLotModel)null);
+            .ReturnsAsync((ParkingLotModel)null!);
 
         var result = await _hotelService.CreateHotelAsync(dto);
 
@@ -162,7 +160,7 @@ public class HotelServiceTests
 
         _mockHotelRepo
             .Setup(r => r.FindByIdAsync(dto.Id))
-            .ReturnsAsync((HotelModel)null);
+            .ReturnsAsync((HotelModel)null!);
 
         var result = await _hotelService.PatchHotelAsync(dto);
 
@@ -290,7 +288,7 @@ public class HotelServiceTests
 
         _mockHotelRepo
             .Setup(r => r.FindByIdAsync(id))
-            .ReturnsAsync((HotelModel)null);
+            .ReturnsAsync((HotelModel)null!);
 
         var result = await _hotelService.DeleteHotelAsync(id);
 
@@ -351,7 +349,7 @@ public class HotelServiceTests
 
         _mockHotelRepo
             .Setup(r => r.FindByIdAsync(id))
-            .ReturnsAsync((HotelModel)null);
+            .ReturnsAsync((HotelModel)null!);
 
         var result = await _hotelService.GetHotelByIdAsync(id);
 

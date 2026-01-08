@@ -77,7 +77,7 @@ public sealed class SessionServiceTests
             ValidateLifetime = false
         };
 
-        var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+        var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
         Assert.IsNotNull(principal);
         Assert.AreEqual(id.ToString(), principal.FindFirstValue(ClaimTypes.NameIdentifier));
         Assert.AreEqual(username, principal.FindFirstValue(ClaimTypes.Name));

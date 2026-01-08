@@ -16,13 +16,13 @@ public class HotelPassServiceTests
 {
     #region Setup
 
-    private Mock<IRepository<HotelPassModel>> _mockPassRepo = null; //done
-    private Mock<IParkingLotService> _mockLotService = null; //done
-    private Mock<IRepository<UserModel>> _mockUserRepo = null; //done
-    private Mock<IRepository<HotelModel>> _mockHotelRepo = null; //doone
-    private Mock<IRepository<ParkingLotModel>> _mockLotRepo = null;
+    private Mock<IRepository<HotelPassModel>> _mockPassRepo = null!;
+    private Mock<IParkingLotService> _mockLotService = null!;
+    private Mock<IRepository<UserModel>> _mockUserRepo = null!;
+    private Mock<IRepository<HotelModel>> _mockHotelRepo = null!;
+    private Mock<IRepository<ParkingLotModel>> _mockLotRepo = null!;
 
-    private HotelPassService _hotelService = null;
+    private HotelPassService _hotelService = null!;
 
 
     [TestInitialize]
@@ -82,7 +82,7 @@ public class HotelPassServiceTests
 
         _mockPassRepo
             .Setup(r => r.FindByIdAsync(id))
-            .ReturnsAsync((HotelPassModel)null);
+            .ReturnsAsync((HotelPassModel)null!);
 
         // Act
         var result = await _hotelService.GetHotelPassByIdAsync(id);
@@ -319,7 +319,7 @@ public class HotelPassServiceTests
             .Setup(r => r.FindByIdAsync(hotel.HotelParkingLotId))
             .ReturnsAsync(lot);
 
-        HotelPassModel capturedModel = null;
+        HotelPassModel capturedModel = null!;
 
         _mockPassRepo
             .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
@@ -560,7 +560,7 @@ public class HotelPassServiceTests
 
         _mockPassRepo
             .Setup(r => r.FindByIdAsync(dto.Id))
-            .ReturnsAsync((HotelPassModel)null);
+            .ReturnsAsync((HotelPassModel)null!);
 
         // Act
         var result = await _hotelService.PatchHotelPassAsync(dto);
@@ -802,7 +802,7 @@ public class HotelPassServiceTests
         long id = 1;
         _mockPassRepo
             .Setup(r => r.FindByIdAsync(id))
-            .ReturnsAsync((HotelPassModel)null);
+            .ReturnsAsync((HotelPassModel)null!);
 
         // Act
         var result = await _hotelService.DeleteHotelPassByIdAsync(id);
@@ -829,7 +829,7 @@ public class HotelPassServiceTests
 
         // Assert
         Assert.AreEqual(ServiceStatus.Success, result.Status);
-        Assert.IsTrue(result.Data == true);
+        Assert.IsTrue(result.Data);
         _mockPassRepo.Verify(r => r.Deletee(existing), Times.Once);
         _mockPassRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
