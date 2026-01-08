@@ -24,8 +24,8 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Code format check
-        run: dotnet format --verify-no-changes
+      run: dotnet format --verify-no-changes
     - name: Build
-        run: dotnet build --no-restore -warnaserror
+      run: dotnet build --no-restore -warnaserror
     - name: Test
       run: dotnet test --no-build --verbosity normal
