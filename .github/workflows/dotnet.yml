@@ -43,6 +43,7 @@ jobs:
         run: |
           bash ci/failure-summary.sh
         env:
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
           GITHUB_STEP_FORMAT_OUTCOME: ${{ steps.format.outcome }}
           GITHUB_STEP_BUILD_OUTCOME: ${{ steps.build.outcome }}
           GITHUB_STEP_TEST_OUTCOME: ${{ steps.test.outcome }}
