@@ -14,7 +14,7 @@ public class HotelPassesController : BaseController
 {
     private readonly IHotelPassService _hotelPassService;
     
-    public HotelPassesController(UserService users, IHotelPassService hotelPassService) : base(users)
+    public HotelPassesController(IUserService users, IHotelPassService hotelPassService) : base(users)
     {
         _hotelPassService = hotelPassService;
     }
@@ -35,7 +35,7 @@ public class HotelPassesController : BaseController
         };
     }
 
-    [HttpPost]
+    [HttpPost("self")]
     [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> CreateHotelPassAsHotel([FromBody] CreateHotelPassDto pass)
     {
@@ -129,7 +129,7 @@ public class HotelPassesController : BaseController
         };
     }
     
-    [HttpPatch]
+    [HttpPatch("self")]
     [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> PatchHotelPassAsHotel([FromBody] PatchHotelPassDto pass)
     {
@@ -163,7 +163,7 @@ public class HotelPassesController : BaseController
         };
     }
 
-    [HttpDelete("{id:long}")]
+    [HttpDelete("self/{id:long}")]
     [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> DeleteHotelPassAsHotelById(long id)
     {

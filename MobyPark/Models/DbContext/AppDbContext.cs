@@ -21,6 +21,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<HotelModel> Hotels => Set<HotelModel>();
     public DbSet<BusinessModel> Businesses => Set<BusinessModel>();
     public DbSet<InvoiceModel> Invoices => Set<InvoiceModel>();
+    public DbSet<ApiLoggingModel> ApiLogs => Set<ApiLoggingModel>();
 
     public DbSet<BusinessParkingRegistrationModel> BusinessParkingRegistrations =>
         Set<BusinessParkingRegistrationModel>();
