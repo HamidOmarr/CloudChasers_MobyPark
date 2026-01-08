@@ -35,6 +35,7 @@ jobs:
 
     - name: Failure summary
       if: failure()
+      shell: bash
       run: |
         echo "### Build failed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
