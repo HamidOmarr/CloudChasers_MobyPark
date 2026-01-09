@@ -1,11 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.DTOs.Invoice;
-using MobyPark.Services.Results;
-using MobyPark.Validation;
 using MobyPark.Services.Results.Invoice;
 
 namespace MobyPark.Services;
@@ -13,6 +9,7 @@ namespace MobyPark.Services;
 public class AutomatedInvoiceService : IAutomatedInvoiceService
 {
     private readonly IInvoiceRepository _invoiceRepository;
+
     public AutomatedInvoiceService(IInvoiceRepository invoiceRepository)
     {
         _invoiceRepository = invoiceRepository;
@@ -22,7 +19,14 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
     {
         try
         {
-            var existingInvoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(invoiceDto.LicensePlateId);
+            if (invoiceDto.Stopped < invoiceDto.Started)
+            {
+                return new CreateInvoiceResult.Error("Stopped time cannot be before started time.");
+            }
+
+            var existingInvoice =
+                await _invoiceRepository.GetInvoiceModelByLicensePlate(invoiceDto.LicensePlateId);
+
             if (existingInvoice != null)
             {
                 return new CreateInvoiceResult.AlreadyExists();
@@ -35,7 +39,9 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
                 Started = invoiceDto.Started,
                 Stopped = invoiceDto.Stopped,
                 Cost = invoiceDto.Cost,
-                InvoiceSummary = invoiceDto.InvoiceSummary
+                Status = InvoiceStatus.Pending,
+                CreatedAt = DateTimeOffset.UtcNow,
+                InvoiceSummary = GenerateInvoiceSummary(invoiceDto)
             };
 
             await _invoiceRepository.Create(invoice);
@@ -45,15 +51,18 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
         }
         catch (Exception ex)
         {
-            return new CreateInvoiceResult.Error($"An error occurred while creating the invoice: {ex.Message}");
+            return new CreateInvoiceResult.Error(
+                $"An error occurred while creating the invoice: {ex.Message}");
         }
     }
 
-    public async Task<GetInvoiceResult> GetInvoiceByLicensePlate(string licensPLateId)
+    public async Task<GetInvoiceResult> GetInvoiceByLicensePlate(string licensePlateId)
     {
         try
         {
-            var invoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(licensPLateId);
+            var invoice =
+                await _invoiceRepository.GetInvoiceModelByLicensePlate(licensePlateId);
+
             if (invoice == null)
             {
                 return new GetInvoiceResult.NotFound();
@@ -63,15 +72,26 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
         }
         catch (Exception ex)
         {
-            return new GetInvoiceResult.Error($"An error occurred while retrieving the invoice: {ex.Message}");
+            return new GetInvoiceResult.Error(
+                $"An error occurred while retrieving the invoice: {ex.Message}");
         }
     }
 
-    public async Task<UpdateInvoiceResult> UpdateInvoice(string LicensePlateId, UpdateInvoiceDto updateDto)
+    public async Task<UpdateInvoiceResult> UpdateInvoice(
+        string licensePlateId,
+        UpdateInvoiceDto updateDto)
     {
         try
         {
-            var invoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(LicensePlateId);
+            if (updateDto.Stopped < updateDto.Started)
+            {
+                return new UpdateInvoiceResult.Error(
+                    "Stopped time cannot be before started time.");
+            }
+
+            var invoice =
+                await _invoiceRepository.GetInvoiceModelByLicensePlate(licensePlateId);
+
             if (invoice == null)
             {
                 return new UpdateInvoiceResult.NotFound();
@@ -80,10 +100,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             invoice.Started = updateDto.Started;
             invoice.Stopped = updateDto.Stopped;
             invoice.Cost = updateDto.Cost;
-            invoice.InvoiceSummary = updateDto.InvoiceSummary;
             invoice.Status = updateDto.Status;
-
-
+            invoice.InvoiceSummary = GenerateInvoiceSummary(invoice);
 
             _invoiceRepository.Update(invoice);
             await _invoiceRepository.SaveChangesAsync();
@@ -92,9 +110,26 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
         }
         catch (Exception ex)
         {
-            return new UpdateInvoiceResult.Error($"An error occurred while updating the invoice: {ex.Message}");
+            return new UpdateInvoiceResult.Error(
+                $"An error occurred while updating the invoice: {ex.Message}");
         }
     }
 
+    private static List<string> GenerateInvoiceSummary(CreateInvoiceDto dto)
+    {
+        return new List<string>
+        {
+            $"Parking session from {dto.Started:dd-MM-yyyy HH:mm} to {dto.Stopped:dd-MM-yyyy HH:mm}",
+            $"Total cost: {dto.Cost:0.00} EUR"
+        };
+    }
 
+    private static List<string> GenerateInvoiceSummary(InvoiceModel invoice)
+    {
+        return new List<string>
+        {
+            $"Parking session from {invoice.Started:dd-MM-yyyy HH:mm} to {invoice.Stopped:dd-MM-yyyy HH:mm}",
+            $"Total cost: {invoice.Cost:0.00} EUR"
+        };
+    }
 }

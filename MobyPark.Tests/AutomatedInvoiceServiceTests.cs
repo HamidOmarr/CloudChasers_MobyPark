@@ -44,8 +44,6 @@ public sealed class AutomatedInvoiceServiceTests
             Started = DateTime.UtcNow.AddHours(-2),
             Stopped = DateTime.UtcNow,
             Cost = (decimal)cost,
-            Status = InvoiceStatus.Paid,
-            InvoiceSummary = new List<string> { "Test invoice" }
         };
 
         _mockInvoiceRepository
@@ -201,7 +199,7 @@ public sealed class AutomatedInvoiceServiceTests
             ParkingSessionId = 1,
             Started = DateTime.UtcNow.AddHours(-2),
             Stopped = DateTime.UtcNow,
-            Cost = null
+            Cost = 0m
         };
 
         _mockInvoiceRepository
@@ -222,7 +220,7 @@ public sealed class AutomatedInvoiceServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(CreateInvoiceResult.Success));
         var success = (CreateInvoiceResult.Success)result;
-        Assert.IsNull(success.Invoice.Cost);
+        Assert.AreEqual(0m, success.Invoice.Cost);
     }
 
     [TestMethod]
@@ -237,7 +235,7 @@ public sealed class AutomatedInvoiceServiceTests
             Started = DateTime.UtcNow.AddHours(-2),
             Stopped = DateTime.UtcNow,
             Cost = 10m,
-            InvoiceSummary = new List<string>()
+
         };
 
         _mockInvoiceRepository
@@ -258,7 +256,8 @@ public sealed class AutomatedInvoiceServiceTests
         // Assert
         Assert.IsInstanceOfType(result, typeof(CreateInvoiceResult.Success));
         var success = (CreateInvoiceResult.Success)result;
-        Assert.AreEqual(0, success.Invoice.InvoiceSummary.Count);
+        Assert.IsTrue(success.Invoice.InvoiceSummary.Count > 0);
+
     }
 
     #endregion
@@ -369,7 +368,6 @@ public sealed class AutomatedInvoiceServiceTests
             Stopped = DateTime.UtcNow,
             Cost = (decimal)newCost,
             Status = InvoiceStatus.Paid,
-            InvoiceSummary = new List<string> { "Updated summary" }
         };
 
         _mockInvoiceRepository
@@ -392,7 +390,7 @@ public sealed class AutomatedInvoiceServiceTests
         var success = (UpdateInvoiceResult.Success)result;
         Assert.AreEqual((decimal)newCost, success.Invoice.Cost);
         Assert.AreEqual(InvoiceStatus.Paid, success.Invoice.Status);
-        StringAssert.Contains(success.Invoice.InvoiceSummary[0], "Updated summary");
+        StringAssert.Contains(success.Invoice.InvoiceSummary[0], "Parking session");
 
         _mockInvoiceRepository.Verify(
             r => r.GetInvoiceModelByLicensePlate(licensePlate),
@@ -417,7 +415,6 @@ public sealed class AutomatedInvoiceServiceTests
             Stopped = DateTime.UtcNow,
             Cost = 20m,
             Status = InvoiceStatus.Paid,
-            InvoiceSummary = new List<string> { "Updated summary" }
         };
 
         _mockInvoiceRepository
@@ -534,9 +531,9 @@ public sealed class AutomatedInvoiceServiceTests
         {
             Started = existingInvoice.Started,
             Stopped = existingInvoice.Stopped,
-            Cost = existingInvoice.Cost,
+            Cost = existingInvoice.Cost.Value,
             Status = InvoiceStatus.Paid,
-            InvoiceSummary = new List<string> { "Old summary" }
+
         };
 
         _mockInvoiceRepository

@@ -588,13 +588,7 @@ public class ParkingSessionService : IParkingSessionService
             ParkingSessionId = activeSession.Id,
             Started = activeSession.Started,
             Stopped = activeSession.Stopped.Value,
-            Cost = activeSession.Cost,
-            Status = InvoiceStatus.Paid,
-            CreatedAt = DateTimeOffset.UtcNow,
-            InvoiceSummary = new List<string>
-            {
-                $"Parking session from {activeSession.Started} to {activeSession.Stopped} at lot {parkingLot.Name}."
-            }
+            Cost = activeSession.Cost.Value
         };
 
         var invoiceCreateResult = await _invoiceService.CreateInvoice(createInvoiceDto);
