@@ -47,7 +47,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             await _invoiceRepository.Create(invoice);
             await _invoiceRepository.SaveChangesAsync();
 
-            return new CreateInvoiceResult.Success(invoice);
+            var invoiceResponseDto = MapToResponseDto(invoice);
+            return new CreateInvoiceResult.Success(invoiceResponseDto);
         }
         catch (Exception ex)
         {
@@ -68,7 +69,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
                 return new GetInvoiceResult.NotFound();
             }
 
-            return new GetInvoiceResult.Success(invoice);
+            var invoiceResponseDto = MapToResponseDto(invoice);
+            return new GetInvoiceResult.Success(invoiceResponseDto);
         }
         catch (Exception ex)
         {
@@ -106,7 +108,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             _invoiceRepository.Update(invoice);
             await _invoiceRepository.SaveChangesAsync();
 
-            return new UpdateInvoiceResult.Success(invoice);
+            var invoiceResponseDto = MapToResponseDto(invoice);
+            return new UpdateInvoiceResult.Success(invoiceResponseDto);
         }
         catch (Exception ex)
         {
@@ -132,4 +135,30 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             $"Total cost: {invoice.Cost:0.00} EUR"
         };
     }
+    private static InvoiceResponseDto MapToResponseDto(InvoiceModel invoice)
+    {
+        return new InvoiceResponseDto
+        {
+            Id = invoice.Id,
+            LicensePlate = invoice.LicensePlateId,
+
+            Started = invoice.Started.ToString("dd-MM-yyyy HH:mm"),
+            Stopped = invoice.Stopped.ToString("dd-MM-yyyy HH:mm"),
+            CreatedAt = invoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
+
+            Status = invoice.Status.ToString(),
+
+            TotalCost = invoice.Cost.HasValue
+                ? $"{invoice.Cost.Value:0.00} EUR"
+                : "0.00 EUR",
+
+            InvoiceSummary = new List<string>
+            {
+                $"Parking session from {invoice.Started:dd-MM-yyyy HH:mm} to {invoice.Stopped:dd-MM-yyyy HH:mm}",
+                $"Status: {invoice.Status}",
+                $"Total cost: {invoice.Cost:0.00} EUR"
+            }
+        };
+    }
+
 }
