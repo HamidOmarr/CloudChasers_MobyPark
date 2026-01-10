@@ -69,7 +69,7 @@ public class ParkingSessionController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _parkingSessions.StopSession(request);
+        var result = await _parkingSessions.StopSession(lotId, request);
 
         return result switch
         {
