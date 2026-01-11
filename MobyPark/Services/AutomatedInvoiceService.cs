@@ -39,7 +39,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
                 Started = invoiceDto.Started,
                 Stopped = invoiceDto.Stopped,
                 Cost = invoiceDto.Cost,
-                Status = InvoiceStatus.Pending,
+                Status = invoiceDto.Status,
                 CreatedAt = DateTimeOffset.UtcNow,
                 InvoiceSummary = GenerateInvoiceSummary(invoiceDto)
             };
@@ -47,8 +47,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             await _invoiceRepository.Create(invoice);
             await _invoiceRepository.SaveChangesAsync();
 
-            var invoiceResponseDto = MapToResponseDto(invoice);
-            return new CreateInvoiceResult.Success(invoiceResponseDto);
+            return new CreateInvoiceResult.Success(invoice);
         }
         catch (Exception ex)
         {
@@ -69,8 +68,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
                 return new GetInvoiceResult.NotFound();
             }
 
-            var invoiceResponseDto = MapToResponseDto(invoice);
-            return new GetInvoiceResult.Success(invoiceResponseDto);
+
+            return new GetInvoiceResult.Success(invoice);
         }
         catch (Exception ex)
         {
@@ -108,8 +107,8 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             _invoiceRepository.Update(invoice);
             await _invoiceRepository.SaveChangesAsync();
 
-            var invoiceResponseDto = MapToResponseDto(invoice);
-            return new UpdateInvoiceResult.Success(invoiceResponseDto);
+
+            return new UpdateInvoiceResult.Success(invoice);
         }
         catch (Exception ex)
         {
@@ -133,31 +132,6 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
         {
             $"Parking session from {invoice.Started:dd-MM-yyyy HH:mm} to {invoice.Stopped:dd-MM-yyyy HH:mm}",
             $"Total cost: {invoice.Cost:0.00} EUR"
-        };
-    }
-    private static InvoiceResponseDto MapToResponseDto(InvoiceModel invoice)
-    {
-        return new InvoiceResponseDto
-        {
-            Id = invoice.Id,
-            LicensePlate = invoice.LicensePlateId,
-
-            Started = invoice.Started.ToString("dd-MM-yyyy HH:mm"),
-            Stopped = invoice.Stopped.ToString("dd-MM-yyyy HH:mm"),
-            CreatedAt = invoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
-
-            Status = invoice.Status.ToString(),
-
-            TotalCost = invoice.Cost.HasValue
-                ? $"{invoice.Cost.Value:0.00} EUR"
-                : "0.00 EUR",
-
-            InvoiceSummary = new List<string>
-            {
-                $"Parking session from {invoice.Started:dd-MM-yyyy HH:mm} to {invoice.Stopped:dd-MM-yyyy HH:mm}",
-                $"Status: {invoice.Status}",
-                $"Total cost: {invoice.Cost:0.00} EUR"
-            }
         };
     }
 

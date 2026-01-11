@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
 using MobyPark.Services;
@@ -65,11 +66,14 @@ public class ParkingSessionController : BaseController
     }
 
     [HttpPost("{lotId}/sessions/stop")]
-    public async Task<IActionResult> StopSession(int lotId, [FromBody] StopParkingSessionDto request)
+    public async Task<IActionResult> StopSession(int SessionId, [FromBody] StopParkingSessionDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _parkingSessions.StopSession(lotId, request);
+        var result = await _parkingSessions.StopSession(SessionId, request);
+
+
+
 
         return result switch
         {
@@ -82,7 +86,17 @@ public class ParkingSessionController : BaseController
                 startedAt = success.Session.Started,
                 stoppedAt = success.Session.Stopped,
                 paymentStatus = success.Session.PaymentStatus,
-                invoice = success.Invoice
+                invoice = new
+                {
+                    id = success.Invoice.Id,
+                    parkingSessionId = success.Invoice.ParkingSessionId,
+                    licensePlateId = success.Invoice.LicensePlateId,
+                    started = success.Invoice.Started.ToString("dd-MM-yyyy HH:mm"),
+                    stopped = success.Invoice.Stopped.ToString("dd-MM-yyyy HH:mm"),
+                    totalCost = success.Invoice.Cost,
+                    status = success.Invoice.Status.ToString()
+                }
+
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
             StopSessionResult.LicensePlateNotFound => NotFound(new { error = "Active session for the provided license plate not found in this lot" }),

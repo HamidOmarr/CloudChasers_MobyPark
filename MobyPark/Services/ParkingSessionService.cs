@@ -459,7 +459,7 @@ public class ParkingSessionService : IParkingSessionService
 
         var activeSessionResult = await GetParkingSessionById(id);
         if (activeSessionResult is not GetSessionResult.Success sActive)
-            return new StopSessionResult.LotNotFound();
+            return new StopSessionResult.Error("Active session not found.");
 
         var activeSession = sActive.Session;
 
@@ -581,21 +581,32 @@ public class ParkingSessionService : IParkingSessionService
         if (!updated)
             return new StopSessionResult.Error("Failed to update session after payment.");
 
+        var invoiceStatus = activeSession.PaymentStatus switch
+        {
+            ParkingSessionStatus.Paid => InvoiceStatus.Paid,
+            ParkingSessionStatus.HotelPass => InvoiceStatus.Paid,
+            ParkingSessionStatus.PendingInvoice => InvoiceStatus.Pending,
+            _ => InvoiceStatus.Pending
+        };
+
         var createInvoiceDto = new CreateInvoiceDto
         {
             LicensePlateId = activeSession.LicensePlateNumber,
             ParkingSessionId = activeSession.Id,
             Started = activeSession.Started,
             Stopped = activeSession.Stopped.Value,
-            Cost = activeSession.Cost.Value
+            Cost = activeSession.Cost.Value,
+            Status = invoiceStatus
+
+
         };
 
         var invoiceCreateResult = await _invoiceService.CreateInvoice(createInvoiceDto);
-        InvoiceResponseDto invoiceDto;
+        InvoiceModel invoice;
 
         if (invoiceCreateResult is CreateInvoiceResult.Success sInv)
         {
-            invoiceDto = sInv.Invoice;
+            invoice = sInv.Invoice;
         }
         else
         {
@@ -603,34 +614,32 @@ public class ParkingSessionService : IParkingSessionService
             var existingInvoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(activeSession.LicensePlateNumber);
             if (existingInvoice is not null)
             {
-                invoiceDto = new InvoiceResponseDto
+                invoice = new InvoiceModel
                 {
                     Id = existingInvoice.Id,
-                    LicensePlate = existingInvoice.LicensePlateId,
-                    Started = existingInvoice.Started.ToString("dd-MM-yyyy HH:mm"),
-                    Stopped = existingInvoice.Stopped.ToString("dd-MM-yyyy HH:mm"),
-                    CreatedAt = existingInvoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
-                    Status = existingInvoice.Status.ToString(),
-                    TotalCost = existingInvoice.Cost.HasValue
-                        ? $"{existingInvoice.Cost.Value:0.00} EUR"
-                        : "0.00 EUR",
+                    LicensePlateId = existingInvoice.LicensePlateId,
+                    ParkingSessionId = existingInvoice.ParkingSessionId,
+                    Started = existingInvoice.Started,
+                    Stopped = existingInvoice.Stopped,
+                    CreatedAt = existingInvoice.CreatedAt,
+                    Status = existingInvoice.Status,
+                    Cost = existingInvoice.Cost,
                     InvoiceSummary = existingInvoice.InvoiceSummary
                 };
             }
             else
             {
                 // Create a minimal fallback invoice model so the flow can continue
-                invoiceDto = new InvoiceResponseDto
+                invoice = new InvoiceModel
                 {
                     Id = 0,
-                    LicensePlate = activeSession.LicensePlateNumber,
-                    Started = activeSession.Started.ToString("dd-MM-yyyy HH:mm"),
-                    Stopped = activeSession.Stopped?.ToString("dd-MM-yyyy HH:mm") ?? "",
-                    CreatedAt = DateTimeOffset.UtcNow.ToString("dd-MM-yyyy HH:mm"),
-                    Status = "Error",
-                    TotalCost = activeSession.Cost.HasValue
-                        ? $"{activeSession.Cost.Value:0.00} EUR"
-                        : "0.00 EUR",
+                    LicensePlateId = activeSession.LicensePlateNumber,
+                    ParkingSessionId = activeSession.Id,
+                    Started = activeSession.Started,
+                    Stopped = activeSession.Stopped.Value,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    Status = InvoiceStatus.Paid,
+                    Cost = activeSession.Cost,
                     InvoiceSummary = new List<string>
                     {
                         "Invoice generation failed."
@@ -667,7 +676,7 @@ public class ParkingSessionService : IParkingSessionService
             return new StopSessionResult.Error($"Gate error: {ex.Message}");
         }
 
-        return new StopSessionResult.Success(activeSession, totalAmount, invoiceDto);
+        return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }
 
     private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MobyPark.Models;
 
 namespace MobyPark.DTOs.Invoice;
 
@@ -18,4 +19,7 @@ public class CreateInvoiceDto
 
     [Required]
     public decimal Cost { get; set; }
+
+    [Required]
+    public InvoiceStatus Status { get; set; }
 }
