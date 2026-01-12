@@ -114,7 +114,7 @@ public class TokenService : ITokenService
         if (user.SlidingTokenExpiryTime <= DateTimeOffset.UtcNow)
             return new TokenRefreshResult.InvalidToken("Refresh token has expired due to inactivity.");
 
-        if (user.AbsoluteTokenExpiryTime <= DateTimeOffset.UtcNow)
+        if (user.AbsoluteTokenExpiryTime is not null && user.AbsoluteTokenExpiryTime <= DateTimeOffset.UtcNow)
             return new TokenRefreshResult.InvalidToken("Session has reached maximum duration (7 days).");
 
         var newJwtResult = CreateToken(user);
@@ -124,8 +124,8 @@ public class TokenService : ITokenService
         var newRefreshToken = GenerateRefreshToken();
         DateTimeOffset newSlidingExpiry = GetSlidingTokenExpiryTime();
 
-        if (newSlidingExpiry > user.AbsoluteTokenExpiryTime)
-            newSlidingExpiry = user.AbsoluteTokenExpiryTime;
+        if (user.AbsoluteTokenExpiryTime is not null && newSlidingExpiry > user.AbsoluteTokenExpiryTime.Value)
+            newSlidingExpiry = user.AbsoluteTokenExpiryTime.Value;
 
         var updateData = new TokenDto
         {

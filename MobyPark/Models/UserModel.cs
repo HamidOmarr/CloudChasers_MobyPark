@@ -49,8 +49,8 @@ public class UserModel : IHasLongId, ICanBeEdited
 
 
     public string RefreshToken { get; set; } = string.Empty;
-    public DateTimeOffset SlidingTokenExpiryTime { get; set; }
-    public DateTimeOffset AbsoluteTokenExpiryTime { get; set; }
+    public DateTimeOffset? SlidingTokenExpiryTime { get; set; }
+    public DateTimeOffset? AbsoluteTokenExpiryTime { get; set; }
 
     public const long AdminRoleId = 1;
     public const long DefaultUserRoleId = 6;  // Defaults to 'User' role

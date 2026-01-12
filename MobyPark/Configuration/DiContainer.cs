@@ -36,8 +36,8 @@ public static class DiContainer
         services.AddScoped<IBusinessService, BusinessService>();
         services.AddScoped<IBusinessParkingRegistrationService, BusinessParkingRegistrationService>();
 
-        // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
-        services.AddSingleton<ITokenService, TokenService>();
+        // JWT Token Generator: Normally Singleton, but Scoped as it depends on IRepository.
+        services.AddScoped<ITokenService, TokenService>();
 
         // Password Hasher: Must be Singleton as it is stateless and resource-intensive.
         // services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
