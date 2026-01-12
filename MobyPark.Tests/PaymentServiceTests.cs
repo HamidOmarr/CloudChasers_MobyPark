@@ -6,6 +6,7 @@ using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Payment;
 using MobyPark.Services.Results.Transaction;
+
 using Moq;
 
 namespace MobyPark.Tests;
@@ -438,7 +439,8 @@ public sealed class PaymentServiceTests
         var transaction = new TransactionModel { Id = transactionId };
 
         _mockPaymentsRepo.Setup(paymentRepo => paymentRepo.GetByPaymentId(paymentId, RequestingUserId))
-            .ReturnsAsync(() => new PaymentModel {
+            .ReturnsAsync(() => new PaymentModel
+            {
                 PaymentId = paymentId,
                 TransactionId = transactionId,
                 CompletedAt = null
@@ -537,7 +539,8 @@ public sealed class PaymentServiceTests
         var transaction = new TransactionModel { Id = transactionId };
 
         _mockPaymentsRepo.Setup(paymentRepo => paymentRepo.GetByPaymentId(paymentId, RequestingUserId))
-            .ReturnsAsync(() => new PaymentModel {
+            .ReturnsAsync(() => new PaymentModel
+            {
                 PaymentId = paymentId,
                 TransactionId = transactionId,
                 CompletedAt = null

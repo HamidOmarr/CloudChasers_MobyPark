@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
+
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories.Interfaces;
 
@@ -67,18 +69,18 @@ public class Repository<T> : IRepository<T> where T : class
         int result = await Context.SaveChangesAsync();
         return result > 0;
     }
-    
-    
-    
+
+
+
     //Methods from the class
-    
+
     //Add
     public void Add(T entity)
     {
         if (entity == null) throw new ArgumentNullException("Entity is null");
         DbSet.Add(entity);
     }
-    
+
     //Update
     public void Update(T entity) => DbSet.Update(entity);
 
@@ -98,8 +100,9 @@ public class Repository<T> : IRepository<T> where T : class
     public IEnumerable<T> GetBy(Expression<Func<T, bool>> predicate) => DbSet.Where(predicate);
     public IQueryable<T> Query() => DbSet.AsQueryable();
 
-    public Task<T?> FindByIdAsync(object id) => DbSet.FindAsync(id).AsTask();
-    public Task<List<T>> ReadAllAsync() => DbSet.ToListAsync();
-    public Task<List<T>> GetByAsync(Expression<Func<T, bool>> predicate) => DbSet.Where(predicate).ToListAsync();
-    public Task<int> SaveChangesAsync() => Context.SaveChangesAsync();
+    public async Task<T?> FindByIdAsync(object id) => await DbSet.FindAsync(id).AsTask();
+    public async Task<List<T>> ReadAllAsync() => await DbSet.ToListAsync();
+    public async Task<List<T>> GetByAsync(Expression<Func<T, bool>> predicate) => await DbSet.Where(predicate).ToListAsync();
+    public async Task<T?> GetSingleByAsync(Expression<Func<T, bool>> predicate) => await DbSet.FirstOrDefaultAsync(predicate);
+    public async Task<int> SaveChangesAsync() => await Context.SaveChangesAsync();
 }

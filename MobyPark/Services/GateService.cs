@@ -2,7 +2,7 @@ using MobyPark.Services.Interfaces;
 
 namespace MobyPark.Services;
 
-public class 
+public class
     GateService : IGateService
 {
     // Placeholder. When integrated with actual gate hardware, implement here and add tests.

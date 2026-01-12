@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+
 using MobyPark.DTOs.Hotel;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
@@ -22,7 +23,7 @@ public class HotelService : IHotelService
     {
         var parkingLotExists = await _lots.FindByIdAsync(hotel.HotelParkingLotId);
         if (parkingLotExists is null) return ServiceResult<ReadHotelDto>.NotFound("There was no parking lot found with that id");
-        
+
         var addressTaken = await _hotels.GetByAsync(x => x.Address == hotel.Address);
         if (addressTaken.Any()) return ServiceResult<ReadHotelDto>.Conflict("Address already taken");
         var parkingLotTaken = await _hotels.GetByAsync(x => x.HotelParkingLotId == hotel.HotelParkingLotId);
@@ -62,7 +63,7 @@ public class HotelService : IHotelService
                 return ServiceResult<PatchHotelDto>.Conflict("Parking lot is already taken by another hotel");
         }
         if (!string.IsNullOrWhiteSpace(hotelToUpdate.Name)) hotel.Name = hotelToUpdate.Name;
-        
+
         if (!string.IsNullOrWhiteSpace(hotelToUpdate.Address))
         {
             var addressTaken = await _hotels.GetByAsync(x => x.Address == hotelToUpdate.Address);
@@ -70,7 +71,7 @@ public class HotelService : IHotelService
                 return ServiceResult<PatchHotelDto>.Conflict(
                     "There is already another hotel registered at the newly given address");
             hotel.Address = hotelToUpdate.Address;
-}
+        }
         if (!string.IsNullOrWhiteSpace(hotelToUpdate.IBAN)) hotel.IBAN = hotelToUpdate.IBAN;
 
         _hotels.Update(hotel);
@@ -100,7 +101,7 @@ public class HotelService : IHotelService
     public async Task<ServiceResult<List<ReadHotelDto>>> GetAllHotelsAsync()
     {
         var hotels = await _hotels.ReadAllAsync();
-        
+
         return ServiceResult<List<ReadHotelDto>>.Ok(hotels.Select(x => new ReadHotelDto
         {
             Id = x.Id,

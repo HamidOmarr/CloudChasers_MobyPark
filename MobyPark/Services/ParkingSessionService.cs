@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
+
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
-using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
@@ -331,7 +331,7 @@ public class ParkingSessionService : IParkingSessionService
             if (!createdSuccessfully)
             {
                 var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-                await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
+                await _parkingLots.PatchParkingLotByIdAsync(lot.Id, rollback);
                 return new PersistSessionResult.Error("Failed to persist parking session (database error).");
             }
             session.Id = id;
@@ -341,7 +341,7 @@ public class ParkingSessionService : IParkingSessionService
         catch (Exception ex)
         {
             var rollback = new PatchParkingLotDto { Reserved = Math.Max(0, newReservedCount - 1) };
-            await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
+            await _parkingLots.PatchParkingLotByIdAsync(lot.Id, rollback);
 
             return new PersistSessionResult.Error(ex.Message);
         }
@@ -483,7 +483,7 @@ public class ParkingSessionService : IParkingSessionService
 
         DateTimeOffset chargeFrom;
         DateTimeOffset end = DateTime.UtcNow;
-        decimal totalAmount = 0m;
+        decimal totalAmount;
         bool paymentPerformed = false;
 
         if (activeSession.HotelPassId.HasValue)

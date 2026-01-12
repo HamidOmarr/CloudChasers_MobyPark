@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.Hotel;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
@@ -12,7 +13,7 @@ namespace MobyPark.Controllers;
 public class HotelsController : BaseController
 {
     private readonly IHotelService _hotelService;
-    
+
     public HotelsController(IUserService users, IHotelService hotelService) : base(users)
     {
         _hotelService = hotelService;
@@ -25,10 +26,10 @@ public class HotelsController : BaseController
         var result = await _hotelService.CreateHotelAsync(hotel);
         return result.Status switch
         {
-            ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelById), new { id = result.Data!.Id }, result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => CreatedAtAction(nameof(GetHotelById), new { id = result.Data!.Id }, result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };

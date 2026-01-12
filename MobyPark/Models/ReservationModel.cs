@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
+
 using NpgsqlTypes;
 
 namespace MobyPark.Models;
@@ -49,5 +51,5 @@ public class ReservationModel : IHasLongId, ICanBeEdited
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     [Required]
-    public decimal Cost { get; set; } = 0m;
+    public decimal Cost { get; set; }
 }

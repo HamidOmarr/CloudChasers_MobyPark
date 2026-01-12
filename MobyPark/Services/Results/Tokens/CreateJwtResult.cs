@@ -1,4 +1,4 @@
-namespace MobyPark.Services.Results.Session;
+namespace MobyPark.Services.Results.Tokens;
 
 public abstract record CreateJwtResult
 {

@@ -1,13 +1,11 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using MockQueryable.Moq;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MobyPark.Models;
+﻿using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Results;
+
+using MockQueryable.Moq;
+
+using Moq;
 
 namespace MobyPark.Tests;
 
@@ -16,14 +14,14 @@ public sealed class BusinessServiceTests
 {
     #region Setup
     private Mock<IRepository<BusinessModel>> _mockBusinessRepo = null!;
-    
+
     private BusinessService _businessService = null!;
 
     [TestInitialize]
     public void TestInitialize()
     {
         _mockBusinessRepo = new Mock<IRepository<BusinessModel>>();
-        
+
         _businessService = new BusinessService(_mockBusinessRepo.Object);
     }
     #endregion

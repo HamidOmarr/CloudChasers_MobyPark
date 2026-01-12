@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using MobyPark.DTOs.Business;
+﻿using MobyPark.DTOs.Business;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
@@ -20,8 +18,8 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
         _userRepo = userRepo;
         _businessRepo = businessRepo;
     }
-    
-    
+
+
     //AdminCreateBusinessRegistrationForPlateAsync
     public async Task<ServiceResult<ReadBusinessRegDto>> CreateBusinessRegistrationAdminAsync(CreateBusinessRegAdminDto bReg)
     {
@@ -37,7 +35,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 return ServiceResult<ReadBusinessRegDto>.Conflict(
                     "This licenseplate already has a business registration at this business, patch it instead");
             var alreadyActive = (await _regRepo.GetByAsync(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true)).FirstOrDefault();
-            if(alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
+            if (alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
                 "This licenseplate already has an active business registration, deactivate that one first");
             var reg = new BusinessParkingRegistrationModel
             {
@@ -57,7 +55,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 LastSinceActive = reg.LastSinceActive
             });
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
@@ -69,7 +67,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
         try
         {
             var user = await _userRepo.FindByIdAsync(currentUserId);
-            
+
             if (user is null) return ServiceResult<ReadBusinessRegDto>.NotFound("user not found");
             if (user.BusinessId is null)
             {
@@ -78,9 +76,9 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             }
             var business = await _businessRepo.FindByIdAsync(user.BusinessId.Value);
             if (business is null) return ServiceResult<ReadBusinessRegDto>.NotFound("business not found");
-            
+
             var alreadyActive = (await _regRepo.GetByAsync(x => x.LicensePlateNumber == bReg.LicensePlateNumber && x.Active == true)).FirstOrDefault();
-            if(alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
+            if (alreadyActive is not null) return ServiceResult<ReadBusinessRegDto>.Conflict(
                 "This licenseplate already has an active business registration, deactivate that one first");
 
             var reg = new BusinessParkingRegistrationModel
@@ -92,7 +90,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
 
             _regRepo.Add(reg);
             await _regRepo.SaveChangesAsync();
-            
+
             return ServiceResult<ReadBusinessRegDto>.Ok(new ReadBusinessRegDto
             {
                 Id = reg.Id,
@@ -103,12 +101,12 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             });
 
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     //AdminPatchBusinessRegistrationAsync
     public async Task<ServiceResult<ReadBusinessRegDto>> SetBusinessRegistrationActiveAdminAsync(
         PatchBusinessRegDto bReg)
@@ -121,7 +119,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             reg.Active = bReg.Active;
             _regRepo.Update(reg);
             await _regRepo.SaveChangesAsync();
-        
+
             return ServiceResult<ReadBusinessRegDto>.Ok(new ReadBusinessRegDto
             {
                 Id = reg.Id,
@@ -131,13 +129,13 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 LastSinceActive = reg.LastSinceActive
             });
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     //PatchBusinessRegistrationAsync
     public async Task<ServiceResult<ReadBusinessRegDto>> SetBusinessRegistrationActiveAsync(
         PatchBusinessRegDto bReg, long currentUserId)
@@ -145,7 +143,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
         try
         {
             var user = await _userRepo.FindByIdAsync(currentUserId);
-            
+
             if (user is null) return ServiceResult<ReadBusinessRegDto>.NotFound("user not found");
             if (user.BusinessId is null)
             {
@@ -154,16 +152,16 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
             }
             var business = await _businessRepo.FindByIdAsync(user.BusinessId.Value);
             if (business is null) return ServiceResult<ReadBusinessRegDto>.NotFound("business not found");
-            
+
             var reg = await _regRepo.FindByIdAsync(bReg.Id);
             if (reg is null)
                 return ServiceResult<ReadBusinessRegDto>.NotFound("No business parking registration found with that id");
-            if(reg.BusinessId != business.Id) return ServiceResult<ReadBusinessRegDto>.Conflict("This user is not authorized to update this registration");
-            
+            if (reg.BusinessId != business.Id) return ServiceResult<ReadBusinessRegDto>.Conflict("This user is not authorized to update this registration");
+
             reg.Active = bReg.Active;
             _regRepo.Update(reg);
             await _regRepo.SaveChangesAsync();
-        
+
             return ServiceResult<ReadBusinessRegDto>.Ok(new ReadBusinessRegDto
             {
                 Id = reg.Id,
@@ -172,13 +170,14 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 Active = reg.Active,
                 LastSinceActive = reg.LastSinceActive
             });
-        } catch (Exception err)
+        }
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     //AdminDeleteBusinessRegistrationAsync
     public async Task<ServiceResult<bool>> AdminDeleteBusinessRegistrationAsync(
         long id)
@@ -193,13 +192,13 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
 
             return ServiceResult<bool>.Ok(true);
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<bool>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     //GetBusinessRegistrationByIdAsync
     public async Task<ServiceResult<ReadBusinessRegDto>> GetBusinessRegistrationByIdAsync(long id)
     {
@@ -216,7 +215,7 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 LastSinceActive = reg.LastSinceActive
             });
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
@@ -237,10 +236,10 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 Active = x.Active,
                 LastSinceActive = x.LastSinceActive
             }).ToList();
-            
+
             return ServiceResult<List<ReadBusinessRegDto>>.Ok(dtoList);
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<List<ReadBusinessRegDto>>.Exception("Unexpected error occurred.");
         }
@@ -261,10 +260,10 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 Active = x.Active,
                 LastSinceActive = x.LastSinceActive
             }).ToList();
-            
+
             return ServiceResult<List<ReadBusinessRegDto>>.Ok(dtoList);
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<List<ReadBusinessRegDto>>.Exception("Unexpected error occurred.");
         }
@@ -286,10 +285,10 @@ public class BusinessParkingRegistrationService : IBusinessParkingRegistrationSe
                 LastSinceActive = reg.LastSinceActive
             });
         }
-        catch (Exception err)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessRegDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
 }
