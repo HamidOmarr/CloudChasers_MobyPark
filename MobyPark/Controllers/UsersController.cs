@@ -15,9 +15,9 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly TokenService _tokenService;
+    private readonly ITokenService _tokenService;
 
-    public UsersController(IUserService users, TokenService tokens) : base(users)
+    public UsersController(IUserService users, ITokenService tokens) : base(users)
     {
         _tokenService = tokens;
     }
