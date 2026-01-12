@@ -35,7 +35,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       DB_HOST: mobypark-db
-    entrypoint: [ "/bin/bash", "/restore.sh" ]
+    entrypoint: [ "/bin/sh", "/restore.sh" ]
     mem_limit: 64m
     cpus: 0.75
     pids_limit: 20

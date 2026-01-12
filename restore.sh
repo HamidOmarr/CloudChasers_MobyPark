@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 DB_HOST=${DB_HOST}
 DB_USER=${POSTGRES_USER}
