@@ -3,6 +3,7 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Results.LicensePlate;
+
 using Moq;
 
 namespace MobyPark.Tests;
@@ -23,7 +24,7 @@ public class LicensePlateServiceTests
 
     #endregion
 
-    
+
     #region Create
 
     [TestMethod]

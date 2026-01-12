@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Models;
-using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.ParkingSession;
-using MobyPark.Validation;
 
 namespace MobyPark.Services;
 
@@ -34,7 +32,7 @@ public class ParkingLotService : IParkingLotService
             var lot = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
             if (lot is null) return ServiceResult<ReadParkingLotDto>.NotFound($"No parking lot found at address {address}");
 
-            return ServiceResult<ReadParkingLotDto>.Ok( new ReadParkingLotDto
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
             {
                 Id = lot.Id,
                 Name = lot.Name,
@@ -46,13 +44,13 @@ public class ParkingLotService : IParkingLotService
                 DayTariff = lot.DayTariff
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     public async Task<ServiceResult<ReadParkingLotDto>> GetParkingLotByIdAsync(long id)
     {
         try
@@ -60,7 +58,7 @@ public class ParkingLotService : IParkingLotService
             var lot = await _parkingRepo.FindByIdAsync(id);
             if (lot is null) return ServiceResult<ReadParkingLotDto>.NotFound($"No lot with id: {id} found.");
 
-            return ServiceResult<ReadParkingLotDto>.Ok( new ReadParkingLotDto
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
             {
                 Id = lot.Id,
                 Name = lot.Name,
@@ -72,18 +70,18 @@ public class ParkingLotService : IParkingLotService
                 DayTariff = lot.DayTariff
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadParkingLotDto>.Fail("Unexpected error occurred.");
         }
-        
+
     }
 
     [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<ReadParkingLotDto>> CreateParkingLotAsync(CreateParkingLotDto parkingLot)
     {
         var normalized = parkingLot.Address.Trim().ToLower();
-        
+
         try
         {
             var exists = (await _parkingRepo.GetByAsync(x => x.Address.ToLower() == normalized)).FirstOrDefault();
@@ -103,7 +101,8 @@ public class ParkingLotService : IParkingLotService
             _parkingRepo.Add(lot);
             await _parkingRepo.SaveChangesAsync();
 
-            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
                 Id = lot.Id,
                 Name = lot.Name,
                 Location = lot.Location,
@@ -115,14 +114,14 @@ public class ParkingLotService : IParkingLotService
             })
             ;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadParkingLotDto>.Fail("Unexpected error occurred.");
         }
     }
 
     [Authorize("CanManageParkingLots")]
-    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot) 
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByAddressAsync(string address, PatchParkingLotDto updateLot)
     {
         var normalized = address.Trim().ToLower();
         try
@@ -147,26 +146,27 @@ public class ParkingLotService : IParkingLotService
 
             _parkingRepo.Update(exists);
             await _parkingRepo.SaveChangesAsync();
-            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
-                    Id = exists.Id,
-                    Name = exists.Name,
-                    Location = exists.Location,
-                    Address = exists.Address,
-                    Reserved = exists.Reserved,
-                    Capacity = exists.Capacity,
-                    Tariff = exists.Tariff,
-                    DayTariff = exists.DayTariff
-                });
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = exists.Id,
+                Name = exists.Name,
+                Location = exists.Location,
+                Address = exists.Address,
+                Reserved = exists.Reserved,
+                Capacity = exists.Capacity,
+                Tariff = exists.Tariff,
+                DayTariff = exists.DayTariff
+            });
         }
-        
-        catch (Exception ex)
+
+        catch (Exception)
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     [Authorize("CanManageParkingLots")]
-    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot) 
+    public async Task<ServiceResult<ReadParkingLotDto>> PatchParkingLotByIdAsync(long id, PatchParkingLotDto updateLot)
     {
         try
         {
@@ -190,19 +190,20 @@ public class ParkingLotService : IParkingLotService
 
             _parkingRepo.Update(exists);
             await _parkingRepo.SaveChangesAsync();
-            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto{
-                    Id = exists.Id,
-                    Name = exists.Name,
-                    Location = exists.Location,
-                    Address = exists.Address,
-                    Reserved = exists.Reserved,
-                    Capacity = exists.Capacity,
-                    Tariff = exists.Tariff,
-                    DayTariff = exists.DayTariff
-                });
+            return ServiceResult<ReadParkingLotDto>.Ok(new ReadParkingLotDto
+            {
+                Id = exists.Id,
+                Name = exists.Name,
+                Location = exists.Location,
+                Address = exists.Address,
+                Reserved = exists.Reserved,
+                Capacity = exists.Capacity,
+                Tariff = exists.Tariff,
+                DayTariff = exists.DayTariff
+            });
         }
-        
-        catch (Exception ex)
+
+        catch (Exception)
         {
             return ServiceResult<ReadParkingLotDto>.Exception("Unexpected error occurred.");
         }
@@ -220,12 +221,12 @@ public class ParkingLotService : IParkingLotService
             await _parkingRepo.SaveChangesAsync();
             return ServiceResult<bool>.Ok(true);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<bool>.Fail("Unexpected error occurred.");
         }
     }
-    
+
     [Authorize("CanManageParkingLots")]
     public async Task<ServiceResult<bool>> DeleteParkingLotByAddressAsync(string address)
     {
@@ -239,7 +240,7 @@ public class ParkingLotService : IParkingLotService
             await _parkingRepo.SaveChangesAsync();
             return ServiceResult<bool>.Ok(true);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<bool>.Fail("Unexpected error occurred.");
         }
@@ -265,12 +266,12 @@ public class ParkingLotService : IParkingLotService
             return ServiceResult<List<ReadParkingLotDto>>.Ok(lotList);
 
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<List<ReadParkingLotDto>>.Fail("Unexpected error occurred.");
         }
     }
-    
+
     public async Task<ServiceResult<int>> GetAvailableSpotsByLotIdAsync(long id)
     {
         var lot = await _parkingRepo.FindByIdAsync(id);
@@ -343,7 +344,7 @@ public class ParkingLotService : IParkingLotService
 
         return ServiceResult<int>.Ok(availableSpots);
     }
-    
+
     public async Task<ServiceResult<int>> GetAvailableSpotsForPeriodAsync(
         long lotId,
         DateTime start,
@@ -364,7 +365,7 @@ public class ParkingLotService : IParkingLotService
             x.Started < end
         );
         int activeSessions = overlappingSessions.Count();
-        
+
         var overlappingReservations = await _reservationRepo.GetByAsync(x =>
             x.ParkingLotId == lotId &&
             (x.Status == ReservationStatus.Pending ||

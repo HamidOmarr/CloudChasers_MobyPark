@@ -1,23 +1,24 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using IbanNet;
+
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
-using MobyPark.Services.Results;
-using IbanNet;
 using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results;
 
 namespace MobyPark.Services;
 
-public class BusinessService :IBusinessService
+public class BusinessService : IBusinessService
 {
     private readonly IRepository<BusinessModel> _businessRepo;
-    private static readonly IbanValidator _ibanValidator = new();
+    private static readonly IbanValidator IbanValidator = new();
 
     public BusinessService(IRepository<BusinessModel> businessRepo)
     {
         _businessRepo = businessRepo;
     }
-    
+
     //Create business
     public async Task<ServiceResult<ReadBusinessDto>> CreateBusinessAsync(CreateBusinessDto business)
     {
@@ -28,9 +29,9 @@ public class BusinessService :IBusinessService
             if (addressTaken != null)
                 return ServiceResult<ReadBusinessDto>.Conflict(
                     "There is already a business with that address in the system");
-            var ibanValid = _ibanValidator.Validate(business.IBAN.Trim());
-            if(!ibanValid.IsValid) return ServiceResult<ReadBusinessDto>.BadRequest(
-                "Invalid IBAN provided"); 
+            var ibanValid = IbanValidator.Validate(business.IBAN.Trim());
+            if (!ibanValid.IsValid) return ServiceResult<ReadBusinessDto>.BadRequest(
+                "Invalid IBAN provided");
 
             var newBusiness = new BusinessModel
             {
@@ -50,12 +51,12 @@ public class BusinessService :IBusinessService
                 IBAN = newBusiness.IBAN
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     //Patch business
     public async Task<ServiceResult<ReadBusinessDto>> PatchBusinessAsync(long id, PatchBusinessDto businessPatch)
     {
@@ -63,7 +64,7 @@ public class BusinessService :IBusinessService
         {
             var business = await _businessRepo.FindByIdAsync(id);
             if (business is null) return ServiceResult<ReadBusinessDto>.NotFound("No business found with that id");
-            if(!string.IsNullOrWhiteSpace(businessPatch.Address))
+            if (!string.IsNullOrWhiteSpace(businessPatch.Address))
             {
                 var normalizedAddress = businessPatch.Address.Trim().ToLower();
                 var addressTaken = await _businessRepo.Query().Where(x => x.Address.ToLower() == normalizedAddress).FirstOrDefaultAsync();
@@ -73,8 +74,8 @@ public class BusinessService :IBusinessService
             if (!string.IsNullOrWhiteSpace(businessPatch.Name)) business.Name = businessPatch.Name.Trim();
             if (!string.IsNullOrWhiteSpace(businessPatch.IBAN))
             {
-                var ibanValid = _ibanValidator.Validate(businessPatch.IBAN.Trim());
-                if(!ibanValid.IsValid) return ServiceResult<ReadBusinessDto>.BadRequest(
+                var ibanValid = IbanValidator.Validate(businessPatch.IBAN.Trim());
+                if (!ibanValid.IsValid) return ServiceResult<ReadBusinessDto>.BadRequest(
                     "Invalid IBAN provided");
                 business.IBAN = businessPatch.IBAN.Trim();
             }
@@ -90,13 +91,13 @@ public class BusinessService :IBusinessService
                 IBAN = business.IBAN
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessDto>.Exception("Unexpected error occurred.");
         }
-        
+
     }
-    
+
     //Delete business
     public async Task<ServiceResult<bool>> DeleteBusinessByIdAsync(long id)
     {
@@ -107,12 +108,13 @@ public class BusinessService :IBusinessService
             _businessRepo.Deletee(business);
             await _businessRepo.SaveChangesAsync();
             return ServiceResult<bool>.Ok(true);
-        } catch (Exception ex)
+        }
+        catch (Exception)
         {
             return ServiceResult<bool>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     //GetAllBusinesses
     public async Task<ServiceResult<List<ReadBusinessDto>>> GetAllAsync()
     {
@@ -129,7 +131,7 @@ public class BusinessService :IBusinessService
 
             return ServiceResult<List<ReadBusinessDto>>.Ok(dtoList);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<List<ReadBusinessDto>>.Exception("Unexpected error occurred.");
         }
@@ -149,12 +151,12 @@ public class BusinessService :IBusinessService
                 IBAN = business.IBAN
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessDto>.Exception("Unexpected error occurred.");
         }
     }
-    
+
     //GetBusinessByAddress
     public async Task<ServiceResult<ReadBusinessDto>> GetBusinessByAddressAsync(string address)
     {
@@ -172,7 +174,7 @@ public class BusinessService :IBusinessService
                 IBAN = business.IBAN
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return ServiceResult<ReadBusinessDto>.Exception("Unexpected error occurred.");
         }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.Role.Request;
 using MobyPark.DTOs.RolePermission.Request;
 using MobyPark.Services.Interfaces;
@@ -123,7 +124,8 @@ public class RolesController : ControllerBase
     {
         var result = await _roles.RoleExists(checkBy, value);
 
-        return result switch {
+        return result switch
+        {
             RoleExistsResult.Exists => Ok(new { exists = true }),
             RoleExistsResult.NotExists => Ok(new { exists = false }),
             RoleExistsResult.InvalidInput invalid => BadRequest(new { error = invalid.Message }),
@@ -140,7 +142,7 @@ public class RolesController : ControllerBase
         {
             GetRolePermissionListResult.Success s => Ok(s.RolePermissions), // Consider returning PermissionModels instead?
             GetRolePermissionListResult.NotFound => NotFound(new { error = "No permissions found for this role." }),
-             GetRolePermissionListResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            GetRolePermissionListResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
         };
     }

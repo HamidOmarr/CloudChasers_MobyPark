@@ -1,4 +1,5 @@
 using System.Text;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -86,7 +87,7 @@ public static class ServiceExtensions
                 policy => { policy.RequireClaim("Permission", "FINANCE:VIEW_SELF"); })
             .AddPolicy("CanManageHotels", policy => { policy.RequireClaim("Permission", "HOTELS:MANAGE"); })
             .AddPolicy("CanManageHotelPasses", policy => { policy.RequireClaim("Permission", "HOTELPASSES:MANAGE"); });
-        
+
         services.AddMobyParkServices(configuration);
         services.AddSwaggerAuthorization();
 

@@ -19,5 +19,5 @@ public class CreateParkingLotDto
     [Required, Range(0, 100)]
     public decimal Tariff { get; set; } = 1.0m;
 
-    public decimal? DayTariff { get; set; } = null;
+    public decimal? DayTariff { get; set; }
 }

@@ -1,8 +1,9 @@
 ﻿using System.Security.Claims;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.Hotel;
-using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 
@@ -13,12 +14,12 @@ namespace MobyPark.Controllers;
 public class HotelPassesController : BaseController
 {
     private readonly IHotelPassService _hotelPassService;
-    
+
     public HotelPassesController(IUserService users, IHotelPassService hotelPassService) : base(users)
     {
         _hotelPassService = hotelPassService;
     }
-    
+
     [HttpPost]
     [Authorize(Policy = "CanManageHotels")]
     public async Task<IActionResult> CreateHotelPass([FromBody] AdminCreateHotelPassDto pass)
@@ -26,10 +27,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.CreateHotelPassAsync(pass);
         return result.Status switch
         {
-            ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -43,10 +44,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.CreateHotelPassAsync(pass, currentUserId);
         return result.Status switch
         {
-            ServiceStatus.Success   => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => CreatedAtAction(nameof(GetHotelPassById), new { id = result.Data!.Id }, result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -58,10 +59,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.GetHotelPassByIdAsync(id);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -73,10 +74,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.GetHotelPassesByParkingLotIdAsync(parkingLotId);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -88,10 +89,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.GetHotelPassesByLicensePlateAsync(plate);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -104,10 +105,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.GetActiveHotelPassByLicensePlateAndLotIdAsync(id, plate);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -120,15 +121,15 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.PatchHotelPassAsync(pass);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
     }
-    
+
     [HttpPatch("self")]
     [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> PatchHotelPassAsHotel([FromBody] PatchHotelPassDto pass)
@@ -137,10 +138,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.PatchHotelPassAsync(pass, currentUserId);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             ServiceStatus.Forbidden => StatusCode(403, result.Error),
             _ => BadRequest("Unknown error")
@@ -154,10 +155,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.DeleteHotelPassByIdAsync(id);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             _ => BadRequest("Unknown error")
         };
@@ -171,10 +172,10 @@ public class HotelPassesController : BaseController
         var result = await _hotelPassService.DeleteHotelPassByIdAsync(id, currentUserId);
         return result.Status switch
         {
-            ServiceStatus.Success   => Ok(result.Data),
-            ServiceStatus.NotFound  => NotFound(result.Error),
+            ServiceStatus.Success => Ok(result.Data),
+            ServiceStatus.NotFound => NotFound(result.Error),
             ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail      => Conflict(result.Error),
+            ServiceStatus.Fail => Conflict(result.Error),
             ServiceStatus.Exception => StatusCode(500, result.Error),
             ServiceStatus.Forbidden => StatusCode(403, result.Error),
             _ => BadRequest("Unknown error")

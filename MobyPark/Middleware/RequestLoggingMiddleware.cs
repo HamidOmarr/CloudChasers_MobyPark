@@ -1,4 +1,5 @@
 ﻿using System.Text;
+
 using MobyPark.Models;
 using MobyPark.Models.DbContext;
 
@@ -12,11 +13,11 @@ public class RequestLoggingMiddleware
     {
         _next = next;
     }
-    
+
     public async Task InvokeAsync(HttpContext context, AppDbContext db)
     {
         //dit moet omdat de json body maar 1 keer leesbaar is en anders nooit door zou worden gegeven aan de controller 
-        context.Request.EnableBuffering(); 
+        context.Request.EnableBuffering();
 
         string body = "";
         if (context.Request.ContentLength > 0)
@@ -30,9 +31,9 @@ public class RequestLoggingMiddleware
             body = await reader.ReadToEndAsync();
             context.Request.Body.Position = 0; //zet de leespositie weer bovenaan zodat controller de juiste info leest
         }
-        
+
         await _next(context);
-        
+
         var log = new ApiLoggingModel
         {
             InputBody = body,

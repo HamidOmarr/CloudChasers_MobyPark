@@ -1,4 +1,5 @@
 using System.Transactions;
+
 using MobyPark.DTOs.Payment.Request;
 using MobyPark.DTOs.Transaction.Request;
 using MobyPark.Models;
@@ -139,7 +140,8 @@ public class PaymentService : IPaymentService
         var getResult = await GetPaymentById(paymentId.ToString(), requestingUserId);
         if (getResult is not GetPaymentResult.Success successResult)
         {
-            return getResult switch {
+            return getResult switch
+            {
                 GetPaymentResult.NotFound => new UpdatePaymentResult.NotFound(),
                 GetPaymentResult.InvalidInput err => new UpdatePaymentResult.Error(err.Message),
                 _ => new UpdatePaymentResult.Error("Failed to retrieve payment.")
@@ -167,9 +169,9 @@ public class PaymentService : IPaymentService
     public async Task<ValidatePaymentResult> ValidatePayment(Guid paymentId, TransactionDataDto dto, long requestingUserId)
     {
         var getResult = await GetPaymentById(paymentId.ToString(), requestingUserId);
-         if (getResult is GetPaymentResult.NotFound)
+        if (getResult is GetPaymentResult.NotFound)
             return new ValidatePaymentResult.NotFound();
-         if (getResult is GetPaymentResult.InvalidInput)
+        if (getResult is GetPaymentResult.InvalidInput)
             return new ValidatePaymentResult.Error("Invalid Payment ID format.");
 
         var payment = ((GetPaymentResult.Success)getResult).Payment;

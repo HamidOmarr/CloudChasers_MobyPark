@@ -5,19 +5,19 @@ namespace MobyPark.DTOs.Hotel;
 public class CreateHotelPassDto
 {
     [Required]
-    public string LicensePlate { get; set; }
+    public string LicensePlate { get; set; } = string.Empty;
     [Required]
     public DateTime Start { get; set; }
     [Required]
     public DateTime End { get; set; }
 
-    public TimeSpan ExtraTime { get; set; } = new TimeSpan(0, 30, 0);
+    public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
 }
 
 public class AdminCreateHotelPassDto
 {
     [Required]
-    public string LicensePlate { get; set; }
+    public string LicensePlate { get; set; } = string.Empty;
     [Required]
     public long ParkingLotId { get; set; }
     [Required]
@@ -25,7 +25,7 @@ public class AdminCreateHotelPassDto
     [Required]
     public DateTime End { get; set; }
 
-    public TimeSpan ExtraTime { get; set; } = new TimeSpan(0, 30, 0);
+    public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
 }
 
 public class ReadHotelPassDto
@@ -33,7 +33,7 @@ public class ReadHotelPassDto
     [Required]
     public long Id { get; set; }
     [Required]
-    public string LicensePlate { get; set; }
+    public string LicensePlate { get; set; } = string.Empty;
     [Required]
     public long ParkingLotId { get; set; }
     [Required]

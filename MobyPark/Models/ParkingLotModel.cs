@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
+
 using NpgsqlTypes;
 
 namespace MobyPark.Models;
@@ -30,16 +32,16 @@ public class ParkingLotModel : IHasLongId, ICanBeEdited
     public string Address { get; set; } = string.Empty;
 
     [Required]
-    public int Capacity { get; set; } = 0;
+    public int Capacity { get; set; }
 
     [Required]
-    public int Reserved { get; set; } = 0;
+    public int Reserved { get; set; }
 
     [NotMapped]
     public int AvailableSpots => Capacity - Reserved;
 
     [Required]
-    public decimal Tariff { get; set; } = 0m;
+    public decimal Tariff { get; set; }
 
     public decimal? DayTariff { get; set; }
 

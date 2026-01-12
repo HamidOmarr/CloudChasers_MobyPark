@@ -10,7 +10,7 @@ public class UserBusinessProfileDto
     public string Phone { get; set; } = string.Empty;
     public DateTimeOffset Birthday { get; set; } = DateTimeOffset.MinValue;
     public long BusinessId { get; set; }
-    public string BusinessName { get; set; }
-    public string BusinessAddress { get; set; }
-    public string BusinessIBAN { get; set; }
+    public string BusinessName { get; set; } = string.Empty;
+    public string BusinessAddress { get; set; } = string.Empty;
+    public string BusinessIBAN { get; set; } = string.Empty;
 }

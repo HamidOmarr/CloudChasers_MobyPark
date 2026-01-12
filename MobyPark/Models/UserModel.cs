@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
@@ -37,15 +38,20 @@ public class UserModel : IHasLongId, ICanBeEdited
 
     public DateTimeOffset Birthday { get; set; } = DateTimeOffset.MinValue;  // TODO: Set up default value, update later
 
-    public long? HotelId { get; set; } = null;
-    
+    public long? HotelId { get; set; }
+
     [ForeignKey(nameof(HotelId))]
     public HotelModel? Hotel { get; set; }
 
-    public long? BusinessId { get; set; } = null;
+    public long? BusinessId { get; set; }
     [ForeignKey(nameof(BusinessId))]
     public BusinessModel? Business { get; set; }
-    
+
+
+    public string RefreshToken { get; set; } = string.Empty;
+    public DateTimeOffset? SlidingTokenExpiryTime { get; set; }
+    public DateTimeOffset? AbsoluteTokenExpiryTime { get; set; }
+
     public const long AdminRoleId = 1;
     public const long DefaultUserRoleId = 6;  // Defaults to 'User' role
 }

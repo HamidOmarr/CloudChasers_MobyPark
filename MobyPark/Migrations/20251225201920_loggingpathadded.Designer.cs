@@ -13,7 +13,7 @@ namespace MobyPark.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20251225201920_loggingpathadded")]
-    partial class loggingpathadded
+    partial class LoggingPathAdded
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

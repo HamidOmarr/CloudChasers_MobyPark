@@ -1,7 +1,11 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+
+using MobyPark.DTOs.Token;
+
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
@@ -9,7 +13,7 @@ using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 using MobyPark.Validation;
 
@@ -22,7 +26,7 @@ public partial class UserService : IUserService
     private readonly IParkingSessionRepository _parkingSessions;
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher<UserModel> _hasher;
-    private readonly ISessionService _sessions;
+    private readonly ITokenService _tokens;
     private readonly IRepository<HotelModel> _hotels;
     private readonly IRepository<BusinessModel> _businesses;
 
@@ -49,14 +53,14 @@ public partial class UserService : IUserService
         IParkingSessionRepository parkingSessions,
         IRoleRepository roles,
         IPasswordHasher<UserModel> hasher,
-        ISessionService sessions, IRepository<HotelModel> hotels, IRepository<BusinessModel> businesses)
+        ITokenService tokens, IRepository<HotelModel> hotels, IRepository<BusinessModel> businesses)
     {
         _users = users;
         _userPlates = userPlates;
         _parkingSessions = parkingSessions;
         _roles = roles;
         _hasher = hasher;
-        _sessions = sessions;
+        _tokens = tokens;
         _hotels = hotels;
         _businesses = businesses;
     }
@@ -178,9 +182,11 @@ public partial class UserService : IUserService
 
         try
         {
-            UserModel createdUser = await CreateUser(user);
+            UserModel? createdUser = await CreateUser(user);
             // Reload model to include role and permissions. Needed to create a session with the correct claims.
             createdUser = await _users.GetByIdWithRoleAndPermissions(createdUser.Id);
+            if (createdUser is null)
+                return new RegisterResult.Error("Failed to create user due to database issue.");
 
             if (string.IsNullOrWhiteSpace(dto.LicensePlate))
                 return new RegisterResult.Success(createdUser);
@@ -240,21 +246,44 @@ public partial class UserService : IUserService
         var verification = _hasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
         if (verification == PasswordVerificationResult.Failed)
             return new LoginResult.InvalidCredentials();
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = _hasher.HashPassword(user, dto.Password);
+            _users.Update(user);
+        }
 
         // Reload model to include role and permissions. Needed to create a session with the correct claims.
+        // Double check for race condition. If that happens, return invalid credentials to avoid giving too much info.
         user = await _users.GetByIdWithRoleAndPermissions(user.Id);
+        if (user is null)
+            return new LoginResult.InvalidCredentials();
 
-        var tokenResult = _sessions.CreateSession(user);
-
+        var tokenResult = _tokens.CreateToken(user);
         if (tokenResult is not CreateJwtResult.Success success)
-            return new LoginResult.Error("Failed to create authentication token.");
+            return new LoginResult.Error("Log in failed.");
+
+        var refreshToken = _tokens.GenerateRefreshToken();
+        var slidingExpiry = _tokens.GetSlidingTokenExpiryTime();
+        var absoluteExpiry = _tokens.GetAbsoluteTokenExpiryTime();
+
+        var updateData = new TokenDto
+        {
+            RefreshToken = refreshToken,
+            SlidingTokenExpiryTime = slidingExpiry,
+            AbsoluteTokenExpiryTime = absoluteExpiry
+        };
+
+        bool updated = await _users.Update(user, updateData);
+        if (!updated)
+            return new LoginResult.Error("Log in failed.");
 
         var response = new AuthDto
         {
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email,
-            Token = success.JwtToken
+            Token = success.JwtToken,
+            RefreshToken = refreshToken
         };
 
         return new LoginResult.Success(response);
@@ -387,7 +416,7 @@ public partial class UserService : IUserService
     {
         var user = await _users.FindByIdAsync(userId);
         if (user is null) return ServiceResult<UserHotelProfileDto>.NotFound("no user found with that id");
-        
+
         var hotel = await _hotels.FindByIdAsync(hotelId);
         if (hotel is null) return ServiceResult<UserHotelProfileDto>.NotFound("no hotel found with that id");
 
@@ -437,7 +466,7 @@ public partial class UserService : IUserService
             BusinessName = business.Name,
             BusinessAddress = business.Address,
             BusinessIBAN = business.IBAN,
-        }); 
+        });
     }
 
     private static UpdateUserResult ValidatePasswordIntegrity(string password)

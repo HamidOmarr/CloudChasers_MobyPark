@@ -3,7 +3,6 @@ using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Permission;
-using MobyPark.Services.Results.RolePermission;
 using MobyPark.Validation;
 
 namespace MobyPark.Services;
@@ -88,7 +87,7 @@ public class PermissionService : IPermissionService
     {
         try
         {
-             var permissions = await _permissions.GetByRoleId(roleId);
+            var permissions = await _permissions.GetByRoleId(roleId);
             if (permissions.Count == 0)
                 return new GetPermissionListResult.NotFound();
             return new GetPermissionListResult.Success(permissions);
@@ -138,7 +137,8 @@ public class PermissionService : IPermissionService
         var getResult = await GetPermissionById(id);
         if (getResult is not GetPermissionResult.Success success)
         {
-            return getResult switch {
+            return getResult switch
+            {
                 GetPermissionResult.NotFound => new DeletePermissionResult.NotFound(),
                 GetPermissionResult.InvalidInput invalid => new DeletePermissionResult.Error(invalid.Message),
                 _ => new DeletePermissionResult.Error("Failed to check permission existence.")

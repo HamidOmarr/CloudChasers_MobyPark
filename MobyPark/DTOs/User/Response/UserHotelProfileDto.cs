@@ -10,8 +10,8 @@ public class UserHotelProfileDto
     public string Phone { get; set; } = string.Empty;
     public DateTimeOffset Birthday { get; set; } = DateTimeOffset.MinValue;
     public long HotelId { get; set; }
-    public string HotelName { get; set; }
-    public string HotelAddress { get; set; }
-    public string HotelIBAN { get; set; }
+    public string HotelName { get; set; } = string.Empty;
+    public string HotelAddress { get; set; } = string.Empty;
+    public string HotelIBAN { get; set; } = string.Empty;
     public long HotelParkingLotId { get; set; }
 }

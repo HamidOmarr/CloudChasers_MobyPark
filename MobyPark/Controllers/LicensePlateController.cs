@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.LicensePlate.Request;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
@@ -44,7 +45,7 @@ public class LicensePlateController : BaseController
 
         var existingLicensePlate = await _licensePlates.GetByLicensePlate(request.LicensePlate);
         if (existingLicensePlate is not GetLicensePlateResult.NotFound)
-            return Conflict( new { error = "License plate already exists" });
+            return Conflict(new { error = "License plate already exists" });
 
         var licensePlate = await _licensePlates.CreateLicensePlate(request);
         if (licensePlate is not CreateLicensePlateResult.Success success)
