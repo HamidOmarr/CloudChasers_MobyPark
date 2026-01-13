@@ -32,7 +32,11 @@ jobs:
         id: build
         run: dotnet build --no-restore -warnaserror
 
-      # Test met resource metrics en code coverage
+      - name: Install time utility
+        run: |
+          apt-get update
+          apt-get install -y time
+          
       - name: Test with metrics and coverage
         id: test
         run: |
