@@ -19,10 +19,11 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
     {
         try
         {
-            if (invoiceDto.Stopped < invoiceDto.Started)
+            if (invoiceDto.SessionDuration < 0)
             {
-                return new CreateInvoiceResult.Error("Stopped time cannot be before started time.");
+                return new CreateInvoiceResult.Error("Session duration can not be negative.");
             }
+
 
             var existingInvoice =
                 await _invoiceRepository.GetInvoiceModelByLicensePlate(invoiceDto.LicensePlateId);
@@ -36,8 +37,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
             {
                 LicensePlateId = invoiceDto.LicensePlateId,
                 ParkingSessionId = invoiceDto.ParkingSessionId,
-                Started = invoiceDto.Started,
-                Stopped = invoiceDto.Stopped,
+                SessionDuration = invoiceDto.SessionDuration,
                 Cost = invoiceDto.Cost,
                 Status = invoiceDto.Status,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -84,10 +84,10 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
     {
         try
         {
-            if (updateDto.Stopped < updateDto.Started)
+            if (updateDto.SessionDuration < 0)
             {
                 return new UpdateInvoiceResult.Error(
-                    "Stopped time cannot be before started time.");
+                    "Session duration can not be negative");
             }
 
             var invoice =
@@ -98,8 +98,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
                 return new UpdateInvoiceResult.NotFound();
             }
 
-            invoice.Started = updateDto.Started;
-            invoice.Stopped = updateDto.Stopped;
+            invoice.SessionDuration = updateDto.SessionDuration;
             invoice.Cost = updateDto.Cost;
             invoice.Status = updateDto.Status;
             invoice.InvoiceSummary = GenerateInvoiceSummary(invoice);
@@ -121,7 +120,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
     {
         return new List<string>
         {
-            $"Parking session from {dto.Started:dd-MM-yyyy HH:mm} to {dto.Stopped:dd-MM-yyyy HH:mm}",
+            $"Parking session duration is {dto.SessionDuration}",
             $"Total cost: {dto.Cost:0.00} EUR"
         };
     }
@@ -130,7 +129,7 @@ public class AutomatedInvoiceService : IAutomatedInvoiceService
     {
         return new List<string>
         {
-            $"Parking session from {invoice.Started:dd-MM-yyyy HH:mm} to {invoice.Stopped:dd-MM-yyyy HH:mm}",
+            $"Parking session duration is {invoice.SessionDuration}",
             $"Total cost: {invoice.Cost:0.00} EUR"
         };
     }

@@ -1,13 +1,19 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+using NpgsqlTypes;
+
 namespace MobyPark.Models;
 
 public enum InvoiceStatus
 {
+    [PgName("Pending")]
     Pending,
+    [PgName("Paid")]
     Paid,
+    [PgName("Overdue")]
     Overdue,
+    [PgName("Cancelled")]
     Cancelled
 }
 
@@ -23,10 +29,7 @@ public class InvoiceModel
     public ParkingSessionModel ParkingSession { get; set; } = null!;
 
     [Required]
-    public DateTimeOffset Started { get; set; }
-
-    [Required]
-    public DateTimeOffset Stopped { get; set; }
+    public int SessionDuration { get; set; }
 
     public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
 

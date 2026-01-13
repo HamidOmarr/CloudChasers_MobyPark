@@ -7,11 +7,7 @@ namespace MobyPark.DTOs.Invoice;
 public class UpdateInvoiceDto
 {
     [Required]
-    public DateTimeOffset Started { get; set; }
-
-    [Required]
-    public DateTimeOffset Stopped { get; set; }
-
+    public int SessionDuration { get; set; }
     [Required]
     public decimal Cost { get; set; }
 

@@ -48,6 +48,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .Property(session => session.PaymentStatus)
             .HasColumnType("payment_status");
 
+        modelBuilder.HasPostgresEnum<InvoiceStatus>();
+        modelBuilder.Entity<InvoiceModel>()
+        .Property(invoiceModel => invoiceModel.Status)
+        .HasColumnType("invoice_status");
+
         // RolePermission composite key
         modelBuilder.Entity<RolePermissionModel>()
             .HasKey(rolePermission => new { rolePermission.RoleId, rolePermission.PermissionId });

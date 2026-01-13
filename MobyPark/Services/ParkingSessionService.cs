@@ -485,6 +485,7 @@ public class ParkingSessionService : IParkingSessionService
         DateTimeOffset end = DateTime.UtcNow;
         decimal totalAmount;
         bool paymentPerformed = false;
+        CalculatePriceResult priceResult = new CalculatePriceResult.Error("Uninitialized");
 
         if (activeSession.HotelPassId.HasValue)
         {
@@ -504,7 +505,7 @@ public class ParkingSessionService : IParkingSessionService
                     ? activeSession.Started
                     : endOfFree;
 
-                var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+                priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
                 if (priceResult is not CalculatePriceResult.Success sPrice)
                     return new StopSessionResult.Error("Failed to calculate parking cost.");
 
@@ -524,7 +525,7 @@ public class ParkingSessionService : IParkingSessionService
 
             chargeFrom = activeSession.Started;
 
-            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
             if (priceResult is not CalculatePriceResult.Success sPrice)
                 return new StopSessionResult.Error("Failed to calculate parking cost.");
 
@@ -536,7 +537,7 @@ public class ParkingSessionService : IParkingSessionService
         {
             chargeFrom = activeSession.Started;
 
-            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
             if (priceResult is not CalculatePriceResult.Success sPrice)
                 return new StopSessionResult.Error("Failed to calculate parking cost.");
 
@@ -589,12 +590,14 @@ public class ParkingSessionService : IParkingSessionService
             _ => InvoiceStatus.Pending
         };
 
+        if (priceResult is not CalculatePriceResult.Success sPriceResult)
+            return new StopSessionResult.Error("Failed to calculate parking cost for invoice generation.");
+        int duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
         var createInvoiceDto = new CreateInvoiceDto
         {
             LicensePlateId = activeSession.LicensePlateNumber,
             ParkingSessionId = activeSession.Id,
-            Started = activeSession.Started,
-            Stopped = activeSession.Stopped.Value,
+            SessionDuration = duration,
             Cost = activeSession.Cost.Value,
             Status = invoiceStatus
 
@@ -619,8 +622,7 @@ public class ParkingSessionService : IParkingSessionService
                     Id = existingInvoice.Id,
                     LicensePlateId = existingInvoice.LicensePlateId,
                     ParkingSessionId = existingInvoice.ParkingSessionId,
-                    Started = existingInvoice.Started,
-                    Stopped = existingInvoice.Stopped,
+                    SessionDuration = duration,
                     CreatedAt = existingInvoice.CreatedAt,
                     Status = existingInvoice.Status,
                     Cost = existingInvoice.Cost,
@@ -635,8 +637,7 @@ public class ParkingSessionService : IParkingSessionService
                     Id = 0,
                     LicensePlateId = activeSession.LicensePlateNumber,
                     ParkingSessionId = activeSession.Id,
-                    Started = activeSession.Started,
-                    Stopped = activeSession.Stopped.Value,
+                    SessionDuration = duration,
                     CreatedAt = DateTimeOffset.UtcNow,
                     Status = InvoiceStatus.Paid,
                     Cost = activeSession.Cost,

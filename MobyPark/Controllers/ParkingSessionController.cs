@@ -72,9 +72,6 @@ public class ParkingSessionController : BaseController
 
         var result = await _parkingSessions.StopSession(SessionId, request);
 
-
-
-
         return result switch
         {
             StopSessionResult.Success success => Ok(new
@@ -89,14 +86,11 @@ public class ParkingSessionController : BaseController
                 invoice = new
                 {
                     id = success.Invoice.Id,
-                    parkingSessionId = success.Invoice.ParkingSessionId,
-                    licensePlateId = success.Invoice.LicensePlateId,
-                    started = success.Invoice.Started.ToString("dd-MM-yyyy HH:mm"),
-                    stopped = success.Invoice.Stopped.ToString("dd-MM-yyyy HH:mm"),
+                    success.Invoice.SessionDuration,
                     totalCost = success.Invoice.Cost,
+                    createdAt = success.Invoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
                     status = success.Invoice.Status.ToString()
                 }
-
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
             StopSessionResult.LicensePlateNotFound => NotFound(new { error = "Active session for the provided license plate not found in this lot" }),

@@ -14,11 +14,7 @@ public class CreateInvoiceDto
     public long ParkingSessionId { get; set; }
 
     [Required]
-    public DateTimeOffset Started { get; set; }
-
-    [Required]
-    public DateTimeOffset Stopped { get; set; }
-
+    public int SessionDuration { get; set; }
     [Required]
     public decimal Cost { get; set; }
 
