@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;
@@ -22,7 +23,7 @@ public class UserPlateModel : IHasLongId, ICanBeEdited
     public LicensePlateModel LicensePlate { get; set; } = null!;
 
     [Required]
-    public bool IsPrimary { get; set; } = false;
+    public bool IsPrimary { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

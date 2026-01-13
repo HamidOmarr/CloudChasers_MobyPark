@@ -21,9 +21,36 @@ namespace MobyPark.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_lot_status", new[] { "open", "closed", "maintenance" });
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_session_status", new[] { "preauthorized", "pending", "paid", "failed", "refunded", "hotelpass" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_session_status", new[] { "preauthorized", "pending", "paid", "failed", "refunded", "hotelpass", "businessparking", "pendinginvoice", "invoiced" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "reservation_status", new[] { "pending", "confirmed", "cancelled", "completed", "no_show" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("MobyPark.Models.ApiLoggingModel", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InputBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ApiLogs");
+                });
 
             modelBuilder.Entity("MobyPark.Models.BusinessModel", b =>
                 {
@@ -203,6 +230,9 @@ namespace MobyPark.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("BusinessParkingRegistrationId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal?>("Cost")
                         .HasColumnType("numeric");
 
@@ -226,6 +256,8 @@ namespace MobyPark.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessParkingRegistrationId");
 
                     b.HasIndex("HotelPassId");
 
@@ -404,6 +436,9 @@ namespace MobyPark.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<DateTimeOffset?>("AbsoluteTokenExpiryTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("Birthday")
                         .HasColumnType("timestamp with time zone");
 
@@ -440,8 +475,15 @@ namespace MobyPark.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<long>("RoleId")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("SlidingTokenExpiryTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -532,6 +574,10 @@ namespace MobyPark.Migrations
 
             modelBuilder.Entity("MobyPark.Models.ParkingSessionModel", b =>
                 {
+                    b.HasOne("MobyPark.Models.BusinessParkingRegistrationModel", "BusinessRegistration")
+                        .WithMany()
+                        .HasForeignKey("BusinessParkingRegistrationId");
+
                     b.HasOne("MobyPark.Models.HotelPassModel", "HotelPass")
                         .WithMany()
                         .HasForeignKey("HotelPassId");
@@ -547,6 +593,8 @@ namespace MobyPark.Migrations
                         .HasForeignKey("ParkingLotId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("BusinessRegistration");
 
                     b.Navigation("HotelPass");
 

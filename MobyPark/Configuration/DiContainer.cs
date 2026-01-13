@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 using MobyPark.Models;
 using MobyPark.Models.DbContext;
 using MobyPark.Models.Repositories;
@@ -32,12 +33,15 @@ public static class DiContainer
         services.AddScoped<IGateService, GateService>();
         services.AddScoped<IPreAuthService, PreAuthService>();
         services.AddScoped<IHotelPassService, HotelPassService>();
+        services.AddScoped<IBusinessService, BusinessService>();
+        services.AddScoped<IBusinessParkingRegistrationService, BusinessParkingRegistrationService>();
 
-        // JWT Token Generator: Must be Singleton as it is stateless and reads configuration.
-        services.AddSingleton<ISessionService, SessionService>();
+        // JWT Token Generator: Normally Singleton, but Scoped as it depends on IRepository.
+        services.AddScoped<ITokenService, TokenService>();
 
         // Password Hasher: Must be Singleton as it is stateless and resource-intensive.
-        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        // services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHashingService>();
 
         // Business Logic Services: Scoped to manage state per request.
         services.AddScoped<ILicensePlateService, LicensePlateService>();

@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 using MobyPark.Models.Repositories.Interfaces;
+
 using NpgsqlTypes;
 
 namespace MobyPark.Models;
@@ -18,7 +20,13 @@ public enum ParkingSessionStatus
     [PgName("refunded")]
     Refunded,
     [PgName("hotelpass")]
-    HotelPass
+    HotelPass,
+    [PgName("businessparking")]
+    BusinessParking,
+    [PgName("pendinginvoice")]
+    PendingInvoice,
+    [PgName("invoiced")]
+    Invoiced
 }
 
 public class ParkingSessionModel : IHasLongId, ICanBeEdited
@@ -43,8 +51,10 @@ public class ParkingSessionModel : IHasLongId, ICanBeEdited
 
     public DateTimeOffset? Stopped { get; set; }
 
-    public long? HotelPassId { get; set; } = null;
-    [ForeignKey(nameof(HotelPassId))] public HotelPassModel HotelPass { get; set; } = null;
+    public long? HotelPassId { get; set; }
+    [ForeignKey(nameof(HotelPassId))] public HotelPassModel HotelPass { get; set; } = null!;
+    public long? BusinessParkingRegistrationId { get; set; }
+    [ForeignKey(nameof(BusinessParkingRegistrationId))] public BusinessParkingRegistrationModel BusinessRegistration { get; set; } = null!;
 
     public decimal? Cost { get; set; }
 

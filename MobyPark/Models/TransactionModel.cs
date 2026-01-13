@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+
 using MobyPark.Models.Repositories.Interfaces;
 
 namespace MobyPark.Models;

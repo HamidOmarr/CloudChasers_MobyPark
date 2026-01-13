@@ -5,4 +5,3 @@ public class EnterParkingLotDto
     public string LicensePlate { get; set; } = string.Empty;
     public long ParkingLotId { get; set; }
 }
-

@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.Reservation.Request;
 using MobyPark.Models;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results.Reservation;
-using MobyPark.Services;
 
 namespace MobyPark.Controllers;
 [ApiController]
@@ -14,7 +14,7 @@ public class ReservationsController : BaseController
     private readonly IReservationService _reservations;
     private readonly IAuthorizationService _authorization;
 
-    public ReservationsController(UserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
+    public ReservationsController(IUserService users, IReservationService reservations, IAuthorizationService authorizationService) : base(users)
     {
         _reservations = reservations;
         _authorization = authorizationService;
@@ -128,12 +128,13 @@ public class ReservationsController : BaseController
     [HttpGet]
     public async Task<IActionResult> GetAllReservations()
     {
-         var result = await _reservations.GetAllReservations();
-         return result switch {
+        var result = await _reservations.GetAllReservations();
+        return result switch
+        {
             GetReservationListResult.Success s => Ok(s.Reservations),
             GetReservationListResult.NotFound => Ok(new List<ReservationModel>()),
-             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
-         };
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
     }
 
     [Authorize]

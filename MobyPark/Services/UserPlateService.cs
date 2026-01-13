@@ -107,7 +107,7 @@ public class UserPlateService : IUserPlateService
         if (filterValue.Length == 0)
             return new UserPlateExistsResult.InvalidInput("Filter value cannot be empty.");
 
-        UserPlateExistsResult FromBool(bool exists) => exists ? new UserPlateExistsResult.Exists() : new UserPlateExistsResult.NotExists();
+        static UserPlateExistsResult FromBool(bool exists) => exists ? new UserPlateExistsResult.Exists() : new UserPlateExistsResult.NotExists();
 
         checkBy = checkBy.Trim().ToLowerInvariant();
 

@@ -1,3 +1,5 @@
+using MobyPark.Middleware;
+
 namespace MobyPark.Configuration;
 
 public static class MiddlewareExtensions
@@ -16,6 +18,8 @@ public static class MiddlewareExtensions
         app.UseHttpsRedirection();
 
         app.UseRouting();
+
+        app.UseMiddleware<RequestLoggingMiddleware>();
 
         app.UseAuthentication();
         app.UseAuthorization();

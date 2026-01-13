@@ -119,7 +119,7 @@ public class RoleService : IRoleService
         {
             bool saved = await _roles.Update(existingRole, dto);
             if (!saved)
-                 return new UpdateRoleResult.Error("Database update failed or reported no changes.");
+                return new UpdateRoleResult.Error("Database update failed or reported no changes.");
 
             return new UpdateRoleResult.Success(existingRole);
         }
@@ -142,7 +142,8 @@ public class RoleService : IRoleService
         var getResult = await GetRoleByName(roleName);
         if (getResult is not GetRoleResult.Success success)
         {
-            return getResult switch {
+            return getResult switch
+            {
                 GetRoleResult.NotFound => new DeleteRoleResult.NotFound(),
                 GetRoleResult.InvalidInput invalid => new DeleteRoleResult.Error(invalid.Message),
                 _ => new DeleteRoleResult.Error("Failed to find role.")

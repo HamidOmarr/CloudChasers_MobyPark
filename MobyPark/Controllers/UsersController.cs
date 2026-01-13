@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using MobyPark.DTOs.User.Request;
 using MobyPark.DTOs.User.Response;
 using MobyPark.Models;
 using MobyPark.Services;
-using MobyPark.Services.Results.Session;
+using MobyPark.Services.Interfaces;
+using MobyPark.Services.Results.Tokens;
 using MobyPark.Services.Results.User;
 
 namespace MobyPark.Controllers;
@@ -13,11 +15,11 @@ namespace MobyPark.Controllers;
 [Route("api/[controller]")]
 public class UsersController : BaseController
 {
-    private readonly SessionService _sessionService;
+    private readonly ITokenService _tokenService;
 
-    public UsersController(UserService users, SessionService sessions) : base(users)
+    public UsersController(IUserService users, ITokenService tokens) : base(users)
     {
-        _sessionService = sessions;
+        _tokenService = tokens;
     }
 
     [HttpPost("register")]
@@ -25,7 +27,7 @@ public class UsersController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await UserService.CreateUserAsync(dto);
+        var result = await _userService.CreateUserAsync(dto);
 
         return result switch
         {
@@ -38,7 +40,7 @@ public class UsersController : BaseController
 
         IActionResult HandleRegistrationSuccess(UserModel user)
         {
-            var tokenResult = _sessionService.CreateSession(user);
+            var tokenResult = _tokenService.CreateToken(user);
 
             if (tokenResult is not CreateJwtResult.Success tokenSuccess)
             {
@@ -64,7 +66,7 @@ public class UsersController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await UserService.Login(dto);
+        var result = await _userService.Login(dto);
 
         return result switch
         {
@@ -82,7 +84,7 @@ public class UsersController : BaseController
 
         var user = await GetCurrentUserAsync();
 
-        var result = await UserService.UpdateUserProfile(user.Id, dto);
+        var result = await _userService.UpdateUserProfile(user.Id, dto);
 
         return result switch
         {
@@ -102,7 +104,7 @@ public class UsersController : BaseController
     {
         var user = await GetCurrentUserAsync();
 
-        return Ok( new UserProfileDto
+        return Ok(new UserProfileDto
         {
             Id = user.Id,
             Username = user.Username,
@@ -118,7 +120,7 @@ public class UsersController : BaseController
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetUser(int id)
     {
-        var result = await UserService.GetUserById(id);
+        var result = await _userService.GetUserById(id);
         if (result is not GetUserResult.Success success)
         {
             return result switch
@@ -136,7 +138,7 @@ public class UsersController : BaseController
     [HttpGet("admin/users/{id:int}")]
     public async Task<IActionResult> GetUserAdmin(int id)
     {
-        var result = await UserService.GetUserById(id);
+        var result = await _userService.GetUserById(id);
         if (result is not GetUserResult.Success success)
         {
             return result switch
@@ -167,28 +169,31 @@ public class UsersController : BaseController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await UserService.UpdateUserIdentity(id, dto);
+        var result = await _userService.UpdateUserIdentity(id, dto);
 
         return result switch
         {
-             UpdateUserResult.Success success => Ok(new { message = "User identity updated successfully",
-                 user = new AdminUserProfileDto
-                 {
-                     Id = success.User.Id,
-                     Username = success.User.Username,
-                     FirstName = success.User.FirstName,
-                     LastName = success.User.LastName,
-                     Email = success.User.Email,
-                     Phone = success.User.Phone,
-                     Birthday = success.User.Birthday,
-                     Role = success.User.Role.Name,
-                     CreatedAt = success.User.CreatedAt
-                 } }),
-             UpdateUserResult.NoChangesMade => Ok(new { message = "No identity changes applied to the user." }),
-             UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
-             UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
-             UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
-             _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user identity." })
+            UpdateUserResult.Success success => Ok(new
+            {
+                message = "User identity updated successfully",
+                user = new AdminUserProfileDto
+                {
+                    Id = success.User.Id,
+                    Username = success.User.Username,
+                    FirstName = success.User.FirstName,
+                    LastName = success.User.LastName,
+                    Email = success.User.Email,
+                    Phone = success.User.Phone,
+                    Birthday = success.User.Birthday,
+                    Role = success.User.Role.Name,
+                    CreatedAt = success.User.CreatedAt
+                }
+            }),
+            UpdateUserResult.NoChangesMade => Ok(new { message = "No identity changes applied to the user." }),
+            UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+            UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user identity." })
         };
     }
 
@@ -196,39 +201,43 @@ public class UsersController : BaseController
     [HttpPut("admin/users/{id:long}/role")]
     public async Task<IActionResult> UpdateUserRole(long id, [FromBody] UpdateUserRoleDto dto)
     {
-         if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid) return BadRequest(ModelState);
 
-         var result = await UserService.UpdateUserRole(id, dto);
-         return result switch
-         {
-              UpdateUserResult.Success success => Ok(new { message = "User role updated successfully",
-                  user = new AdminUserProfileDto
-                  {
-                      Id = success.User.Id,
-                      Username = success.User.Username,
-                      FirstName = success.User.FirstName,
-                      LastName = success.User.LastName,
-                      Email = success.User.Email,
-                      Phone = success.User.Phone,
-                      Birthday = success.User.Birthday,
-                      Role = success.User.Role.Name,
-                      CreatedAt = success.User.CreatedAt
-                  } }),
-              UpdateUserResult.NoChangesMade => Ok(new { message = "User already has the specified role." }),
-              UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
-              UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
-              UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
-              _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user role." })
-         };
+        var result = await _userService.UpdateUserRole(id, dto);
+        return result switch
+        {
+            UpdateUserResult.Success success => Ok(new
+            {
+                message = "User role updated successfully",
+                user = new AdminUserProfileDto
+                {
+                    Id = success.User.Id,
+                    Username = success.User.Username,
+                    FirstName = success.User.FirstName,
+                    LastName = success.User.LastName,
+                    Email = success.User.Email,
+                    Phone = success.User.Phone,
+                    Birthday = success.User.Birthday,
+                    Role = success.User.Role.Name,
+                    CreatedAt = success.User.CreatedAt
+                }
+            }),
+            UpdateUserResult.NoChangesMade => Ok(new { message = "User already has the specified role." }),
+            UpdateUserResult.NotFound => NotFound(new { error = "User not found" }),
+            UpdateUserResult.InvalidData invalid => BadRequest(new { error = invalid.Message }),
+            UpdateUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "Unexpected error while updating user role." })
+        };
     }
 
-    [Authorize(Policy="CanManageUsers")]
+    [Authorize(Policy = "CanManageUsers")]
     [HttpDelete("admin/users/{id:long}")]
     public async Task<IActionResult> DeleteUser(long id)
     {
-        var result = await UserService.DeleteUser(id);
+        var result = await _userService.DeleteUser(id);
 
-        return result switch {
+        return result switch
+        {
             DeleteUserResult.Success => Ok(new { status = "Deleted" }),
             DeleteUserResult.NotFound => NotFound(new { error = "User not found" }),
             DeleteUserResult.Error err => StatusCode(StatusCodes.Status500InternalServerError, new { error = err.Message }),
@@ -236,13 +245,14 @@ public class UsersController : BaseController
         };
     }
 
-    [Authorize(Policy="CanReadUsers")]
+    [Authorize(Policy = "CanReadUsers")]
     [HttpGet("admin/users")]
     public async Task<IActionResult> GetAllUsers()
     {
-        var result = await UserService.GetAllUsers();
+        var result = await _userService.GetAllUsers();
 
-        return result switch {
+        return result switch
+        {
             GetUserListResult.Success success => Ok(success.Users.Select(
                 user => new AdminUserProfileDto
                 {
