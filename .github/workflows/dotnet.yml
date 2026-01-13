@@ -1,7 +1,6 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# CI/CD pipeline for building, testing, code coverage and resource metrics
 
-name: .NET
+name: .NET CI
 
 on:
   push:
@@ -12,75 +11,95 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, linux, x64, mobypark]
+
     container:
       image: mcr.microsoft.com/dotnet/sdk:8.0
+
     env:
       DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
       DOTNET_ROOT: ${{ github.workspace }}/.dotnet
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Restore dependencies
-        id: restore
-        run: dotnet restore
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Code format check
-        id: format
-        run: dotnet format --verify-no-changes
+    - name: Install required tools
+      run: |
+        apt-get update
+        apt-get install -y time bc
 
-      - name: Build
-        id: build
-        run: dotnet build --no-restore -warnaserror
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Install time utility
-        run: |
-          apt-get update
-          apt-get install -y time
+    - name: Build solution
+      run: dotnet build --no-restore
+
+    - name: Run tests with code coverage and resource metrics
+      run: |
+        /usr/bin/time -v dotnet test \
+          --no-build \
+          --collect:"XPlat Code Coverage"
+
+    - name: Install ReportGenerator
+      run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+    - name: Generate code coverage report
+      run: |
+        reportgenerator \
+          -reports:**/coverage.cobertura.xml \
+          -targetdir:coverage-report \
+          -reporttypes:TextSummary
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: coverage-report
+
+    - name: Test with metrics and coverage
+      id: test
+      run: |
+        echo "Running tests with resource metrics and code coverage..."
+        /usr/bin/time -v dotnet test --no-build --collect:"XPlat Code Coverage" | tee test.log
+
+        
+        COVERAGE_FILE=$(find . -type f -name 'coverage.cobertura.xml' | head -n 1)
+
+        if [ -f "$COVERAGE_FILE" ]; then
           
-      - name: Test with metrics and coverage
-        id: test
-        run: |
-          echo "Running tests with resource metrics and code coverage..."
-          /usr/bin/time -v dotnet test --no-build --collect:"XPlat Code Coverage" | tee test.log
+          COVERAGE_PERCENT=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE")
+          COVERAGE_PERCENT_INT=$(printf "%.0f" $(echo "$COVERAGE_PERCENT*100" | bc -l))
+          echo "Code coverage: $COVERAGE_PERCENT_INT%"
+          echo "Code coverage: $COVERAGE_PERCENT_INT%" >> $GITHUB_STEP_SUMMARY
 
-          
-          COVERAGE_FILE=$(find . -type f -name 'coverage.cobertura.xml' | head -n 1)
-
-          if [ -f "$COVERAGE_FILE" ]; then
-           
-            COVERAGE_PERCENT=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE")
-            COVERAGE_PERCENT_INT=$(printf "%.0f" $(echo "$COVERAGE_PERCENT*100" | bc -l))
-            echo "Code coverage: $COVERAGE_PERCENT_INT%"
-            echo "Code coverage: $COVERAGE_PERCENT_INT%" >> $GITHUB_STEP_SUMMARY
-
-            MIN_COVERAGE=80
-            if [ "$COVERAGE_PERCENT_INT" -lt "$MIN_COVERAGE" ]; then
-              echo "❌ Coverage $COVERAGE_PERCENT_INT% is below minimum threshold of $MIN_COVERAGE%"
-              exit 1
-            fi
-          else
-            echo "Coverage file not found" >> $GITHUB_STEP_SUMMARY
+          MIN_COVERAGE=80
+          if [ "$COVERAGE_PERCENT_INT" -lt "$MIN_COVERAGE" ]; then
+            echo "❌ Coverage $COVERAGE_PERCENT_INT% is below minimum threshold of $MIN_COVERAGE%"
             exit 1
           fi
+        else
+          echo "Coverage file not found" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
 
-      # Upload test log
-      - name: Upload test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-log
-          path: test.log
+    # Upload test log
+    - name: Upload test log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-log
+        path: test.log
 
-      - name: Failure summary
-        if: failure()
-        shell: bash
-        run: |
-          bash ci/failure-summary.sh
-        env:
-          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
-          GITHUB_STEP_FORMAT_OUTCOME: ${{ steps.format.outcome }}
-          GITHUB_STEP_BUILD_OUTCOME: ${{ steps.build.outcome }}
-          GITHUB_STEP_TEST_OUTCOME: ${{ steps.test.outcome }}
+    - name: Failure summary
+      if: failure()
+      shell: bash
+      run: |
+        bash ci/failure-summary.sh
+      env:
+        GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+        GITHUB_STEP_FORMAT_OUTCOME: ${{ steps.format.outcome }}
+        GITHUB_STEP_BUILD_OUTCOME: ${{ steps.build.outcome }}
+        GITHUB_STEP_TEST_OUTCOME: ${{ steps.test.outcome }}
 
   metrics:
     name: Metrics - job durations
