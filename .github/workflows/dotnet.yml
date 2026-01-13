@@ -20,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Restore dependencies
         id: restore
         run: dotnet restore
@@ -34,9 +36,13 @@ jobs:
 
       - name: Test
         id: test
-        run: dotnet test --no-build --verbosity normal
-      - name: Test2
-        run: dotnet test --no-build | tee test.log
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          bash ci/coverage-delta.sh
       - name: Upload test log
         if: always()
         uses: actions/upload-artifact@v4
