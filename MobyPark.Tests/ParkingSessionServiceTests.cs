@@ -2201,9 +2201,6 @@ public sealed class ParkingSessionServiceTests
     }
 
 
-
-
-
     [TestMethod]
     [DataRow("AB-12-CD")]
     [DataRow("WX-99-YZ")]
