@@ -2121,16 +2121,15 @@ public sealed class ParkingSessionServiceTests
     [DataRow("WX-99-YZ")]
     public async Task StopSession_HotelPass_WithinFreeWindow_DoesNotCharge_ReturnsSuccess(string plate)
     {
-
         var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
         var lotId = 1L;
         var sessionId = 1L;
-        var p = plate.ToUpper();
+        var licensePlate = plate.ToUpper();
 
         var activeSession = new ParkingSessionModel
         {
             Id = sessionId,
-            LicensePlateNumber = p,
+            LicensePlateNumber = licensePlate,
             ParkingLotId = lotId,
             Started = DateTime.UtcNow.AddHours(-2),
             Stopped = null,
@@ -2153,13 +2152,12 @@ public sealed class ParkingSessionServiceTests
         var hotelPassDto = new ReadHotelPassDto
         {
             Id = 42,
-            LicensePlate = p,
+            LicensePlate = licensePlate,
             ParkingLotId = (int)lotId,
             Start = DateTime.UtcNow.AddDays(-1),
             End = DateTime.UtcNow.AddHours(1),
             ExtraTime = TimeSpan.FromMinutes(30)
         };
-
 
         _mockSessionsRepo
             .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
@@ -2173,25 +2171,18 @@ public sealed class ParkingSessionServiceTests
             .Setup(s => s.GetHotelPassByIdAsync(hotelPassDto.Id))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.Ok(hotelPassDto));
 
-        _mockPricingService
-            .Setup(p => p.CalculateParkingCost(
-                It.IsAny<ParkingLotModel>(),
-                It.IsAny<DateTimeOffset>(),
-                It.IsAny<DateTimeOffset>()))
-            .Returns(new CalculatePriceResult.Success(0m, 0, 0));
-
         _mockSessionsRepo
-        .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
-        .Callback<ParkingSessionModel, UpdateParkingSessionDto>((session, dto) =>
-        {
-            // Simuleer dat de PaymentStatus wordt aangepast
-            session.PaymentStatus = ParkingSessionStatus.HotelPass;
-            session.Stopped = DateTime.UtcNow;
-        })
-        .ReturnsAsync(true); // return type matches Task<bool>
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
+            .Callback<ParkingSessionModel, UpdateParkingSessionDto>((session, updateDto) =>
+            {
+                session.Stopped = DateTime.UtcNow;
+                session.PaymentStatus = ParkingSessionStatus.HotelPass;
+                session.Cost = 0m;
+            })
+            .ReturnsAsync(true);
 
         _mockGateService
-            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .Setup(g => g.OpenGateAsync((int)lotId, licensePlate))
             .ReturnsAsync(true);
 
 
@@ -2203,8 +2194,14 @@ public sealed class ParkingSessionServiceTests
         var success = (StopSessionResult.Success)result;
         Assert.AreEqual(0m, success.TotalAmount);
         Assert.AreEqual(ParkingSessionStatus.HotelPass, success.Session.PaymentStatus);
+
         _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+        _mockPricingService.Verify(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
+        _mockGateService.Verify(g => g.OpenGateAsync((int)lotId, licensePlate), Times.Once);
     }
+
+
+
 
 
     [TestMethod]
@@ -2420,6 +2417,9 @@ public sealed class ParkingSessionServiceTests
         var sessionId = 10L;
         var cardToken = "Token";
         var startedAt = DateTime.UtcNow.AddHours(-2);
+        var stoppedAt = DateTime.UtcNow;
+        var sessionDuration = (int)(stoppedAt - startedAt).TotalMinutes;
+
 
         var stopDto = new StopParkingSessionDto
         {
@@ -2478,8 +2478,7 @@ public sealed class ParkingSessionServiceTests
             {
                 LicensePlateId = licensePlate,
                 ParkingSessionId = sessionId,
-                Started = startedAt,
-                Stopped = DateTime.UtcNow,
+                SessionDuration = sessionDuration,
                 Cost = 0m,
                 InvoiceSummary = { "Test invoice" }
             }));

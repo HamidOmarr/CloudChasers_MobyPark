@@ -498,6 +498,11 @@ public class ParkingSessionService : IParkingSessionService
             if (end <= endOfFree)
             {
                 totalAmount = 0m;
+
+                priceResult = new CalculatePriceResult.Success(
+                Price: 0m,
+                BillableHours: 0,
+                BillableDays: 0);
             }
             else
             {
