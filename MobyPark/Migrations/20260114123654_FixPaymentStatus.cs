@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
+
 using MobyPark.Models;
 
 #nullable disable
@@ -23,19 +24,19 @@ namespace MobyPark.Migrations
                 END $$;
             ");
 
-                    migrationBuilder.Sql(@"
+            migrationBuilder.Sql(@"
                 ALTER TABLE ""ParkingSessions"" 
                 ALTER COLUMN ""PaymentStatus"" DROP DEFAULT;
             ");
 
-                    migrationBuilder.Sql(@"
+            migrationBuilder.Sql(@"
                 ALTER TABLE ""ParkingSessions"" 
                 ALTER COLUMN ""PaymentStatus"" 
                 TYPE parking_session_status 
                 USING ""PaymentStatus""::text::parking_session_status;
             ");
 
-                    migrationBuilder.Sql(@"
+            migrationBuilder.Sql(@"
                 ALTER TABLE ""ParkingSessions"" 
                 ALTER COLUMN ""PaymentStatus"" 
                 SET DEFAULT 'pending'::parking_session_status;
