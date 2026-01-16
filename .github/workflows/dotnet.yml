@@ -40,8 +40,8 @@ jobs:
 
     - name: Run tests with Coverlet coverage and check 80% threshold
       run: |
+        export PATH="$PATH:$HOME/.dotnet/tools"
         echo "Running tests with Coverlet..."
-        
         # Run tests with Coverlet coverage
         /usr/bin/time -v dotnet test --no-build \
           /p:CollectCoverage=true \
