@@ -8,14 +8,33 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 
+using Npgsql;
+
 namespace MobyPark.Configuration;
 
 public static class DiContainer
 {
     public static void AddMobyParkServices(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration
+            .GetConnectionString("DefaultConnection");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection is not configured.");
+
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+
+        dataSourceBuilder.MapEnum<ParkingLotStatus>();
+        dataSourceBuilder.MapEnum<ReservationStatus>();
+        dataSourceBuilder.MapEnum<ParkingSessionStatus>();
+
+        var dataSource = dataSourceBuilder.Build();
+
+        services.AddSingleton(dataSource);
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(dataSource));
 
         // Repository: Scoped. New instance per HTTP request.
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>)); // toegevoegd door mij
