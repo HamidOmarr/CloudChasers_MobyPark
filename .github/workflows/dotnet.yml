@@ -40,12 +40,12 @@ jobs:
     - name: Run tests with Coverlet coverage and check 80% threshold
       run: |
         export PATH="$PATH:$HOME/.dotnet/tools"
-        mkdir -p ./TestResults/Coverage
+        mkdir -p ./MobyPark.Tests\bin\Debug\net8.0\TestResults\Coverage
         echo "Running tests with Coverlet..."
         # Run tests with Coverlet coverage
         /usr/bin/time -v dotnet test --no-build \
           /p:CollectCoverage=true \
-          /p:CoverletOutput=./TestResults/Coverage/ \
+          /p:CoverletOutput=./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/coverage.xml \
           /p:CoverletOutputFormat=cobertura \
           | tee test.log
 
@@ -57,8 +57,8 @@ jobs:
 
         # Generate code coverage report (TextSummary + HTML)
         reportgenerator \
-          -reports:**/TestResults/Coverage/coverage.cobertura.xml \
-          -targetdir:coverage-report \
+          -reports:./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/coverage.xml\
+          -targetdir:./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/CoverageReport  \
           -reporttypes:TextSummary;Html
 
         # Add coverage report to job summary
