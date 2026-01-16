@@ -38,12 +38,11 @@ jobs:
         apt-get update
         apt-get install -y time bc
 
-    - name: Run tests with Coverlet coverage
+    - name: Run tests with coverage
       run: |
         echo "Running tests with Coverlet..."
-        /usr/bin/time -v dotnet test --no-build \
-          /p:CollectCoverage=true \
-          /p:CoverletOutput=./MobyPark.Tests/TestResults/Coverage/coverage \
+        /usr/bin/time -v dotnet test --no-build --collect:"XPlat Code Coverage" \
+          /p:CoverletOutput=./MobyPark.Tests/TestResults/Coverage \
           /p:CoverletOutputFormat=cobertura \
           /p:Include="[MobyPark.Services*]*" \
           | tee test.log
@@ -57,18 +56,28 @@ jobs:
     - name: Generate coverage report (TextSummary + HTML)
       run: |
         export PATH="$PATH:$HOME/.dotnet/tools"
+        # Vind de laatste GUID-map van Coverlet
+        LAST_COVERAGE_DIR=$(ls -d ./MobyPark.Tests/TestResults/Coverage/* | sort -r | head -n1)
+        COVERAGE_FILE="$LAST_COVERAGE_DIR/coverage.cobertura.xml"
+
+        echo "Using coverage file: $COVERAGE_FILE"
+
         reportgenerator \
-          "-reports:**/coverage.cobertura.xml" \
+          "-reports:$COVERAGE_FILE" \
           "-targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport" \
-          "-reporttypes:TextSummary;Html"
+          "-reporttypes:TextSummary;Html" \
+          -filters:"+[MobyPark.Services*]*"
+
+    - name: Add coverage report summary to job summary
+      run: |
+        SUMMARY_FILE=./MobyPark.Tests/TestResults/Coverage/CoverageReport/Summary.txt
+
+        echo "## Code Coverage (Services)" >> $GITHUB_STEP_SUMMARY
+        cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
 
     - name: Enforce branch coverage threshold (80%)
       run: |
         SUMMARY_FILE=./MobyPark.Tests/TestResults/Coverage/CoverageReport/Summary.txt
-
-        echo "## Code Coverage (Coverlet)" >> $GITHUB_STEP_SUMMARY
-        cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-
         BRANCH_COVERAGE=$(grep -oP '(?<=Branch coverage: )[0-9.]+' "$SUMMARY_FILE" || echo "0")
         echo "Branch coverage: $BRANCH_COVERAGE%"
 
@@ -78,6 +87,13 @@ jobs:
         else
           echo "✅ Branch coverage ($BRANCH_COVERAGE%) meets minimum threshold of ${{ env.MIN_BRANCH_COVERAGE }}%"
         fi
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: ./MobyPark.Tests/TestResults/Coverage/CoverageReport
 
 
     # Upload test log
