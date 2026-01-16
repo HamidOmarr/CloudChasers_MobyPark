@@ -58,9 +58,9 @@ jobs:
       run: |
         export PATH="$PATH:$HOME/.dotnet/tools"
         reportgenerator \
-          -reports:./MobyPark.Tests/TestResults/Coverage/coverage.cobertura.xml \
-          -targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport \
-          -reporttypes:TextSummary;Html
+          "-reports:**/coverage.cobertura.xml" \
+          "-targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport" \
+          "-reporttypes:TextSummary;Html"
 
     - name: Enforce branch coverage threshold (80%)
       run: |
