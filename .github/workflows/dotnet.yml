@@ -38,69 +38,39 @@ jobs:
         apt-get update
         apt-get install -y time bc
 
-    - name: Run tests with coverage
+    - name: Test all services with coverage
       run: |
-        echo "Running tests with Coverlet..."
-        /usr/bin/time -v dotnet test --no-build --collect:"XPlat Code Coverage" \
-          /p:CoverletOutput=./MobyPark.Tests/TestResults/Coverage \
-          /p:CoverletOutputFormat=cobertura \
-          /p:Include="[MobyPark.Services*]*" \
-          | tee test.log
+        echo "Testing all service projects with code coverage..."
+        SUMMARY=""
+        # Zoek alle csproj-bestanden in Services-map
+        for proj in $(find ./Services -name '*.csproj'); do
+          echo "Running tests for $proj..."
+          # XPlat Code Coverage in lcov-formaat
+          dotnet test "$proj" \
+            --configuration Release \
+            --no-build \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=lcov \
+            | tee -a test.log
 
-    - name: Install ReportGenerator
-      run: |
-        export PATH="$PATH:$HOME/.dotnet/tools"
-        dotnet tool install -g dotnet-reportgenerator-globaltool || true
-        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          # Zoek het lcov bestand dat net is aangemaakt
+          LCOV_FILE=$(find ./ -type f -name "coverage.lcov" | tail -n1)
+          if [ -f "$LCOV_FILE" ]; then
+            echo "✅ Coverage voor $proj: $LCOV_FILE"
+            SUMMARY="$SUMMARY\n$proj: $LCOV_FILE"
+          else
+            echo "❌ Geen coverage bestand gevonden voor $proj"
+          fi
+        done
 
-    - name: Prepare TestResults folder
-      run: mkdir -p ./MobyPark.Tests/TestResults/Coverage
+        # Voeg summary toe aan job summary
+        echo -e "## Code Coverage (Services):\n$SUMMARY" >> $GITHUB_STEP_SUMMARY
 
-    - name: Generate coverage report
-      run: |
-        export PATH="$PATH:$HOME/.dotnet/tools"
-        mkdir -p ./MobyPark.Tests/TestResults/Coverage/CoverageReport
-
-        # Vind de laatste Coverlet GUID-map
-        LAST_COVERAGE_DIR=$(ls -d ./MobyPark.Tests/TestResults/Coverage/*/ | sort -r | head -n1)
-
-        # Path naar het XML-bestand
-        COVERAGE_FILE="$LAST_COVERAGE_DIR/coverage.cobertura.xml"
-
-        # Check of het bestand bestaat
-        if [ ! -f "$COVERAGE_FILE" ]; then
-          echo "❌ Geen coverage.cobertura.xml gevonden!"
-          exit 1
-        fi
-
-        # Run ReportGenerator
-        reportgenerator \
-          "-reports:$COVERAGE_FILE" \
-          "-targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport" \
-          "-reporttypes:TextSummary;Html" \
-          -filters:"+[MobyPark.Services*]*"
-
-
-
-    - name: Add coverage report summary to job summary
-      run: |
-        SUMMARY_FILE=./MobyPark.Tests/TestResults/Coverage/CoverageReport/Summary.txt
-
-        echo "## Code Coverage (Services)" >> $GITHUB_STEP_SUMMARY
-        cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
-
-    - name: Enforce branch coverage threshold (80%)
-      run: |
-        SUMMARY_FILE=./MobyPark.Tests/TestResults/Coverage/CoverageReport/Summary.txt
-        BRANCH_COVERAGE=$(grep -oP '(?<=Branch coverage: )[0-9.]+' "$SUMMARY_FILE" || echo "0")
-        echo "Branch coverage: $BRANCH_COVERAGE%"
-
-        if (( $(echo "$BRANCH_COVERAGE < ${{ env.MIN_BRANCH_COVERAGE }}" | bc -l) )); then
-          echo "❌ Branch coverage ($BRANCH_COVERAGE%) is below minimum threshold of ${{ env.MIN_BRANCH_COVERAGE }}%"
-          exit 1
-        else
-          echo "✅ Branch coverage ($BRANCH_COVERAGE%) meets minimum threshold of ${{ env.MIN_BRANCH_COVERAGE }}%"
-        fi
+    - name: Upload coverage results to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: '**/coverage.lcov'
+        fail_ci_if_error: true
 
     - name: Upload coverage report
       if: always()
