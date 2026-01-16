@@ -45,7 +45,7 @@ jobs:
         # Run tests with Coverlet coverage
         /usr/bin/time -v dotnet test --no-build \
           /p:CollectCoverage=true \
-          /p:CoverletOutput=./TestResults/Coverage/coverage.cobertura.xml \
+          /p:CoverletOutput=./TestResults/Coverage/ \
           /p:CoverletOutputFormat=cobertura \
           | tee test.log
 
