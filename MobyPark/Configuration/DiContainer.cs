@@ -28,6 +28,7 @@ public static class DiContainer
         dataSourceBuilder.MapEnum<ParkingLotStatus>();
         dataSourceBuilder.MapEnum<ReservationStatus>();
         dataSourceBuilder.MapEnum<ParkingSessionStatus>();
+        dataSourceBuilder.MapEnum<InvoiceStatus>("invoice_status");
 
         var dataSource = dataSourceBuilder.Build();
 
