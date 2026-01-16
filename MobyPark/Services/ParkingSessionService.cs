@@ -555,17 +555,8 @@ public class ParkingSessionService : IParkingSessionService
         activeSession.Stopped = end;
         activeSession.Cost = totalAmount;
 
-        var updateDto = new UpdateParkingSessionDto
-        {
-            Stopped = activeSession.Stopped,
-            PaymentStatus = activeSession.PaymentStatus,
-            Cost = activeSession.Cost
-        };
-
-        var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
-        if (updateResult is not UpdateSessionResult.Success sUpdate)
-            return new StopSessionResult.Error("Failed to update session after payment.");
-        activeSession = sUpdate.Session;
+        _sessions.Update(activeSession);
+        await _sessions.SaveChangesAsync();
 
         try
         {
