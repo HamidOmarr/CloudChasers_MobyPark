@@ -16,7 +16,8 @@ jobs:
 
     env:
       DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
-      DOTNET_ROOT: ${{ github.workspace }}/.dotnet
+      DOTNET_ROOT: ${{ github.workspace }}/.
+      MIN_BRANCH_COVERAGE: 80
 
     steps:
     - name: Checkout repository
@@ -37,47 +38,45 @@ jobs:
         apt-get update
         apt-get install -y time bc
 
-    - name: Run tests with Coverlet coverage and check 80% threshold
+    - name: Run tests with Coverlet coverage
       run: |
-        export PATH="$PATH:$HOME/.dotnet/tools"
-        mkdir -p ./MobyPark.Tests\bin\Debug\net8.0\TestResults\Coverage
         echo "Running tests with Coverlet..."
-        # Run tests with Coverlet coverage
         /usr/bin/time -v dotnet test --no-build \
           /p:CollectCoverage=true \
-          /p:CoverletOutput=./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/coverage.xml \
+          /p:CoverletOutput=./MobyPark.Tests/TestResults/Coverage/coverage \
           /p:CoverletOutputFormat=cobertura \
+          /p:Include="[MobyPark.Services*]*" \
           | tee test.log
-        echo "Searching for coverage files..."
-        find . -name "coverage*.xml" -o -name "*.cobertura.xml"
 
+    - name: Install ReportGenerator
+      run: |
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        dotnet tool install -g dotnet-reportgenerator-globaltool || true
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-        # Install ReportGenerator if not already installed
-        if ! command -v reportgenerator &> /dev/null; then
-          dotnet tool install -g dotnet-reportgenerator-globaltool
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-        fi
-
-        # Generate code coverage report (TextSummary + HTML)
+    - name: Generate coverage report (TextSummary + HTML)
+      run: |
+        export PATH="$PATH:$HOME/.dotnet/tools"
         reportgenerator \
-          -reports:./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/coverage.xml\
-          -targetdir:./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/CoverageReport  \
+          -reports:./MobyPark.Tests/TestResults/Coverage/coverage.cobertura.xml \
+          -targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport \
           -reporttypes:TextSummary;Html
 
-        # Add coverage report to job summary
-        echo "## Code Coverage (Coverlet)" >> $GITHUB_STEP_SUMMARY
-        cat coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+    - name: Enforce branch coverage threshold (80%)
+      run: |
+        SUMMARY_FILE=./MobyPark.Tests/TestResults/Coverage/CoverageReport/Summary.txt
 
-        # Extract Branch Coverage from Summary.txt and enforce threshold
-        BRANCH_COVERAGE=$(grep -oP '(?<=Branch coverage: )[0-9.]+' coverage-report/Summary.txt || echo "0")
+        echo "## Code Coverage (Coverlet)" >> $GITHUB_STEP_SUMMARY
+        cat "$SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+
+        BRANCH_COVERAGE=$(grep -oP '(?<=Branch coverage: )[0-9.]+' "$SUMMARY_FILE" || echo "0")
         echo "Branch coverage: $BRANCH_COVERAGE%"
 
-        MIN_COVERAGE=80
-        if (( $(echo "$BRANCH_COVERAGE < $MIN_COVERAGE" | bc -l) )); then
-          echo "❌ Branch coverage ($BRANCH_COVERAGE%) is below minimum threshold of $MIN_COVERAGE%"
+        if (( $(echo "$BRANCH_COVERAGE < ${{ env.MIN_BRANCH_COVERAGE }}" | bc -l) )); then
+          echo "❌ Branch coverage ($BRANCH_COVERAGE%) is below minimum threshold of ${{ env.MIN_BRANCH_COVERAGE }}%"
           exit 1
         else
-          echo "✅ Branch coverage ($BRANCH_COVERAGE%) meets minimum threshold of $MIN_COVERAGE%"
+          echo "✅ Branch coverage ($BRANCH_COVERAGE%) meets minimum threshold of ${{ env.MIN_BRANCH_COVERAGE }}%"
         fi
 
 
