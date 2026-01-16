@@ -28,6 +28,7 @@ public static class DiContainer
         dataSourceBuilder.MapEnum<ParkingLotStatus>();
         dataSourceBuilder.MapEnum<ReservationStatus>();
         dataSourceBuilder.MapEnum<ParkingSessionStatus>();
+        dataSourceBuilder.MapEnum<InvoiceStatus>("invoice_status");
 
         var dataSource = dataSourceBuilder.Build();
 
@@ -75,5 +76,7 @@ public static class DiContainer
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserPlateService, UserPlateService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IAutomatedInvoiceService, AutomatedInvoiceService>();
     }
 }
