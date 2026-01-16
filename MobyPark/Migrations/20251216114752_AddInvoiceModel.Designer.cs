@@ -3,8 +3,8 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MobyPark.Models;
 using MobyPark.Models.DbContext;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,47 +13,21 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MobyPark.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251216114752_AddInvoiceModel")]
+    partial class AddInvoiceModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.11")
+                .HasAnnotation("ProductVersion", "8.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "invoice_status", new[] { "Pending", "Paid", "Overdue", "Cancelled" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_lot_status", new[] { "open", "closed", "maintenance" });
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_session_status", new[] { "preauthorized", "pending", "paid", "failed", "refunded", "hotelpass", "businessparking", "pendinginvoice", "invoiced" });
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "parking_session_status", new[] { "preauthorized", "pending", "paid", "failed", "refunded", "hotelpass" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "reservation_status", new[] { "pending", "confirmed", "cancelled", "completed", "no_show" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("MobyPark.Models.ApiLoggingModel", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InputBody")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Path")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("StatusCode")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ApiLogs");
-                });
 
             modelBuilder.Entity("MobyPark.Models.BusinessModel", b =>
                 {
@@ -197,11 +171,11 @@ namespace MobyPark.Migrations
                     b.Property<long>("ParkingSessionId")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("SessionDuration")
-                        .HasColumnType("integer");
+                    b.Property<DateTimeOffset>("Started")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("invoice_status");
+                    b.Property<DateTimeOffset>("Stopped")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -254,7 +228,7 @@ namespace MobyPark.Migrations
                     b.Property<int>("Reserved")
                         .HasColumnType("integer");
 
-                    b.Property<ParkingLotStatus>("Status")
+                    b.Property<int>("Status")
                         .HasColumnType("parking_lot_status");
 
                     b.Property<decimal>("Tariff")
@@ -273,9 +247,6 @@ namespace MobyPark.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<long?>("BusinessParkingRegistrationId")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal?>("Cost")
                         .HasColumnType("numeric");
 
@@ -289,7 +260,7 @@ namespace MobyPark.Migrations
                     b.Property<long>("ParkingLotId")
                         .HasColumnType("bigint");
 
-                    b.Property<ParkingSessionStatus>("PaymentStatus")
+                    b.Property<int>("PaymentStatus")
                         .HasColumnType("payment_status");
 
                     b.Property<DateTimeOffset>("Started")
@@ -299,8 +270,6 @@ namespace MobyPark.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BusinessParkingRegistrationId");
 
                     b.HasIndex("HotelPassId");
 
@@ -396,7 +365,7 @@ namespace MobyPark.Migrations
                     b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<ReservationStatus>("Status")
+                    b.Property<int>("Status")
                         .HasColumnType("reservation_status");
 
                     b.HasKey("Id");
@@ -479,9 +448,6 @@ namespace MobyPark.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTimeOffset?>("AbsoluteTokenExpiryTime")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset>("Birthday")
                         .HasColumnType("timestamp with time zone");
 
@@ -518,15 +484,8 @@ namespace MobyPark.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("RefreshToken")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<long>("RoleId")
                         .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset?>("SlidingTokenExpiryTime")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -536,9 +495,6 @@ namespace MobyPark.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessId");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
 
                     b.HasIndex("HotelId");
 
@@ -639,10 +595,6 @@ namespace MobyPark.Migrations
 
             modelBuilder.Entity("MobyPark.Models.ParkingSessionModel", b =>
                 {
-                    b.HasOne("MobyPark.Models.BusinessParkingRegistrationModel", "BusinessRegistration")
-                        .WithMany()
-                        .HasForeignKey("BusinessParkingRegistrationId");
-
                     b.HasOne("MobyPark.Models.HotelPassModel", "HotelPass")
                         .WithMany()
                         .HasForeignKey("HotelPassId");
@@ -658,8 +610,6 @@ namespace MobyPark.Migrations
                         .HasForeignKey("ParkingLotId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("BusinessRegistration");
 
                     b.Navigation("HotelPass");
 
