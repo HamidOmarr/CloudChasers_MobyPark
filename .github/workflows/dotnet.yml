@@ -48,6 +48,9 @@ jobs:
           /p:CoverletOutput=./MobyPark.Tests/bin/Debug/net8.0/TestResults/Coverage/coverage.xml \
           /p:CoverletOutputFormat=cobertura \
           | tee test.log
+        echo "Searching for coverage files..."
+        find . -name "coverage*.xml" -o -name "*.cobertura.xml"
+
 
         # Install ReportGenerator if not already installed
         if ! command -v reportgenerator &> /dev/null; then
