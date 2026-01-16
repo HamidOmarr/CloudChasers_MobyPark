@@ -89,7 +89,8 @@ public class ParkingSessionController : BaseController
                     success.Invoice.SessionDuration,
                     totalCost = success.Invoice.Cost,
                     createdAt = success.Invoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
-                    status = success.Invoice.Status.ToString()
+                    status = success.Invoice.Status.ToString(),
+                    invoiceSummary = string.Join("\n", success.Invoice.InvoiceSummary)
                 }
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
