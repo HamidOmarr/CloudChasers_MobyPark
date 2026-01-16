@@ -86,11 +86,11 @@ public class ParkingSessionController : BaseController
                 invoice = new
                 {
                     id = success.Invoice.Id,
-                    success.Invoice.SessionDuration,
+                    sessionDuration = success.Invoice.SessionDuration,
                     totalCost = success.Invoice.Cost,
                     createdAt = success.Invoice.CreatedAt.ToString("dd-MM-yyyy HH:mm"),
                     status = success.Invoice.Status.ToString(),
-                    invoiceSummary = string.Join("\n", success.Invoice.InvoiceSummary)
+                    invoiceSummary = success.Invoice.InvoiceSummary
                 }
             }),
             StopSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
