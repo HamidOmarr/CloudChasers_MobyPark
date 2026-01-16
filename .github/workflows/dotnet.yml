@@ -53,12 +53,16 @@ jobs:
         dotnet tool install -g dotnet-reportgenerator-globaltool || true
         echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-    - name: Generate coverage report (TextSummary + HTML)
+    - name: Prepare TestResults folder
+      run: mkdir -p ./MobyPark.Tests/TestResults/Coverage
+
+    - name: Generate coverage report
       run: |
         export PATH="$PATH:$HOME/.dotnet/tools"
+        mkdir -p ./MobyPark.Tests/TestResults/Coverage/CoverageReport
 
         # Vind de laatste GUID-map van Coverlet
-        LAST_COVERAGE_DIR=$(find ./MobyPark.Tests/TestResults/Coverage -mindepth 1 -maxdepth 1 -type d | sort -r | head -n1)
+        LAST_COVERAGE_DIR=$(ls -dt ./MobyPark.Tests/TestResults/Coverage/*/ | head -n1)
         
         if [ -z "$LAST_COVERAGE_DIR" ]; then
           echo "❌ Geen Coverlet output gevonden!"
@@ -66,12 +70,6 @@ jobs:
         fi
 
         COVERAGE_FILE="$LAST_COVERAGE_DIR/coverage.cobertura.xml"
-
-        if [ ! -f "$COVERAGE_FILE" ]; then
-          echo "❌ Coverlet XML bestand niet gevonden in $LAST_COVERAGE_DIR"
-          exit 1
-        fi
-
         echo "Using coverage file: $COVERAGE_FILE"
 
         reportgenerator \
