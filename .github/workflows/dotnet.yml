@@ -23,16 +23,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install required tools
-      run: |
-        apt-get update
-        apt-get install -y time bc
+    - name: Code format check
+      id: format
+      run: dotnet format --verify-no-changes
 
     - name: Restore dependencies
       run: dotnet restore
 
     - name: Build solution
       run: dotnet build --no-restore
+
+    - name: Install required tools
+      run: |
+        apt-get update
+        apt-get install -y time bc
 
     - name: Run tests with Coverlet coverage and check 80% threshold
       run: |
