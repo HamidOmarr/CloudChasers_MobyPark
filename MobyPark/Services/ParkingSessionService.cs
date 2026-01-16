@@ -597,6 +597,47 @@ public class ParkingSessionService : IParkingSessionService
 
         };
 
+        try
+        {
+            _sessions.Update(activeSession);
+            await _sessions.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            return new StopSessionResult.Error("Failed to update parking session: " + ex.Message);
+        }
+
+
+        try
+        {
+            if (!await OpenSessionGate(activeSession, activeSession.LicensePlateNumber))
+                throw new Exception("Failed to open gate");
+        }
+        catch (Exception ex)
+        {
+            if (paymentPerformed)
+            {
+                // Rollback als betaling gelukt is
+                activeSession.Stopped = null;
+                activeSession.Cost = null;
+                activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+
+                var rollbackDto = new UpdateParkingSessionDto
+                {
+                    Stopped = null,
+                    Cost = null,
+                    PaymentStatus = ParkingSessionStatus.PreAuthorized
+                };
+
+                await _sessions.Update(activeSession, rollbackDto);
+                await _sessions.SaveChangesAsync();
+
+                return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
+            }
+
+            return new StopSessionResult.Error($"Gate error: {ex.Message}");
+        }
+
         var invoiceCreateResult = await _invoiceService.CreateInvoice(createInvoiceDto);
         InvoiceModel invoice;
 
@@ -606,7 +647,6 @@ public class ParkingSessionService : IParkingSessionService
         }
         else
         {
-            // Invoice creation failed; try to recover by fetching an existing invoice
             var existingInvoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(activeSession.LicensePlateNumber);
             if (existingInvoice is not null)
             {
@@ -624,7 +664,6 @@ public class ParkingSessionService : IParkingSessionService
             }
             else
             {
-                // Create a minimal fallback invoice model so the flow can continue
                 invoice = new InvoiceModel
                 {
                     Id = 0,
@@ -634,50 +673,11 @@ public class ParkingSessionService : IParkingSessionService
                     CreatedAt = DateTimeOffset.UtcNow,
                     Status = InvoiceStatus.Paid,
                     Cost = activeSession.Cost,
-                    InvoiceSummary = new List<string>
-                    {
-                        "Invoice generation failed."
-                    }
+                    InvoiceSummary = new List<string> { "Invoice generation failed." }
                 };
             }
-            try
-            {
-                _sessions.Update(activeSession);
-                await _sessions.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                return new StopSessionResult.Error("Failed to update parking session: " + ex.Message);
-            }
 
-            try
-            {
-                if (!await OpenSessionGate(activeSession, activeSession.LicensePlateNumber))
-                    throw new Exception("Failed to open gate");
-            }
-            catch (Exception ex)
-            {
-                if (paymentPerformed)
-                {
-                    activeSession.Stopped = null;
-                    activeSession.Cost = null;
-                    activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
 
-                    var rollbackDto = new UpdateParkingSessionDto
-                    {
-                        Stopped = null,
-                        Cost = null,
-                        PaymentStatus = ParkingSessionStatus.PreAuthorized
-                    };
-
-                    await _sessions.Update(activeSession, rollbackDto);
-                    await _sessions.SaveChangesAsync();
-
-                    return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
-                }
-
-                return new StopSessionResult.Error($"Gate error: {ex.Message}");
-            }
         }
         return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }
