@@ -34,56 +34,45 @@ jobs:
     - name: Build solution
       run: dotnet build --no-restore
 
-    - name: Run tests with code coverage and resource metrics
+    - name: Run tests with Coverlet coverage and check 80% threshold
       run: |
-        /usr/bin/time -v dotnet test \
-          --no-build \
-          --collect:"XPlat Code Coverage"
-
-    - name: Install ReportGenerator
-      run: dotnet tool install -g dotnet-reportgenerator-globaltool
-
-    - name: Add .NET tools to PATH
-      run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-    - name: Generate code coverage report
-      run: |
-        reportgenerator \
-          -reports:**/coverage.cobertura.xml \
-          -targetdir:coverage-report \
-          -reporttypes:TextSummary
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-coverage-report
-        path: coverage-report
-
-    - name: Test with metrics and coverage
-      id: test
-      run: |
-        echo "Running tests with resource metrics and code coverage..."
-        /usr/bin/time -v dotnet test --no-build --collect:"XPlat Code Coverage" | tee test.log
-
+        echo "Running tests with Coverlet..."
         
-        COVERAGE_FILE=$(find . -type f -name 'coverage.cobertura.xml' | head -n 1)
+        # Run tests with Coverlet coverage
+        /usr/bin/time -v dotnet test --no-build \
+          /p:CollectCoverage=true \
+          /p:CoverletOutput=./TestResults/Coverage/coverage \
+          /p:CoverletOutputFormat=cobertura \
+          | tee test.log
 
-        if [ -f "$COVERAGE_FILE" ]; then
-          
-          COVERAGE_PERCENT=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE")
-          COVERAGE_PERCENT_INT=$(printf "%.0f" $(echo "$COVERAGE_PERCENT*100" | bc -l))
-          echo "Code coverage: $COVERAGE_PERCENT_INT%"
-          echo "Code coverage: $COVERAGE_PERCENT_INT%" >> $GITHUB_STEP_SUMMARY
-
-          MIN_COVERAGE=80
-          if [ "$COVERAGE_PERCENT_INT" -lt "$MIN_COVERAGE" ]; then
-            echo "❌ Coverage $COVERAGE_PERCENT_INT% is below minimum threshold of $MIN_COVERAGE%"
-            exit 1
-          fi
-        else
-          echo "Coverage file not found" >> $GITHUB_STEP_SUMMARY
-          exit 1
+        # Install ReportGenerator if not already installed
+        if ! command -v reportgenerator &> /dev/null; then
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
         fi
+
+        # Generate code coverage report (TextSummary + HTML)
+        reportgenerator \
+          -reports:**/TestResults/Coverage/coverage.cobertura.xml \
+          -targetdir:coverage-report \
+          -reporttypes:TextSummary;Html
+
+        # Add coverage report to job summary
+        echo "## Code Coverage (Coverlet)" >> $GITHUB_STEP_SUMMARY
+        cat coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+
+        # Extract Branch Coverage from Summary.txt and enforce threshold
+        BRANCH_COVERAGE=$(grep -oP '(?<=Branch coverage: )[0-9.]+' coverage-report/Summary.txt || echo "0")
+        echo "Branch coverage: $BRANCH_COVERAGE%"
+
+        MIN_COVERAGE=80
+        if (( $(echo "$BRANCH_COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+          echo "❌ Branch coverage ($BRANCH_COVERAGE%) is below minimum threshold of $MIN_COVERAGE%"
+          exit 1
+        else
+          echo "✅ Branch coverage ($BRANCH_COVERAGE%) meets minimum threshold of $MIN_COVERAGE%"
+        fi
+
 
     # Upload test log
     - name: Upload test log
