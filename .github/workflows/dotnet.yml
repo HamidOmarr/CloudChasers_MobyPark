@@ -1,5 +1,4 @@
 # CI/CD pipeline for building, testing, code coverage and resource metrics
-
 name: .NET CI
 
 on:
@@ -41,6 +40,7 @@ jobs:
     - name: Run tests with Coverlet coverage and check 80% threshold
       run: |
         export PATH="$PATH:$HOME/.dotnet/tools"
+        mkdir -p ./TestResults/Coverage
         echo "Running tests with Coverlet..."
         # Run tests with Coverlet coverage
         /usr/bin/time -v dotnet test --no-build \
