@@ -16,7 +16,7 @@ jobs:
 
     env:
       DOTNET_INSTALL_DIR: ${{ github.workspace }}/.dotnet
-      DOTNET_ROOT: ${{ github.workspace }}/.
+      DOTNET_ROOT: ${{ github.workspace }}/.dotnet
       MIN_BRANCH_COVERAGE: 80
 
     steps:
