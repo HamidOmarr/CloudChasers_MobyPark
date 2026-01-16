@@ -533,14 +533,12 @@ public partial class UserService : IUserService
 
     private static RegisterResult CleanEmail(string email, out string? cleanEmail)
     {
-        email = email.TrimSafe();
+        email = email.TrimSafe().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email))
         {
             cleanEmail = null;
             return new RegisterResult.InvalidData("Email cannot be empty.");
         }
-
-        email = email.Trim();
 
         var parts = email.Split('@');
         if (parts.Length != 2)
@@ -563,7 +561,7 @@ public partial class UserService : IUserService
             return new RegisterResult.InvalidData("Email contains invalid international domain name.");
         }
 
-        string normalizedEmail = $"{local}@{domain.ToLowerInvariant()}";
+        string normalizedEmail = $"{local}@{domain}";
 
         if (!EmailRegex().IsMatch(normalizedEmail))
         {

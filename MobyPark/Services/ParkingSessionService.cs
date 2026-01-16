@@ -574,19 +574,6 @@ public class ParkingSessionService : IParkingSessionService
         activeSession.Stopped = end;
         activeSession.Cost = totalAmount;
 
-
-
-        var updateDto = new UpdateParkingSessionDto
-        {
-            Stopped = activeSession.Stopped,
-            PaymentStatus = activeSession.PaymentStatus,
-            Cost = activeSession.Cost
-        };
-
-        var updated = await _sessions.Update(activeSession, updateDto);
-        if (!updated)
-            return new StopSessionResult.Error("Failed to update session after payment.");
-
         var invoiceStatus = activeSession.PaymentStatus switch
         {
             ParkingSessionStatus.Paid => InvoiceStatus.Paid,
@@ -598,6 +585,7 @@ public class ParkingSessionService : IParkingSessionService
         if (priceResult is not CalculatePriceResult.Success sPriceResult)
             return new StopSessionResult.Error("Failed to calculate parking cost for invoice generation.");
         int duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+
         var createInvoiceDto = new CreateInvoiceDto
         {
             LicensePlateId = activeSession.LicensePlateNumber,
@@ -652,36 +640,45 @@ public class ParkingSessionService : IParkingSessionService
                     }
                 };
             }
-        }
-
-        try
-        {
-            if (!await OpenSessionGate(activeSession, activeSession.LicensePlateNumber))
-                throw new Exception("Failed to open gate");
-        }
-        catch (Exception ex)
-        {
-            if (paymentPerformed)
+            try
             {
-                activeSession.Stopped = null;
-                activeSession.Cost = null;
-                activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
-
-                var rollbackDto = new UpdateParkingSessionDto
-                {
-                    Stopped = null,
-                    Cost = null,
-                    PaymentStatus = ParkingSessionStatus.PreAuthorized
-                };
-
-                await UpdateParkingSession(activeSession.Id, rollbackDto);
-
-                return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
+                _sessions.Update(activeSession);
+                await _sessions.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return new StopSessionResult.Error("Failed to update parking session: " + ex.Message);
             }
 
-            return new StopSessionResult.Error($"Gate error: {ex.Message}");
-        }
+            try
+            {
+                if (!await OpenSessionGate(activeSession, activeSession.LicensePlateNumber))
+                    throw new Exception("Failed to open gate");
+            }
+            catch (Exception ex)
+            {
+                if (paymentPerformed)
+                {
+                    activeSession.Stopped = null;
+                    activeSession.Cost = null;
+                    activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
 
+                    var rollbackDto = new UpdateParkingSessionDto
+                    {
+                        Stopped = null,
+                        Cost = null,
+                        PaymentStatus = ParkingSessionStatus.PreAuthorized
+                    };
+
+                    await _sessions.Update(activeSession, rollbackDto);
+                    await _sessions.SaveChangesAsync();
+
+                    return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
+                }
+
+                return new StopSessionResult.Error($"Gate error: {ex.Message}");
+            }
+        }
         return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }
 

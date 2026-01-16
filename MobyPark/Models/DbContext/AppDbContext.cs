@@ -73,6 +73,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .WithMany(role => role.Users)
             .HasForeignKey(user => user.RoleId);
 
+        modelBuilder.Entity<UserModel>()
+            .HasIndex(user => user.Email)
+            .IsUnique();
+
         modelBuilder.Entity<ReservationModel>()
             .HasOne(reservation => reservation.ParkingLot)
             .WithMany(parkingLot => parkingLot.Reservations)
