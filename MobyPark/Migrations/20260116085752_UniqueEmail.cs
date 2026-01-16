@@ -10,11 +10,10 @@ namespace MobyPark.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_Email",
-                table: "Users",
-                column: "Email",
-                unique: true);
+            migrationBuilder.Sql("""
+                                 CREATE UNIQUE INDEX "IX_Users_Email"
+                                 ON "Users" (LOWER("Email"));
+            """);
         }
 
         /// <inheritdoc />
