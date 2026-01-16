@@ -555,8 +555,15 @@ public class ParkingSessionService : IParkingSessionService
         activeSession.Stopped = end;
         activeSession.Cost = totalAmount;
 
-        _sessions.Update(activeSession);
-        await _sessions.SaveChangesAsync();
+        try
+        {
+            _sessions.Update(activeSession);
+            await _sessions.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            return new StopSessionResult.Error("Failed to update parking session: " + ex.Message);
+        }
 
         try
         {
@@ -578,7 +585,8 @@ public class ParkingSessionService : IParkingSessionService
                     PaymentStatus = ParkingSessionStatus.PreAuthorized
                 };
 
-                await UpdateParkingSession(activeSession.Id, rollbackDto);
+                await _sessions.Update(activeSession, rollbackDto);
+                await _sessions.SaveChangesAsync();
 
                 return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
             }

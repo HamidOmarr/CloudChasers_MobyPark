@@ -853,7 +853,7 @@ public sealed class UserServiceTests
     [DataRow("user@123.com", "user@123.com")]
     [DataRow(" user@domain.com ", "user@domain.com")]
     [DataRow("user--name@domain.com", "user--name@domain.com")]
-    [DataRow("USER@DOMAIN.COM", "USER@domain.com")] // Added from my previous example
+    [DataRow("USER@DOMAIN.COM", "user@domain.com")]
     public async Task CreateUserAsync_ValidEmailFormats_CreatesUserWithNormalizedEmail(string inputEmail, string expectedNormalized)
     {
         // Arrange
