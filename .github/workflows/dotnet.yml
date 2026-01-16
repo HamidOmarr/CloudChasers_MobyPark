@@ -61,22 +61,25 @@ jobs:
         export PATH="$PATH:$HOME/.dotnet/tools"
         mkdir -p ./MobyPark.Tests/TestResults/Coverage/CoverageReport
 
-        # Vind de laatste GUID-map van Coverlet
-        LAST_COVERAGE_DIR=$(ls -dt ./MobyPark.Tests/TestResults/Coverage/*/ | head -n1)
-        
-        if [ -z "$LAST_COVERAGE_DIR" ]; then
-          echo "❌ Geen Coverlet output gevonden!"
+        # Vind de laatste Coverlet GUID-map
+        LAST_COVERAGE_DIR=$(ls -d ./MobyPark.Tests/TestResults/Coverage/*/ | sort -r | head -n1)
+
+        # Path naar het XML-bestand
+        COVERAGE_FILE="$LAST_COVERAGE_DIR/coverage.cobertura.xml"
+
+        # Check of het bestand bestaat
+        if [ ! -f "$COVERAGE_FILE" ]; then
+          echo "❌ Geen coverage.cobertura.xml gevonden!"
           exit 1
         fi
 
-        COVERAGE_FILE="$LAST_COVERAGE_DIR/coverage.cobertura.xml"
-        echo "Using coverage file: $COVERAGE_FILE"
-
+        # Run ReportGenerator
         reportgenerator \
           "-reports:$COVERAGE_FILE" \
           "-targetdir:./MobyPark.Tests/TestResults/Coverage/CoverageReport" \
           "-reporttypes:TextSummary;Html" \
           -filters:"+[MobyPark.Services*]*"
+
 
 
     - name: Add coverage report summary to job summary
