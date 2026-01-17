@@ -42,8 +42,8 @@ jobs:
           /p:CoverletOutput=TestResults/Coverage/ \
           /p:CoverletOutputFormat=cobertura \
           /p:Include="[MobyPark]MobyPark.Services.*" \
-          /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \ 
-          | tee test.log  
+          /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \
+          | tee test.log
 
     - name: Debug coverage files
       run: |
