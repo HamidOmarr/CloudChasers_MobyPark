@@ -70,12 +70,11 @@ jobs:
         coverage=$(grep "Line coverage:" CoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
         echo "Coverage is $coverage%"
 
-        # Gebruik de env variabele MIN_BRANCH_COVERAGE
         if (( $(echo "$coverage < $MIN_BRANCH_COVERAGE" | bc -l) )); then
-          echo "❌ Code coverage ($coverage%) is below threshold ($MIN_BRANCH_COVERAGE%)"
+          echo "❌ Code coverage ($coverage%) is below threshold ($MIN_BRANCH_COVERAGE%)" >> "$GITHUB_STEP_SUMMARY"
           exit 1
         else
-          echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)"
+          echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)" >> "$GITHUB_STEP_SUMMARY"
         fi
 
 
