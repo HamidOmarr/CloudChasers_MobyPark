@@ -41,7 +41,7 @@ jobs:
           /p:CollectCoverage=true \
           /p:CoverletOutput=TestResults/Coverage/ \
           /p:CoverletOutputFormat=cobertura \
-          /p:Include="[MobyPark.Services*]*" \
+          /p:Include="[MobyPark]MobyPark.Services.*" \
           | tee test.log
 
     - name: Debug coverage files
