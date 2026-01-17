@@ -44,11 +44,6 @@ jobs:
           /p:Include="[MobyPark]MobyPark.Services.*" \
           /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \
           | tee test.log
-
-    - name: Debug coverage files
-      run: |
-        echo "Searching for coverage files..."
-        find . -name "coverage.cobertura.xml"
     
     - name: Install ReportGenerator
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
@@ -70,10 +65,20 @@ jobs:
         echo "" >> "$GITHUB_STEP_SUMMARY"
         cat CoverageReport/Summary.txt >> "$GITHUB_STEP_SUMMARY"
 
-        
+    - name: Check if code coverage is higher then threshold
+      run: |
+        coverage=$(grep "Line coverage:" CoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
+        echo "Coverage is $coverage%"
+
+        # Gebruik de env variabele MIN_BRANCH_COVERAGE
+        if (( $(echo "$coverage < $MIN_BRANCH_COVERAGE" | bc -l) )); then
+          echo "❌ Code coverage ($coverage%) is below threshold ($MIN_BRANCH_COVERAGE%)"
+          exit 1
+        else
+          echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)"
+        fi
 
 
-    
 
     # Upload test log
     - name: Upload test log
