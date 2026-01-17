@@ -65,7 +65,7 @@ jobs:
     - name: Publish coverage summary
       if: always()
       run: |
-        echo "## Code Coverage (Services)" >> "$GITHUB_STEP_SUMMARY"
+        echo "## Code Coverage" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         cat CoverageReport/Summary.txt >> "$GITHUB_STEP_SUMMARY"
 
