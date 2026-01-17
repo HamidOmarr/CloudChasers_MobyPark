@@ -33,58 +33,38 @@ jobs:
     - name: Build solution
       run: dotnet build --no-restore
 
-    - name: Install required tools
+    - name: Test with coverage
+      id: test
       run: |
-        apt-get update
-        apt-get install -y time bc
+        dotnet test \
+          --no-build \
+          /p:CollectCoverage=true \
+          /p:CoverletOutput=TestResults/Coverage/ \
+          /p:CoverletOutputFormat=cobertura \
+          /p:Include="[MobyPark.Services*]*" \
+          | tee test.log
+    
+    - name: Install ReportGenerator
+      run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
-    - name: Install dependencies for Codecov
+    - name: Generate coverage summary
       run: |
-        apt-get update
-        apt-get install -y gnupg curl
+        reportgenerator \
+          -reports:"**/coverage.cobertura.xml" \
+          -targetdir:"CoverageReport" \
+          -reporttypes:"TextSummary"
 
-
-    - name: Test all services with coverage
-      run: |
-        echo "Testing all service projects with code coverage..."
-        SUMMARY=""
-        # Zoek alle csproj-bestanden in Services-map
-        for proj in $(find ./Services -name '*.csproj'); do
-          echo "Running tests for $proj..."
-          # XPlat Code Coverage in lcov-formaat
-          dotnet test "$proj" \
-            --configuration Release \
-            --no-build \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=lcov \
-            | tee -a test.log
-
-          # Zoek het lcov bestand dat net is aangemaakt
-          LCOV_FILE=$(find ./ -type f -name "coverage.lcov" | tail -n1)
-          if [ -f "$LCOV_FILE" ]; then
-            echo "✅ Coverage voor $proj: $LCOV_FILE"
-            SUMMARY="$SUMMARY\n$proj: $LCOV_FILE"
-          else
-            echo "❌ Geen coverage bestand gevonden voor $proj"
-          fi
-        done
-
-        # Voeg summary toe aan job summary
-        echo -e "## Code Coverage (Services):\n$SUMMARY" >> $GITHUB_STEP_SUMMARY
-
-    - name: Upload coverage results to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: '**/coverage.lcov'
-        fail_ci_if_error: true
-
-    - name: Upload coverage report
+    - name: Publish coverage summary
       if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: ./MobyPark.Tests/TestResults/Coverage/CoverageReport
+      run: |
+        echo "## Code Coverage (Services)" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        cat CoverageReport/Summary.txt >> "$GITHUB_STEP_SUMMARY"
 
+    
+
+
+    
 
     # Upload test log
     - name: Upload test log
