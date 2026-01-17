@@ -43,6 +43,11 @@ jobs:
           /p:CoverletOutputFormat=cobertura \
           /p:Include="[MobyPark.Services*]*" \
           | tee test.log
+
+    - name: Debug coverage files
+      run: |
+        echo "Searching for coverage files..."
+        find . -name "coverage.cobertura.xml"
     
     - name: Install ReportGenerator
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
