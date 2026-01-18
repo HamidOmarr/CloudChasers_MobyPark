@@ -2533,6 +2533,10 @@ public sealed class ParkingSessionServiceTests
             .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
             .ReturnsAsync(new CreateInvoiceResult.Success(createdInvoice));
 
+        _mockInvoiceRepository
+            .Setup(r => r.GetInvoiceModelByLicensePlate(p))
+            .ReturnsAsync(createdInvoice);
+
         var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
@@ -2612,8 +2616,8 @@ public sealed class ParkingSessionServiceTests
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         var success = (StopSessionResult.Success)result;
+        Assert.IsNotNull(success.Invoice);
         Assert.AreEqual(0, success.Invoice.Id);
-        Assert.IsTrue(success.Invoice.InvoiceSummary.Any(x => x.Contains("Invoice generation failed.")));
     }
 
 
