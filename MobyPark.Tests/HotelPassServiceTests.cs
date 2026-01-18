@@ -224,7 +224,7 @@ public class HotelPassServiceTests
         Assert.IsNull(result.Data);
         Assert.IsTrue(result.Error?.Contains("has no hotel passes") ?? false);
     }
-    
+
     [TestMethod]
     public async Task GetHotelPassesByLicensePlateAndLotIdAsync_PassesExist_ReturnsOkWithList()
     {
@@ -338,8 +338,8 @@ public class HotelPassServiceTests
         Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
     }
 
-    
-    
+
+
     #endregion
 
     #region Create
@@ -405,7 +405,7 @@ public class HotelPassServiceTests
         _mockPassRepo.Verify(r => r.Add(It.IsAny<HotelPassModel>()), Times.Once);
         _mockPassRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
-    
+
     [TestMethod]
     public async Task CreateHotelPass_UserNotFound_ReturnsNotFound()
     {
@@ -989,7 +989,7 @@ public class HotelPassServiceTests
         Assert.IsTrue(result.Error?.Contains("End must be after Start") ?? false);
         _mockPassRepo.Verify(r => r.Update(It.IsAny<HotelPassModel>()), Times.Never);
     }
-    
+
     [TestMethod]
     public async Task PatchHotelPassWithUser_UserNotFound_ReturnsNotFound()
     {
@@ -1256,7 +1256,7 @@ public class HotelPassServiceTests
     #endregion
 
     #region Delete
-    
+
     [TestMethod]
     public async Task DeleteHotelPassByIdWithUser_UserNotFound_ReturnsNotFound()
     {

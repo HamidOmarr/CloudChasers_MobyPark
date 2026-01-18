@@ -72,7 +72,7 @@ public class ParkingLotServiceTests
 
         _parkingRepoMock.Verify(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()), Times.Once);
     }
-    
+
     [TestMethod]
     public async Task GetParkingLotByAddressAsync_RepoThrows_ReturnsException()
     {
@@ -142,7 +142,7 @@ public class ParkingLotServiceTests
 
         _parkingRepoMock.Verify(r => r.FindByIdAsync(lot.Id), Times.Once);
     }
-    
+
     [TestMethod]
     public async Task GetParkingLotByIdAsync_RepoThrows_ReturnsFail()
     {
@@ -261,7 +261,7 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.Add(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
-    
+
     [TestMethod]
     public async Task CreateParkingLotAsync_SetsReservedToZero_ReturnsOk()
     {
@@ -461,7 +461,7 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.Update(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
-    
+
     [TestMethod]
     public async Task PatchParkingLotByAddressAsync_PatchOnlyName_UpdatesAndReturnsOk()
     {
@@ -656,7 +656,7 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.Update(It.IsAny<ParkingLotModel>()), Times.Once);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
-    
+
     [TestMethod]
     public async Task PatchParkingLotByIdAsync_NewAddressTaken_ReturnsBadRequest()
     {
@@ -756,7 +756,7 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.Deletee(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
-    
+
     [TestMethod]
     public async Task DeleteParkingLotByIdAsync_RepoThrows_ReturnsFail()
     {
@@ -823,7 +823,7 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.Deletee(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
-    
+
     [TestMethod]
     public async Task DeleteParkingLotByAddressAsync_AddressNormalized_FindsLot_DeletesAndReturnsOk()
     {
@@ -894,7 +894,7 @@ public class ParkingLotServiceTests
 
         _parkingRepoMock.Verify(r => r.ReadAllAsync(), Times.Once);
     }
-    
+
     [TestMethod]
     public async Task GetAllParkingLotsAsync_RepoThrows_ReturnsFail()
     {
