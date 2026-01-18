@@ -2507,7 +2507,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m))
+            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
@@ -2590,7 +2590,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m))
+            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
