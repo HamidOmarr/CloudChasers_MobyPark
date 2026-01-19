@@ -8,16 +8,16 @@ services:
       POSTGRES_PASSWORD: MobyParkCloudChasers
       POSTGRES_DB: mobypark
     ports:
-      - "5432:5432"
+      - "8500:8500"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark" ]
+      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark -p 8500" ]
       interval: 5s
       retries: 10
     volumes:
       - mobypark-data:/var/lib/postgresql/data
     mem_limit: 6g
     cpus: 4
-    pids_limit: 200
+    pids_limit: 2000
     networks:
       - mobypark-net
 
@@ -49,9 +49,9 @@ services:
     container_name: mobypark_api
     environment:
       ConnectionStrings__PostgresConnection: >
-        Host=mobypark-db; Port=5432; Database=mobypark; Username=MobyParkAdmin; Password=MobyParkCloudChasers; Timezone=Europe/Amsterdam
+        Host=mobypark-db; Port=8500; Database=mobypark; Username=MobyParkAdmin; Password=MobyParkCloudChasers; Timezone=Europe/Amsterdam
     ports:
-      - "5001:8080"
+      - "8501:8501"
     depends_on:
       mobypark-db-restore:
         condition: service_completed_successfully
