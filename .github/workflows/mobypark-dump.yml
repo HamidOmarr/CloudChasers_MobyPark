@@ -35,7 +35,7 @@ jobs:
           target: ./mobypark.dump
 
       - name: Upload DB dump as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mobypark-dump
           path: ./mobypark.dump
