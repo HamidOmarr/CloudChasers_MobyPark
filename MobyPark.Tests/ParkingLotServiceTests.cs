@@ -74,6 +74,20 @@ public class ParkingLotServiceTests
     }
 
     [TestMethod]
+    public async Task GetParkingLotByAddressAsync_RepoThrows_ReturnsException()
+    {
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.GetParkingLotByAddressAsync("Addr");
+
+        Assert.AreEqual(ServiceStatus.Exception, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
+    }
+
+    [TestMethod]
     public async Task GetParkingLotByAddressAsync_LotDoesNotExist_ReturnsNotFound()
     {
         // Arrange
@@ -127,6 +141,20 @@ public class ParkingLotServiceTests
         Assert.AreEqual(lot.Address, result.Data.Address);
 
         _parkingRepoMock.Verify(r => r.FindByIdAsync(lot.Id), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task GetParkingLotByIdAsync_RepoThrows_ReturnsFail()
+    {
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(It.IsAny<long>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.GetParkingLotByIdAsync(1);
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
     }
 
     [TestMethod]
@@ -229,6 +257,95 @@ public class ParkingLotServiceTests
         Assert.AreEqual(ServiceStatus.Fail, result.Status);
         Assert.AreEqual("Address taken", result.Error);
         Assert.IsNull(result.Data);
+
+        _parkingRepoMock.Verify(r => r.Add(It.IsAny<ParkingLotModel>()), Times.Never);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task CreateParkingLotAsync_SetsReservedToZero_ReturnsOk()
+    {
+        var dto = new CreateParkingLotDto
+        {
+            Name = "Lot A",
+            Location = "Location A",
+            Address = "Address A",
+            Capacity = 100,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(Enumerable.Empty<ParkingLotModel>().ToList());
+
+        ParkingLotModel captured = null!;
+        _parkingRepoMock
+            .Setup(r => r.Add(It.IsAny<ParkingLotModel>()))
+            .Callback<ParkingLotModel>(x => captured = x);
+
+        _parkingRepoMock
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _service.CreateParkingLotAsync(dto);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.IsNotNull(result.Data);
+        Assert.IsNotNull(captured);
+        Assert.AreEqual(0, captured.Reserved);
+        Assert.AreEqual(0, result.Data!.Reserved);
+    }
+
+    [TestMethod]
+    public async Task CreateParkingLotAsync_AddressNormalized_ReturnsFailWhenTaken()
+    {
+        var dto = new CreateParkingLotDto
+        {
+            Name = "Lot A",
+            Location = "Location A",
+            Address = "  ADDRESS A  ",
+            Capacity = 100,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { new ParkingLotModel { Id = 1, Address = "address a" } }.ToList());
+
+        var result = await _service.CreateParkingLotAsync(dto);
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.AreEqual("Address taken", result.Error);
+
+        _parkingRepoMock.Verify(r => r.Add(It.IsAny<ParkingLotModel>()), Times.Never);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task CreateParkingLotAsync_RepoThrows_ReturnsFail()
+    {
+        var dto = new CreateParkingLotDto
+        {
+            Name = "Lot A",
+            Location = "Location A",
+            Address = "Address A",
+            Capacity = 100,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.CreateParkingLotAsync(dto);
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
 
         _parkingRepoMock.Verify(r => r.Add(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
@@ -345,6 +462,124 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
 
+    [TestMethod]
+    public async Task PatchParkingLotByAddressAsync_PatchOnlyName_UpdatesAndReturnsOk()
+    {
+        var existing = new ParkingLotModel
+        {
+            Id = 1,
+            Name = "Old",
+            Location = "OldLoc",
+            Address = "Address A",
+            Capacity = 10,
+            Tariff = 5m,
+            DayTariff = 20m,
+            Reserved = 3
+        };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { existing }.ToList());
+
+        var patchDto = new PatchParkingLotDto { Name = "New" };
+
+        ParkingLotModel updatedLot = null!;
+        _parkingRepoMock
+            .Setup(r => r.Update(It.IsAny<ParkingLotModel>()))
+            .Callback<ParkingLotModel>(x => updatedLot = x);
+
+        _parkingRepoMock
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _service.PatchParkingLotByAddressAsync(existing.Address, patchDto);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.IsNotNull(result.Data);
+        Assert.IsNotNull(updatedLot);
+        Assert.AreEqual("New", updatedLot.Name);
+        Assert.AreEqual(existing.Location, updatedLot.Location);
+        Assert.AreEqual(existing.Address, updatedLot.Address);
+        Assert.AreEqual(existing.Reserved, updatedLot.Reserved);
+    }
+
+    [TestMethod]
+    public async Task PatchParkingLotByAddressAsync_AddressNormalized_FindsLot_ReturnsOk()
+    {
+        var existing = new ParkingLotModel
+        {
+            Id = 1,
+            Name = "Old",
+            Location = "OldLoc",
+            Address = "Address A",
+            Capacity = 10,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { existing }.ToList());
+
+        var patchDto = new PatchParkingLotDto { Location = "NewLoc" };
+
+        _parkingRepoMock
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _service.PatchParkingLotByAddressAsync("  ADDRESS A  ", patchDto);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.IsNotNull(result.Data);
+        Assert.AreEqual("NewLoc", result.Data!.Location);
+    }
+
+    [TestMethod]
+    public async Task PatchParkingLotByAddressAsync_NewAddressSameAsCurrent_DoesNotFail()
+    {
+        var existing = new ParkingLotModel
+        {
+            Id = 1,
+            Name = "Old",
+            Location = "OldLoc",
+            Address = "Address A",
+            Capacity = 10,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _parkingRepoMock
+            .SetupSequence(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { existing }.ToList())
+            .ReturnsAsync(Enumerable.Empty<ParkingLotModel>().ToList());
+
+        var patchDto = new PatchParkingLotDto { Address = "  Address A  " };
+
+        _parkingRepoMock
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _service.PatchParkingLotByAddressAsync(existing.Address, patchDto);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.IsNotNull(result.Data);
+        Assert.AreEqual("  Address A  ", result.Data!.Address);
+    }
+
+    [TestMethod]
+    public async Task PatchParkingLotByAddressAsync_RepoThrows_ReturnsException()
+    {
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.PatchParkingLotByAddressAsync("Addr", new PatchParkingLotDto { Name = "New" });
+
+        Assert.AreEqual(ServiceStatus.Exception, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
+    }
+
     #endregion
 
     #region PatchParkingLotByIdAsync
@@ -422,6 +657,55 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
 
+    [TestMethod]
+    public async Task PatchParkingLotByIdAsync_NewAddressTaken_ReturnsBadRequest()
+    {
+        var existing = new ParkingLotModel
+        {
+            Id = 1,
+            Name = "Old",
+            Location = "OldLoc",
+            Address = "Addr",
+            Capacity = 10,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        var other = new ParkingLotModel { Id = 2, Address = "New Address" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(existing.Id))
+            .ReturnsAsync(existing);
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { other }.ToList());
+
+        var patchDto = new PatchParkingLotDto { Address = "New Address" };
+
+        var result = await _service.PatchParkingLotByIdAsync(existing.Id, patchDto);
+
+        Assert.AreEqual(ServiceStatus.BadRequest, result.Status);
+        Assert.AreEqual("There is already a parking lot assigned to the new address.", result.Error);
+
+        _parkingRepoMock.Verify(r => r.Update(It.IsAny<ParkingLotModel>()), Times.Never);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task PatchParkingLotByIdAsync_RepoThrows_ReturnsException()
+    {
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(It.IsAny<long>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.PatchParkingLotByIdAsync(1, new PatchParkingLotDto { Name = "New" });
+
+        Assert.AreEqual(ServiceStatus.Exception, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
+    }
+
     #endregion
 
     #region DeleteParkingLotByIdAsync
@@ -468,6 +752,23 @@ public class ParkingLotServiceTests
         Assert.AreEqual(ServiceStatus.NotFound, result.Status);
         Assert.AreEqual("No lot found with that id. Deletion failed.", result.Error);
         // Data will be default(bool) == false, but it's not very important to assert here.
+
+        _parkingRepoMock.Verify(r => r.Deletee(It.IsAny<ParkingLotModel>()), Times.Never);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DeleteParkingLotByIdAsync_RepoThrows_ReturnsFail()
+    {
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(It.IsAny<long>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.DeleteParkingLotByIdAsync(1);
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsFalse(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
 
         _parkingRepoMock.Verify(r => r.Deletee(It.IsAny<ParkingLotModel>()), Times.Never);
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
@@ -523,6 +824,45 @@ public class ParkingLotServiceTests
         _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
 
+    [TestMethod]
+    public async Task DeleteParkingLotByAddressAsync_AddressNormalized_FindsLot_DeletesAndReturnsOk()
+    {
+        var existing = new ParkingLotModel { Id = 1, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { existing }.ToList());
+
+        _parkingRepoMock
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _service.DeleteParkingLotByAddressAsync("  ADDR  ");
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.IsTrue(result.Data);
+
+        _parkingRepoMock.Verify(r => r.Deletee(existing), Times.Once);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task DeleteParkingLotByAddressAsync_RepoThrows_ReturnsFail()
+    {
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.DeleteParkingLotByAddressAsync("Addr");
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsFalse(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
+
+        _parkingRepoMock.Verify(r => r.Deletee(It.IsAny<ParkingLotModel>()), Times.Never);
+        _parkingRepoMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
     #endregion
 
     #region GetAllParkingLotsAsync
@@ -553,6 +893,253 @@ public class ParkingLotServiceTests
         Assert.AreEqual(lots[1].Id, result.Data[1].Id);
 
         _parkingRepoMock.Verify(r => r.ReadAllAsync(), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task GetAllParkingLotsAsync_RepoThrows_ReturnsFail()
+    {
+        _parkingRepoMock
+            .Setup(r => r.ReadAllAsync())
+            .ThrowsAsync(new Exception("db"));
+
+        var result = await _service.GetAllParkingLotsAsync();
+
+        Assert.AreEqual(ServiceStatus.Fail, result.Status);
+        Assert.IsNull(result.Data);
+        Assert.IsTrue(result.Error?.Contains("Unexpected error occurred") ?? false);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsByLotIdAsync_LotNotFound_ReturnsNotFound()
+    {
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(It.IsAny<long>()))
+            .ReturnsAsync((ParkingLotModel)null!);
+
+        var result = await _service.GetAvailableSpotsByLotIdAsync(1);
+
+        Assert.AreEqual(ServiceStatus.NotFound, result.Status);
+        Assert.AreEqual("Parking lot not found", result.Error);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsByLotIdAsync_NoOccupancy_ReturnsCapacity()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 10, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(lot.Id))
+            .ReturnsAsync(lot);
+
+        _sessionRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingSessionModel>());
+
+        _reservationRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()))
+            .ReturnsAsync(new List<ReservationModel>());
+
+        _hotelRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
+            .ReturnsAsync(new List<HotelPassModel>());
+
+        var result = await _service.GetAvailableSpotsByLotIdAsync(lot.Id);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.AreEqual(10, result.Data);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsByLotIdAsync_OccupancyExceedsCapacity_ReturnsZero()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 2, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(lot.Id))
+            .ReturnsAsync(lot);
+
+        _sessionRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingSessionModel>
+            {
+                new ParkingSessionModel { Id = 1, ParkingLotId = 1, Started = DateTime.UtcNow.AddHours(-1), Stopped = null },
+                new ParkingSessionModel { Id = 2, ParkingLotId = 1, Started = DateTime.UtcNow.AddHours(-2), Stopped = null }
+            });
+
+        _reservationRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()))
+            .ReturnsAsync(new List<ReservationModel>
+            {
+                new ReservationModel { Id = 1, ParkingLotId = 1, Status = ReservationStatus.Confirmed, StartTime = DateTime.UtcNow.AddHours(-1), EndTime = DateTime.UtcNow.AddHours(1) }
+            });
+
+        _hotelRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
+            .ReturnsAsync(new List<HotelPassModel>
+            {
+                new HotelPassModel { Id = 1, ParkingLotId = 1, Start = DateTime.UtcNow.AddHours(-1), End = DateTime.UtcNow.AddHours(1), ExtraTime = TimeSpan.FromMinutes(10) }
+            });
+
+        var result = await _service.GetAvailableSpotsByLotIdAsync(lot.Id);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.AreEqual(0, result.Data);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsByAddressAsync_LotNotFound_ReturnsNotFound()
+    {
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingLotModel>());
+
+        var result = await _service.GetAvailableSpotsByAddressAsync("Addr");
+
+        Assert.AreEqual(ServiceStatus.NotFound, result.Status);
+        Assert.AreEqual("Parking lot not found", result.Error);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsByAddressAsync_AddressNormalized_FindsLot_ReturnsOk()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 10, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingLotModel, bool>>>()))
+            .ReturnsAsync(new[] { lot }.ToList());
+
+        _sessionRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingSessionModel>());
+
+        _reservationRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()))
+            .ReturnsAsync(new List<ReservationModel>());
+
+        _hotelRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
+            .ReturnsAsync(new List<HotelPassModel>());
+
+        var result = await _service.GetAvailableSpotsByAddressAsync("  ADDR  ");
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.AreEqual(10, result.Data);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsForPeriodAsync_LotNotFound_ReturnsNotFound()
+    {
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(It.IsAny<long>()))
+            .ReturnsAsync((ParkingLotModel)null!);
+
+        var result = await _service.GetAvailableSpotsForPeriodAsync(1, DateTime.UtcNow, DateTime.UtcNow.AddHours(1));
+
+        Assert.AreEqual(ServiceStatus.NotFound, result.Status);
+        Assert.AreEqual("Parking lot not found", result.Error);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsForPeriodAsync_EndBeforeStart_ReturnsBadRequest()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 10, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(lot.Id))
+            .ReturnsAsync(lot);
+
+        var start = DateTime.UtcNow.AddHours(2);
+        var end = DateTime.UtcNow.AddHours(1);
+
+        var result = await _service.GetAvailableSpotsForPeriodAsync(lot.Id, start, end);
+
+        Assert.AreEqual(ServiceStatus.BadRequest, result.Status);
+        Assert.AreEqual("End time must be after start time.", result.Error);
+
+        _sessionRepoMock.Verify(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()), Times.Never);
+        _reservationRepoMock.Verify(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()), Times.Never);
+        _hotelRepoMock.Verify(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsForPeriodAsync_OverlappingCounts_ReturnsAvailable()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 10, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(lot.Id))
+            .ReturnsAsync(lot);
+
+        var start = DateTime.UtcNow.AddHours(1);
+        var end = DateTime.UtcNow.AddHours(3);
+
+        _sessionRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingSessionModel>
+            {
+                new ParkingSessionModel { Id = 1, ParkingLotId = 1, Started = start.AddMinutes(-30), Stopped = null },
+                new ParkingSessionModel { Id = 2, ParkingLotId = 1, Started = start.AddMinutes(-10), Stopped = start.AddMinutes(10) }
+            });
+
+        _reservationRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()))
+            .ReturnsAsync(new List<ReservationModel>
+            {
+                new ReservationModel { Id = 1, ParkingLotId = 1, Status = ReservationStatus.Pending, StartTime = start.AddMinutes(-5), EndTime = end.AddMinutes(5) },
+                new ReservationModel { Id = 2, ParkingLotId = 1, Status = ReservationStatus.Confirmed, StartTime = start.AddMinutes(30), EndTime = end.AddMinutes(-30) }
+            });
+
+        _hotelRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
+            .ReturnsAsync(new List<HotelPassModel>
+            {
+                new HotelPassModel { Id = 1, ParkingLotId = 1, Start = start.AddMinutes(-1), End = end.AddMinutes(-1), ExtraTime = TimeSpan.FromMinutes(10) }
+            });
+
+        var result = await _service.GetAvailableSpotsForPeriodAsync(lot.Id, start, end);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.AreEqual(5, result.Data);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableSpotsForPeriodAsync_OccupancyExceedsCapacity_ReturnsZero()
+    {
+        var lot = new ParkingLotModel { Id = 1, Capacity = 2, Address = "Addr" };
+
+        _parkingRepoMock
+            .Setup(r => r.FindByIdAsync(lot.Id))
+            .ReturnsAsync(lot);
+
+        var start = DateTime.UtcNow.AddHours(1);
+        var end = DateTime.UtcNow.AddHours(2);
+
+        _sessionRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ParkingSessionModel, bool>>>()))
+            .ReturnsAsync(new List<ParkingSessionModel>
+            {
+                new ParkingSessionModel { Id = 1, ParkingLotId = 1, Started = start.AddMinutes(-10), Stopped = null },
+                new ParkingSessionModel { Id = 2, ParkingLotId = 1, Started = start.AddMinutes(-20), Stopped = null }
+            });
+
+        _reservationRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<ReservationModel, bool>>>()))
+            .ReturnsAsync(new List<ReservationModel>
+            {
+                new ReservationModel { Id = 1, ParkingLotId = 1, Status = ReservationStatus.Confirmed, StartTime = start.AddMinutes(-1), EndTime = end.AddMinutes(1) }
+            });
+
+        _hotelRepoMock
+            .Setup(r => r.GetByAsync(It.IsAny<Expression<Func<HotelPassModel, bool>>>()))
+            .ReturnsAsync(new List<HotelPassModel>
+            {
+                new HotelPassModel { Id = 1, ParkingLotId = 1, Start = start.AddMinutes(-1), End = end.AddMinutes(-1), ExtraTime = TimeSpan.FromMinutes(10) }
+            });
+
+        var result = await _service.GetAvailableSpotsForPeriodAsync(lot.Id, start, end);
+
+        Assert.AreEqual(ServiceStatus.Success, result.Status);
+        Assert.AreEqual(0, result.Data);
     }
 
     #endregion

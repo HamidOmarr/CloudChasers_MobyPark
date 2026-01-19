@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using MobyPark.DTOs.Hotel;
 using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
@@ -483,10 +484,25 @@ public class ParkingSessionService : IParkingSessionService
 
         DateTimeOffset chargeFrom;
         DateTimeOffset end = DateTime.UtcNow;
-        decimal totalAmount;
+        decimal totalAmount = 0m;
         bool paymentPerformed = false;
         CalculatePriceResult priceResult = new CalculatePriceResult.Error("Uninitialized");
 
+
+        var anyHotelPasses = await _passService.GetHotelPassesByLicensePlateAndLotIdAsync(parkingLot.Id, activeSession.LicensePlateNumber);
+        ReadHotelPassDto? overlapPass = null;
+        if (anyHotelPasses.Status == ServiceStatus.Success)
+        {
+            if (anyHotelPasses.Data is not null && anyHotelPasses.Data.Any())
+            {
+                var overlappingPass = anyHotelPasses.Data.FirstOrDefault(x =>
+                    x.End + x.ExtraTime >= activeSession.Started && x.Start <= end);
+                if (overlappingPass is not null)
+                {
+                    overlapPass = overlappingPass;
+                }
+            }
+        }
         if (activeSession.HotelPassId.HasValue)
         {
             var pass = await _passService.GetHotelPassByIdAsync(activeSession.HotelPassId.Value);
@@ -537,6 +553,30 @@ public class ParkingSessionService : IParkingSessionService
             totalAmount = sPrice.Price;
 
             activeSession.PaymentStatus = ParkingSessionStatus.PendingInvoice;
+        }
+        else if (overlapPass is not null)
+        {
+            decimal total = 0m;
+            if (activeSession.Started < overlapPass.Start)
+            {
+                var totalToPayBefore = _pricing.CalculateParkingCost(parkingLot, activeSession.Started,
+                    overlapPass.Start);
+                if (totalToPayBefore is CalculatePriceResult.Success priceBefore)
+                    total += priceBefore.Price;
+                else if (totalToPayBefore is CalculatePriceResult.Error error)
+                    return new StopSessionResult.Error(error.Message);
+            }
+
+            if (overlapPass.End + overlapPass.ExtraTime < end)
+            {
+                var totalToPayAfter = _pricing.CalculateParkingCost(parkingLot,
+                    overlapPass.End + overlapPass.ExtraTime, end);
+                if (totalToPayAfter is CalculatePriceResult.Success priceAfter) total += priceAfter.Price;
+                else if (totalToPayAfter is CalculatePriceResult.Error error)
+                    return new StopSessionResult.Error(error.Message);
+            }
+
+            totalAmount = total;
         }
         else
         {
