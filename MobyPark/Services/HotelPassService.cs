@@ -74,25 +74,52 @@ public class HotelPassService : IHotelPassService
     {
         try
         {
+            var passes = await _passRepo.GetByAsync(x => x.LicensePlateNumber == licensePlate);
+            if (!passes.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound($"License plate {licensePlate} has no hotel passes.");
+            var dtoList = passes.Select(x => new ReadHotelPassDto
+            {
+                Id = x.Id,
+                LicensePlate = x.LicensePlateNumber,
+                ParkingLotId = x.ParkingLotId,
+                Start = x.Start,
+                End = x.End,
+                ExtraTime = x.ExtraTime
+            }).ToList();
 
+            return ServiceResult<List<ReadHotelPassDto>>.Ok(dtoList);
         }
         catch (Exception)
         {
             return ServiceResult<List<ReadHotelPassDto>>.Exception("Unexpected error occurred.");
         }
-        var passes = await _passRepo.GetByAsync(x => x.LicensePlateNumber == licensePlate);
-        if (!passes.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound($"License plate {licensePlate} has no hotel passes.");
-        var dtoList = passes.Select(x => new ReadHotelPassDto
-        {
-            Id = x.Id,
-            LicensePlate = x.LicensePlateNumber,
-            ParkingLotId = x.ParkingLotId,
-            Start = x.Start,
-            End = x.End,
-            ExtraTime = x.ExtraTime
-        }).ToList();
+    }
 
-        return ServiceResult<List<ReadHotelPassDto>>.Ok(dtoList);
+    public async Task<ServiceResult<List<ReadHotelPassDto>>> GetHotelPassesByLicensePlateAndLotIdAsync(long parkingLotId,
+        string licensePlate)
+    {
+        try
+        {
+            var pass = await _passRepo.GetByAsync(x =>
+                x.ParkingLotId == parkingLotId && x.LicensePlateNumber == licensePlate);
+
+            if (!pass.Any()) return ServiceResult<List<ReadHotelPassDto>>.NotFound("No hotel pass found for this license plate and lot id");
+
+            var dtoList = pass.Select(x => new ReadHotelPassDto
+            {
+                Id = x.Id,
+                LicensePlate = x.LicensePlateNumber,
+                ParkingLotId = x.ParkingLotId,
+                Start = x.Start,
+                End = x.End,
+                ExtraTime = x.ExtraTime
+            }).ToList();
+
+            return ServiceResult<List<ReadHotelPassDto>>.Ok(dtoList);
+        }
+        catch (Exception)
+        {
+            return ServiceResult<List<ReadHotelPassDto>>.Exception("Unexpected error occurred.");
+        }
     }
 
     public async Task<ServiceResult<ReadHotelPassDto>> GetActiveHotelPassByLicensePlateAndLotIdAsync(long parkingLotId, string licensePlate)
