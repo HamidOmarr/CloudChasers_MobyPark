@@ -77,35 +77,45 @@ jobs:
           echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)" >> "$GITHUB_STEP_SUMMARY"
         fi
 
-    - name: Collect resource usage metrics
-      if: always()
-      shell: bash
+    - name: Collect Resource Usage Metrics
+      shell: bash --noprofile --norc -e -o pipefail {0}
       run: |
         echo "## Resource Usage Metrics" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # CPU info
         echo "### CPU" >> "$GITHUB_STEP_SUMMARY"
         echo "CPU cores: $(nproc)" >> "$GITHUB_STEP_SUMMARY"
-        echo "Load average (1,5,15 min): $(uptime | awk -F'load average: ' '{print $2}')" >> "$GITHUB_STEP_SUMMARY"
+        # Load averages (1,5,15 min)
+        read one five fifteen rest < /proc/loadavg
+        echo "Load average (1,5,15 min): $one, $five, $fifteen" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # Memory info
         echo "### Memory" >> "$GITHUB_STEP_SUMMARY"
-        echo "Total memory: $(free -h | awk '/Mem:/ {print $2}')" >> "$GITHUB_STEP_SUMMARY"
-        echo "Used memory: $(free -h | awk '/Mem:/ {print $3}')" >> "$GITHUB_STEP_SUMMARY"
-        echo "Free memory: $(free -h | awk '/Mem:/ {print $4}')" >> "$GITHUB_STEP_SUMMARY"
-        echo "Swap usage: $(free -h | awk '/Swap:/ {print $3 "/" $2}')" >> "$GITHUB_STEP_SUMMARY"
+        mem_total_kb=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+        mem_free_kb=$(awk '/MemFree:/ {print $2}' /proc/meminfo)
+        mem_available_kb=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+        swap_used_kb=$(awk '/SwapTotal:/ {total=$2} /SwapFree:/ {free=$2} END {print total - free}' /proc/meminfo)
+        echo "Total memory: $((mem_total_kb/1024)) MB" >> "$GITHUB_STEP_SUMMARY"
+        echo "Free memory: $((mem_free_kb/1024)) MB" >> "$GITHUB_STEP_SUMMARY"
+        echo "Available memory: $((mem_available_kb/1024)) MB" >> "$GITHUB_STEP_SUMMARY"
+        echo "Swap usage: $((swap_used_kb/1024)) MB" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # Disk usage
         echo "### Disk" >> "$GITHUB_STEP_SUMMARY"
-        echo "Disk usage for workspace: $(du -sh $GITHUB_WORKSPACE)" >> "$GITHUB_STEP_SUMMARY"
-        echo "Disk free space: $(df -h . | awk 'NR==2 {print $4 " free of " $2}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "Disk usage for workspace: $(du -sh $GITHUB_WORKSPACE | awk '{print $1}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "Disk free space: $(df -h $GITHUB_WORKSPACE | awk 'NR==2 {print $4 " free of " $2}')" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # Runtime info
         echo "### Runtime" >> "$GITHUB_STEP_SUMMARY"
-        echo "Job start: $GITHUB_RUN_STARTED_AT" >> "$GITHUB_STEP_SUMMARY"
         echo "Job ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+        echo "Job start: $GITHUB_RUN_STARTED_AT" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
+        # Environment info
         echo "### Environment" >> "$GITHUB_STEP_SUMMARY"
         echo "OS: $(uname -a)" >> "$GITHUB_STEP_SUMMARY"
         echo ".NET SDK version: $(dotnet --version)" >> "$GITHUB_STEP_SUMMARY"
