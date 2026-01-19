@@ -31,7 +31,7 @@ jobs:
       run: dotnet restore
 
     - name: Build solution
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore -warnaserror
 
     - name: Test with coverage
       id: test
@@ -78,12 +78,12 @@ jobs:
         fi
 
     - name: Collect Resource Usage Metrics
+      if: always()
       shell: bash --noprofile --norc -e -o pipefail {0}
       run: |
         echo "## Resource Usage Metrics" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        # CPU info
         echo "### CPU" >> "$GITHUB_STEP_SUMMARY"
         echo "CPU cores: $(nproc)" >> "$GITHUB_STEP_SUMMARY"
         # Load averages (1,5,15 min)
@@ -91,7 +91,6 @@ jobs:
         echo "Load average (1,5,15 min): $one, $five, $fifteen" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        # Memory info
         echo "### Memory" >> "$GITHUB_STEP_SUMMARY"
         mem_total_kb=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
         mem_free_kb=$(awk '/MemFree:/ {print $2}' /proc/meminfo)
@@ -103,19 +102,16 @@ jobs:
         echo "Swap usage: $((swap_used_kb/1024)) MB" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        # Disk usage
         echo "### Disk" >> "$GITHUB_STEP_SUMMARY"
         echo "Disk usage for workspace: $(du -sh $GITHUB_WORKSPACE | awk '{print $1}')" >> "$GITHUB_STEP_SUMMARY"
         echo "Disk free space: $(df -h $GITHUB_WORKSPACE | awk 'NR==2 {print $4 " free of " $2}')" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        # Runtime info
         echo "### Runtime" >> "$GITHUB_STEP_SUMMARY"
         echo "Job ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
-        echo "Job start: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> "$GITHUB_STEP_SUMMARY"
+        echo "Job start: $(date -u +"%d-%m-%Y %H:%M:%S")" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
-        # Environment info
         echo "### Environment" >> "$GITHUB_STEP_SUMMARY"
         echo "OS: $(uname -a)" >> "$GITHUB_STEP_SUMMARY"
         echo ".NET SDK version: $(dotnet --version)" >> "$GITHUB_STEP_SUMMARY"
