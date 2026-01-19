@@ -1,0 +1,27 @@
+name: Deploy on server
+
+on:
+  push:
+    branches:
+      - main
+  
+concurrency:
+  group: production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, mobypark]
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: $ {{ secrets.DEPLOY.KEY }}
+          script: |
+            cd ~/CloudChasers_MobyPark
+            git pull origin main
+            docker-compose down
+            docker-compose up -d --build
