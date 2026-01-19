@@ -1,0 +1,41 @@
+name: Upload DB dump
+
+on:
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  upload-dump:
+    runs-on: [self-hosted, linux, x64, mobypark]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Make dump script executable
+        run: chmod +x generate_dump.sh
+
+      - name: Generate DB dump on server
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd ~/CloudChasers_MobyPark
+            chmod +x generate_dump.sh
+            ./generate_dump.sh
+
+      - name: Copy DB dump from server to runner
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          source: ~/CloudChasers_MobyPark/mobypark.dump
+          target: ./mobypark.dump
+
+      - name: Upload DB dump as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: mobypark-dump
+          path: ./mobypark.dump
