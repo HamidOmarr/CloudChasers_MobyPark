@@ -127,9 +127,12 @@ public class HotelPassService : IHotelPassService
         try
         {
             var now = DateTime.UtcNow;
-            var pass = (await _passRepo
-                    .GetByAsync(x => x.ParkingLotId == parkingLotId && x.LicensePlateNumber == licensePlate && x.Start >= now && x.End + x.ExtraTime <= now))
-                .FirstOrDefault(); //Ik ga ervanuit dat 1 kenteken maar 1 actieve hotel pass kan hebben bij een bepaald hotel/parkinglot.
+            var pass = (await _passRepo.GetByAsync(x =>
+                        x.ParkingLotId == parkingLotId &&
+                        x.LicensePlateNumber == licensePlate &&
+                        x.Start <= now &&
+                        now <= (x.End + x.ExtraTime)))
+                    .FirstOrDefault(); //Ik ga ervanuit dat 1 kenteken maar 1 actieve hotel pass kan hebben bij een bepaald hotel/parkinglot.
             if (pass is null)
                 return ServiceResult<ReadHotelPassDto>.NotFound(
                     $"No active hotel pass found for license plate {licensePlate} at parking lot with id {parkingLotId}");
@@ -156,13 +159,13 @@ public class HotelPassService : IHotelPassService
         {
             string plate = pass.LicensePlate.Trim().ToUpperInvariant();
 
-            DateTime reservationStart = pass.Start.ToUniversalTime();
-            DateTime reservationEnd = pass.End.ToUniversalTime();
+            DateTimeOffset reservationStart = pass.Start.ToUniversalTime();
+            DateTimeOffset reservationEnd = pass.End.ToUniversalTime();
 
             if (reservationEnd <= reservationStart)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
 
-            DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
+            DateTimeOffset reservationEndWithExtra = reservationEnd + pass.ExtraTime;
 
             var overlappingExistingPass = (await _passRepo.GetByAsync(x =>
                     x.LicensePlateNumber == plate &&
@@ -239,13 +242,13 @@ public class HotelPassService : IHotelPassService
 
             string plate = pass.LicensePlate.Trim().ToUpperInvariant();
 
-            DateTime reservationStart = pass.Start.ToUniversalTime();
-            DateTime reservationEnd = pass.End.ToUniversalTime();
+            DateTimeOffset reservationStart = pass.Start.ToUniversalTime();
+            DateTimeOffset reservationEnd = pass.End.ToUniversalTime();
 
             if (reservationEnd <= reservationStart)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
 
-            DateTime reservationEndWithExtra = reservationEnd + pass.ExtraTime;
+            DateTimeOffset reservationEndWithExtra = reservationEnd + pass.ExtraTime;
 
             var overlappingExistingPass = (await _passRepo.GetByAsync(x =>
                     x.LicensePlateNumber == plate &&
@@ -316,10 +319,10 @@ public class HotelPassService : IHotelPassService
                 existingPass.LicensePlateNumber = pass.LicensePlate.Trim().ToUpperInvariant();
 
             if (pass.Start.HasValue)
-                existingPass.Start = pass.Start.Value.ToUniversalTime();
+                existingPass.Start = pass.Start.Value;
 
             if (pass.End.HasValue)
-                existingPass.End = pass.End.Value.ToUniversalTime();
+                existingPass.End = pass.End.Value;
 
             if (existingPass.End <= existingPass.Start)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
@@ -327,7 +330,7 @@ public class HotelPassService : IHotelPassService
             if (pass.ExtraTime.HasValue)
                 existingPass.ExtraTime = pass.ExtraTime.Value;
 
-            DateTime updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
+            DateTimeOffset updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
 
             var overlapping = (await _passRepo.GetByAsync(x =>
                     x.Id != existingPass.Id &&
@@ -401,10 +404,10 @@ public class HotelPassService : IHotelPassService
                 existingPass.LicensePlateNumber = pass.LicensePlate.Trim().ToUpperInvariant();
 
             if (pass.Start.HasValue)
-                existingPass.Start = pass.Start.Value.ToUniversalTime();
+                existingPass.Start = pass.Start.Value;
 
             if (pass.End.HasValue)
-                existingPass.End = pass.End.Value.ToUniversalTime();
+                existingPass.End = pass.End.Value;
 
             if (existingPass.End <= existingPass.Start)
                 return ServiceResult<ReadHotelPassDto>.BadRequest("End must be after Start.");
@@ -412,7 +415,7 @@ public class HotelPassService : IHotelPassService
             if (pass.ExtraTime.HasValue)
                 existingPass.ExtraTime = pass.ExtraTime.Value;
 
-            DateTime updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
+            DateTimeOffset updatedEndWithExtra = existingPass.End + existingPass.ExtraTime;
 
             var overlapping = (await _passRepo.GetByAsync(x =>
                     x.Id != existingPass.Id &&
