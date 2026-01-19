@@ -77,6 +77,45 @@ jobs:
           echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)" >> "$GITHUB_STEP_SUMMARY"
         fi
 
+    - name: Collect resource usage metrics
+      if: always()
+      shell: bash
+      run: |
+        echo "## Resource Usage Metrics" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "### CPU" >> "$GITHUB_STEP_SUMMARY"
+        echo "CPU cores: $(nproc)" >> "$GITHUB_STEP_SUMMARY"
+        echo "Load average (1,5,15 min): $(uptime | awk -F'load average: ' '{print $2}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "### Memory" >> "$GITHUB_STEP_SUMMARY"
+        echo "Total memory: $(free -h | awk '/Mem:/ {print $2}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "Used memory: $(free -h | awk '/Mem:/ {print $3}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "Free memory: $(free -h | awk '/Mem:/ {print $4}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "Swap usage: $(free -h | awk '/Swap:/ {print $3 "/" $2}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "### Disk" >> "$GITHUB_STEP_SUMMARY"
+        echo "Disk usage for workspace: $(du -sh $GITHUB_WORKSPACE)" >> "$GITHUB_STEP_SUMMARY"
+        echo "Disk free space: $(df -h . | awk 'NR==2 {print $4 " free of " $2}')" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "### Runtime" >> "$GITHUB_STEP_SUMMARY"
+        echo "Job start: $GITHUB_RUN_STARTED_AT" >> "$GITHUB_STEP_SUMMARY"
+        echo "Job ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "### Environment" >> "$GITHUB_STEP_SUMMARY"
+        echo "OS: $(uname -a)" >> "$GITHUB_STEP_SUMMARY"
+        echo ".NET SDK version: $(dotnet --version)" >> "$GITHUB_STEP_SUMMARY"
+        echo "Container image: mcr.microsoft.com/dotnet/sdk:8.0" >> "$GITHUB_STEP_SUMMARY"
+        echo "Workspace: $GITHUB_WORKSPACE" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+        echo "✅ Resource usage metrics collected successfully." >> "$GITHUB_STEP_SUMMARY"
+
+
 
 
     # Upload test log
