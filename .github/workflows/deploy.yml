@@ -19,7 +19,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: $ {{ secrets.DEPLOY_KEY }}
+          key: ${{ secrets.DEPLOY_KEY }}
           script: |
             cd ~/CloudChasers_MobyPark
             git pull origin main
