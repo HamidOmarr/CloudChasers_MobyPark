@@ -112,7 +112,7 @@ jobs:
         # Runtime info
         echo "### Runtime" >> "$GITHUB_STEP_SUMMARY"
         echo "Job ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
-        echo "Job start: $GITHUB_RUN_STARTED_AT" >> "$GITHUB_STEP_SUMMARY"
+        echo "Job start: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         # Environment info
