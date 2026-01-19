@@ -16,7 +16,7 @@ services:
     volumes:
       - mobypark-data:/var/lib/postgresql/data
     mem_limit: 6g
-    cpus: 4
+    cpus: 2
     pids_limit: 2000
     networks:
       - mobypark-net
