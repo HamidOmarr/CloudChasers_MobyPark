@@ -1,8 +1,0 @@
-type: object
-properties:
-  estimatedCost:
-    type: number
-    description: The calculated cost based on the lot's tariff.
-    format: double
-additionalProperties: false
-description: The estimated cost for a proposed reservation time window.

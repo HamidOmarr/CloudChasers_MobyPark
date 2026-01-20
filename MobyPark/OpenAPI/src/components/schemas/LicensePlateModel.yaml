@@ -1,8 +1,0 @@
-required:
-- licensePlateNumber
-type: object
-properties:
-  licensePlateNumber:
-    minLength: 1
-    type: string
-additionalProperties: false
