@@ -14,7 +14,9 @@ jobs:
         uses: actions/github-script@v6
         with: 
           script: |
+            echo '------ Available environment variables ------'
             env | sort
+            echo '------ Directory structure ------'
             find .
       # - name: Deploy via SSH
       #   uses: appleboy/ssh-action@v1.2.4
