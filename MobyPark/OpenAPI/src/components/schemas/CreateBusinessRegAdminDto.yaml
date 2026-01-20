@@ -1,0 +1,18 @@
+required:
+- businessId
+- licensePlateNumber
+type: object
+properties:
+  businessId:
+    type: integer
+    description: The ID of the business to link this registration to
+    format: int64
+  licensePlateNumber:
+    minLength: 1
+    type: string
+    description: The license plate number
+  active:
+    type: boolean
+    description: 'Initial active status (default: false)'
+additionalProperties: false
+description: Data for an admin to create a new registration.

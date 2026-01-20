@@ -1,0 +1,7 @@
+type: object
+properties:
+  exists:
+    type: boolean
+    description: True if the role exists, false otherwise.
+additionalProperties: false
+description: Result of a role existence check.

@@ -1,0 +1,52 @@
+delete:
+  tags:
+  - BusinessParkingRegistrations
+  summary: Deletes a registration by ID (Admin only).
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Deleted successfully
+      content:
+        application/json:
+          schema:
+            type: boolean
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Registration not found
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - BusinessParkingRegistrations
+  summary: Retrieves a registration by its ID.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Found registration
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessRegDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Not found
+    '500':
+      description: Unexpected internal server error

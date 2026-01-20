@@ -1,0 +1,91 @@
+patch:
+  tags:
+  - Business
+  summary: Updates an existing business.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessDto.yaml
+  responses:
+    '200':
+      description: Business updated
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessDto.yaml
+    '400':
+      description: Invalid IBAN provided
+    '401':
+      description: Unauthorized
+    '404':
+      description: Business not found
+    '409':
+      description: New address already taken
+    '500':
+      description: Unexpected internal server error
+delete:
+  tags:
+  - Business
+  summary: Deletes a business by its ID.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Business deleted
+      content:
+        application/json:
+          schema:
+            type: boolean
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Business not found
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - Business
+  summary: Retrieves a business by its ID.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Found business
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Not found
+    '500':
+      description: Unexpected internal server error

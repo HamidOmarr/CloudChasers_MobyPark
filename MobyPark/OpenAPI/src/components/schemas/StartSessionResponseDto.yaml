@@ -1,0 +1,32 @@
+type: object
+properties:
+  status:
+    type: string
+    description: The status of the parking session
+    nullable: true
+  sessionId:
+    type: integer
+    description: The unique identifier of the parking session
+    format: int64
+  licensePlate:
+    type: string
+    description: The license plate associated with the parking session
+    nullable: true
+  parkingLotId:
+    type: integer
+    description: The unique identifier of the parking lot
+    format: int64
+  startedAt:
+    type: string
+    description: The timestamp when the parking session started
+    format: date-time
+  paymentStatus:
+    type: string
+    description: The payment status for the parking session
+    nullable: true
+  availableSpots:
+    type: integer
+    description: Remaining spots in the lot after this session started
+    format: int32
+additionalProperties: false
+description: Response details when a session is successfully started.

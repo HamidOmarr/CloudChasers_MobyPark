@@ -1,0 +1,31 @@
+required:
+- end
+- extraTime
+- id
+- licensePlate
+- parkingLotId
+- start
+type: object
+properties:
+  id:
+    type: integer
+    description: Unique pass ID
+    format: int64
+  licensePlate:
+    minLength: 1
+    type: string
+    description: Guest license plate
+  parkingLotId:
+    type: integer
+    format: int64
+  start:
+    type: string
+    format: date-time
+  end:
+    type: string
+    format: date-time
+  extraTime:
+    type: string
+    format: date-span
+additionalProperties: false
+description: Details of a Hotel Pass.

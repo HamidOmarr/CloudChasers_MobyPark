@@ -1,0 +1,19 @@
+get:
+  tags:
+  - ParkingLots
+  summary: Retrieves all registered parking lots.
+  responses:
+    '200':
+      description: List retrieved
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../../components/schemas/ReadParkingLotDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '500':
+      description: Unexpected internal server error

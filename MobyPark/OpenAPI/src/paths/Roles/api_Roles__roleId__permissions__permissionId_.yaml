@@ -1,0 +1,24 @@
+delete:
+  tags:
+  - Roles
+  summary: Removes a permission from a role.
+  parameters:
+  - name: roleId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  - name: permissionId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Permission removed
+    '403':
+      description: Action forbidden
+    '404':
+      description: Assignment not found

@@ -1,0 +1,26 @@
+required:
+- action
+- resource
+type: object
+properties:
+  id:
+    type: integer
+    format: int64
+  resource:
+    maxLength: 100
+    minLength: 1
+    type: string
+  action:
+    maxLength: 50
+    minLength: 1
+    type: string
+  key:
+    maxLength: 150
+    type: string
+    nullable: true
+  rolePermissions:
+    type: array
+    items:
+      $ref: ../../components/schemas/RolePermissionModel.yaml
+    nullable: true
+additionalProperties: false

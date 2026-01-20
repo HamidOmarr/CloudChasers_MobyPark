@@ -1,0 +1,58 @@
+post:
+  tags:
+  - LicensePlate
+  summary: Registers a new license plate for the current user.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateLicensePlateDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/CreateLicensePlateDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/CreateLicensePlateDto.yaml
+  responses:
+    '201':
+      description: License plate created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadLicensePlateDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '409':
+      description: License plate already exists
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - LicensePlate
+  summary: Retrieves all license plates for a user.
+  parameters:
+  - name: username
+    in: query
+    schema:
+      type: string
+  responses:
+    '200':
+      description: List retrieved
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../../components/schemas/ReadLicensePlateDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '403':
+      description: Not authorized to view other users' plates
+    '404':
+      description: User not found
+    '500':
+      description: Unexpected internal server error

@@ -6,7 +6,6 @@ using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
-using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
@@ -154,9 +153,7 @@ public class ParkingSessionService : IParkingSessionService
             );
 
             if (costResult is CalculatePriceResult.Success priceSuccess)
-            {
                 existingSession.Cost = priceSuccess.Price;
-            }
             else if (costResult is CalculatePriceResult.Error e)
             {
                 var msg = string.IsNullOrWhiteSpace(e.Message)
@@ -254,7 +251,7 @@ public class ParkingSessionService : IParkingSessionService
         return new GetSessionListResult.Success(sessions);
     }
 
-    public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions)
+    public async Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, long lotId, bool canManageSessions)
     {
         var sessionsResult = await GetParkingSessionsByParkingLotId(lotId);
         if (sessionsResult is not GetSessionListResult.Success success)
@@ -274,7 +271,7 @@ public class ParkingSessionService : IParkingSessionService
         return filteredSessions;
     }
 
-    public async Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, int lotId, int sessionId, bool canManageSessions)
+    public async Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, long lotId, long sessionId, bool canManageSessions)
     {
         var sessionResult = await GetParkingSessionById(sessionId);
         if (sessionResult is not GetSessionResult.Success s)
@@ -312,17 +309,11 @@ public class ParkingSessionService : IParkingSessionService
     {
         int newReservedCount = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
 
-        var lotUpdateDto = new PatchParkingLotDto
-        {
-            Reserved = newReservedCount
-        };
-
+        var lotUpdateDto = new PatchParkingLotDto { Reserved = newReservedCount };
         var lotUpdateResult = await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
 
         if (lotUpdateResult.Status is not ServiceStatus.Success)
-        {
             return new PersistSessionResult.Error(lotUpdateResult.Error!);
-        }
 
         lot.Reserved = newReservedCount;
 
@@ -361,9 +352,9 @@ public class ParkingSessionService : IParkingSessionService
 
         if (lot.Status != ServiceStatus.Success)
         {
-            if (lot.Error is null)
-                throw new InvalidOperationException("ServiceResult error is null for non-success status");
-            return new StartSessionResult.Error(lot.Error);
+            return lot.Error is null
+                ? throw new InvalidOperationException("ServiceResult error is null for non-success status")
+                : new StartSessionResult.Error(lot.Error);
         }
 
         var parkingLot = new ParkingLotModel
@@ -376,7 +367,6 @@ public class ParkingSessionService : IParkingSessionService
             Capacity = lot.Data.Capacity,
             Tariff = lot.Data.Tariff,
             DayTariff = lot.Data.DayTariff
-
         };
 
         if (parkingLot.Capacity - parkingLot.Reserved <= 0)
@@ -390,7 +380,7 @@ public class ParkingSessionService : IParkingSessionService
             await _passService.GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
         var hasActiveBusinessRegistration = await _registrationService.GetActiveBusinessRegistrationByLicencePlateAsync(licensePlate);
 
-        ParkingSessionModel session = new ParkingSessionModel();
+        ParkingSessionModel session = new();
         if (hasHotelPass.Status == ServiceStatus.Success)
         {
             session.ParkingLotId = sessionDto.ParkingLotId;
@@ -421,7 +411,6 @@ public class ParkingSessionService : IParkingSessionService
             session.Stopped = null;
             session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
         }
-
 
         var persistResult = await PersistSession(session, parkingLot);
         if (persistResult is not PersistSessionResult.Success sPersist)
@@ -498,9 +487,7 @@ public class ParkingSessionService : IParkingSessionService
                 var overlappingPass = anyHotelPasses.Data.FirstOrDefault(x =>
                     x.End + x.ExtraTime >= activeSession.Started && x.Start <= end);
                 if (overlappingPass is not null)
-                {
                     overlapPass = overlappingPass;
-                }
             }
         }
         if (activeSession.HotelPassId.HasValue)
@@ -618,7 +605,6 @@ public class ParkingSessionService : IParkingSessionService
         {
             ParkingSessionStatus.Paid => InvoiceStatus.Paid,
             ParkingSessionStatus.HotelPass => InvoiceStatus.Paid,
-            ParkingSessionStatus.PendingInvoice => InvoiceStatus.Pending,
             _ => InvoiceStatus.Pending
         };
 
@@ -633,8 +619,6 @@ public class ParkingSessionService : IParkingSessionService
             SessionDuration = duration,
             Cost = activeSession.Cost.Value,
             Status = invoiceStatus
-
-
         };
 
         try
@@ -716,8 +700,6 @@ public class ParkingSessionService : IParkingSessionService
                     InvoiceSummary = new List<string> { "Invoice generation failed." }
                 };
             }
-
-
         }
         return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }

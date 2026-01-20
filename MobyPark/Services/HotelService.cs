@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-
-using MobyPark.DTOs.Hotel;
+﻿using MobyPark.DTOs.Hotel;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Results;
@@ -18,7 +16,6 @@ public class HotelService : IHotelService
         _lots = lots;
     }
 
-    [Authorize("CanManageHotels")]
     public async Task<ServiceResult<ReadHotelDto>> CreateHotelAsync(CreateHotelDto hotel)
     {
         var parkingLotExists = await _lots.FindByIdAsync(hotel.HotelParkingLotId);
@@ -50,7 +47,6 @@ public class HotelService : IHotelService
         });
     }
 
-    [Authorize("CanManageHotels")]
     public async Task<ServiceResult<PatchHotelDto>> PatchHotelAsync(PatchHotelDto hotelToUpdate) //Ik heb hier een patchdto returned zodat de IBAN zichtbaar is na het updaten. die return ik niet in de readDto
     {
         var hotel = await _hotels.FindByIdAsync(hotelToUpdate.Id);
@@ -87,7 +83,6 @@ public class HotelService : IHotelService
         });
     }
 
-    [Authorize("CanManageHotels")]
     public async Task<ServiceResult<bool>> DeleteHotelAsync(long id)
     {
         var hotel = await _hotels.FindByIdAsync(id);

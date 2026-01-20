@@ -1,0 +1,64 @@
+post:
+  tags:
+  - BusinessParkingRegistrations
+  summary: Creates a registration for the currently logged-in user.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateBusinessRegDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/CreateBusinessRegDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/CreateBusinessRegDto.yaml
+  responses:
+    '200':
+      description: Registration created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessRegDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: User or Business profile not found
+    '409':
+      description: User not authorized OR License plate already active
+    '500':
+      description: Unexpected internal server error
+patch:
+  tags:
+  - BusinessParkingRegistrations
+  summary: Updates the active status of the user's own registration.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessRegDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessRegDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/PatchBusinessRegDto.yaml
+  responses:
+    '200':
+      description: Status updated
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessRegDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Registration not found
+    '409':
+      description: User not authorized to modify this registration
+    '500':
+      description: Unexpected internal server error

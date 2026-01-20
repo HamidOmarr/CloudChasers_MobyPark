@@ -1,0 +1,35 @@
+type: object
+properties:
+  status:
+    type: string
+    description: The status of the parking session after stopping.
+    nullable: true
+  sessionId:
+    type: integer
+    description: The unique identifier of the parking session.
+    format: int64
+  licensePlate:
+    type: string
+    description: The license plate associated with the parking session.
+    nullable: true
+  parkingLotId:
+    type: integer
+    description: The unique identifier of the parking lot where the session took place.
+    format: int64
+  startedAt:
+    type: string
+    description: The timestamp when the parking session started.
+    format: date-time
+  stoppedAt:
+    type: string
+    description: The timestamp when the parking session was stopped.
+    format: date-time
+    nullable: true
+  paymentStatus:
+    type: string
+    description: The total amount charged for the parking session.
+    nullable: true
+  invoice:
+    $ref: ../../components/schemas/SessionInvoiceDto.yaml
+additionalProperties: false
+description: Response details when a session is stopped.

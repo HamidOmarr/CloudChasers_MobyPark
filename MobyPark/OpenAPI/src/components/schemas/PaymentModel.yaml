@@ -1,0 +1,31 @@
+required:
+- amount
+- createdAt
+- licensePlateNumber
+- transactionId
+type: object
+properties:
+  paymentId:
+    type: string
+    format: uuid
+  amount:
+    type: number
+    format: double
+  licensePlateNumber:
+    minLength: 1
+    type: string
+  licensePlate:
+    $ref: ../../components/schemas/LicensePlateModel.yaml
+  createdAt:
+    type: string
+    format: date-time
+  completedAt:
+    type: string
+    format: date-time
+    nullable: true
+  transactionId:
+    type: string
+    format: uuid
+  transaction:
+    $ref: ../../components/schemas/TransactionModel.yaml
+additionalProperties: false

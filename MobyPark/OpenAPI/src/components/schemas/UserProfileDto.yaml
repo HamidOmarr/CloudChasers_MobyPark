@@ -1,0 +1,32 @@
+type: object
+properties:
+  id:
+    type: integer
+    description: The unique identifier of the user.
+    format: int64
+  username:
+    type: string
+    description: The username of the user.
+    nullable: true
+  firstName:
+    type: string
+    description: The first name of the user.
+    nullable: true
+  lastName:
+    type: string
+    description: The last name of the user.
+    nullable: true
+  email:
+    type: string
+    description: The email address of the user.
+    nullable: true
+  phone:
+    type: string
+    description: The phone number of the user.
+    nullable: true
+  birthday:
+    type: string
+    description: The birthday of the user.
+    format: date-time
+additionalProperties: false
+description: Public user profile information.

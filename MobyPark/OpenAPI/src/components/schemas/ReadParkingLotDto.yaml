@@ -1,0 +1,49 @@
+type: object
+properties:
+  id:
+    type: integer
+    description: The unique identifier of the parking lot
+    format: int64
+  name:
+    type: string
+    description: The display name
+    nullable: true
+  location:
+    type: string
+    description: The general location
+    nullable: true
+  address:
+    type: string
+    description: The full address
+    nullable: true
+  reserved:
+    type: integer
+    description: Number of reserved spots
+    format: int32
+  capacity:
+    type: integer
+    description: Total capacity
+    format: int32
+  tariff:
+    type: number
+    description: Hourly tariff
+    format: double
+  dayTariff:
+    type: number
+    description: Daily tariff (if applicable)
+    format: double
+    nullable: true
+  createdAt:
+    type: string
+    description: Date of creation
+    format: date-time
+  status:
+    $ref: ../../components/schemas/ParkingLotStatus.yaml
+  reservations:
+    type: array
+    items:
+      $ref: ../../components/schemas/ReservationModel.yaml
+    description: Associated reservations
+    nullable: true
+additionalProperties: false
+description: Details of a registered parking lot.

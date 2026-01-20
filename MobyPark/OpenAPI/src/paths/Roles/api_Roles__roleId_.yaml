@@ -1,0 +1,71 @@
+get:
+  tags:
+  - Roles
+  summary: Retrieves a role by its unique ID.
+  parameters:
+  - name: roleId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Role found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/RoleModel.yaml
+    '404':
+      description: Role not found
+put:
+  tags:
+  - Roles
+  summary: Updates an existing role.
+  parameters:
+  - name: roleId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateRoleDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/UpdateRoleDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/UpdateRoleDto.yaml
+  responses:
+    '200':
+      description: Update successful
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/RoleModel.yaml
+    '400':
+      description: Invalid update data
+    '404':
+      description: Role not found
+delete:
+  tags:
+  - Roles
+  summary: Deletes a role by ID.
+  parameters:
+  - name: roleId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Deleted successfully
+    '404':
+      description: Role not found
+    '409':
+      description: Cannot delete role (e.g., users assigned)

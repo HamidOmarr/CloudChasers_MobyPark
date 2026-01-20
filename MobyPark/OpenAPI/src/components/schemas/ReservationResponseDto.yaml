@@ -1,0 +1,10 @@
+type: object
+properties:
+  status:
+    type: string
+    description: The outcome status of the operation.
+    nullable: true
+  reservation:
+    $ref: ../../components/schemas/ReservationModel.yaml
+additionalProperties: false
+description: The result of a reservation creation request.

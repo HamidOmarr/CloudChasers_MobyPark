@@ -1,0 +1,53 @@
+required:
+- birthday
+- confirmPassword
+- email
+- firstName
+- lastName
+- password
+- phone
+- username
+type: object
+properties:
+  email:
+    minLength: 1
+    type: string
+    description: A valid email address
+    format: email
+  username:
+    minLength: 3
+    type: string
+    description: A unique username
+  password:
+    minLength: 8
+    type: string
+    description: A strong password (min 8 chars, 1 uppercase, 1 number)
+    format: password
+  confirmPassword:
+    minLength: 1
+    type: string
+    description: Confirmation of the password
+    format: password
+  firstName:
+    maxLength: 50
+    minLength: 2
+    type: string
+  lastName:
+    maxLength: 100
+    minLength: 2
+    type: string
+  birthday:
+    type: string
+    description: Date of birth (User must be 16+)
+    format: date-time
+  phone:
+    minLength: 1
+    type: string
+    description: Valid Dutch phone number
+    format: tel
+  licensePlate:
+    type: string
+    description: Optional initial license plate to register
+    nullable: true
+additionalProperties: false
+description: Data required to register a new user account.

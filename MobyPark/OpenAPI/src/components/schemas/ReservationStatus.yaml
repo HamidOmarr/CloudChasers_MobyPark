@@ -1,0 +1,8 @@
+enum:
+- 0
+- 1
+- 2
+- 3
+- 4
+type: integer
+format: int32

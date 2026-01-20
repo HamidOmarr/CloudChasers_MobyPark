@@ -1,0 +1,25 @@
+required:
+- address
+- hotelParkingLotId
+- iban
+- name
+type: object
+properties:
+  name:
+    minLength: 1
+    type: string
+    description: The name of the hotel
+  address:
+    minLength: 1
+    type: string
+    description: Physical address
+  iban:
+    minLength: 1
+    type: string
+    description: Bank account number (IBAN)
+  hotelParkingLotId:
+    type: integer
+    description: The ID of the parking lot owned by this hotel
+    format: int64
+additionalProperties: false
+description: Data for creating a new Hotel.

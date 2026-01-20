@@ -1,0 +1,52 @@
+delete:
+  tags:
+  - Hotels
+  summary: Deletes a hotel by ID.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Deleted successfully
+      content:
+        application/json:
+          schema:
+            type: boolean
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Hotel not found
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - Hotels
+  summary: Retrieves a hotel by ID.
+  parameters:
+  - name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Hotel found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadHotelDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Hotel not found
+    '500':
+      description: Unexpected internal server error

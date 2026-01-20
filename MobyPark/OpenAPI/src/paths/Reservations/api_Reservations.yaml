@@ -1,0 +1,53 @@
+post:
+  tags:
+  - Reservations
+  summary: Creates a new parking reservation.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateReservationDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/CreateReservationDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/CreateReservationDto.yaml
+  responses:
+    '201':
+      description: Reservation created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReservationResponseDto.yaml
+    '400':
+      description: Invalid input or time window
+    '401':
+      description: Unauthorized
+    '403':
+      description: Not authorized to reserve for this user
+    '404':
+      description: Parking lot, license plate, or user not found
+    '409':
+      description: Parking lot is full or reservation overlap exists
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - Reservations
+  summary: Retrieves all reservations (Admin only).
+  responses:
+    '200':
+      description: List retrieved
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../../components/schemas/ReservationModel.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '500':
+      description: Unexpected internal server error

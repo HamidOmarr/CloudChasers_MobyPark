@@ -1,0 +1,27 @@
+get:
+  tags:
+  - Payments
+  summary: Retrieves all payments associated with a license plate.
+  parameters:
+  - name: licensePlate
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: List retrieved
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ../../components/schemas/PaymentModel.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: No payments found
+    '500':
+      description: Unexpected internal server error

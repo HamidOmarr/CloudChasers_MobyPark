@@ -1,0 +1,25 @@
+delete:
+  tags:
+  - ParkingLots
+  summary: Deletes a parking lot by address.
+  parameters:
+  - name: address
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: Deletion successful
+      content:
+        application/json:
+          schema:
+            type: boolean
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Parking lot not found
+    '500':
+      description: Unexpected internal server error

@@ -1,0 +1,20 @@
+required:
+- bank
+- issuer
+- method
+type: object
+properties:
+  method:
+    minLength: 1
+    type: string
+    description: The payment method used (e.g., CreditCard, PayPal).
+  issuer:
+    minLength: 1
+    type: string
+    description: The issuer of the payment method (e.g., Visa, Mastercard).
+  bank:
+    minLength: 1
+    type: string
+    description: The bank or provider handling the transaction.
+additionalProperties: false
+description: Details regarding the transaction method provided by the payment gateway.

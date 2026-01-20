@@ -1,0 +1,28 @@
+post:
+  tags:
+  - Payments
+  summary: Creates a pending payment and associated transaction.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreatePaymentDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/CreatePaymentDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/CreatePaymentDto.yaml
+  responses:
+    '201':
+      description: Payment created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/PaymentResponseDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '500':
+      description: Internal processing error

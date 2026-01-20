@@ -1,0 +1,49 @@
+put:
+  tags:
+  - Users
+  summary: Updates the authenticated user's profile.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateUserDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/UpdateUserDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/UpdateUserDto.yaml
+  responses:
+    '200':
+      description: Profile updated
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/UserProfileDto.yaml
+    '400':
+      description: Invalid data
+    '401':
+      description: Unauthorized
+    '404':
+      description: User not found
+    '409':
+      description: Username or Email taken
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - Users
+  summary: Retrieves the authenticated user's profile.
+  responses:
+    '200':
+      description: Profile retrieved
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/UserProfileDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '500':
+      description: Unexpected internal server error

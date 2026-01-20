@@ -1,0 +1,66 @@
+post:
+  tags:
+  - HotelPasses
+  summary: Creates a hotel pass for the logged-in hotelier's lot.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateHotelPassDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/CreateHotelPassDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/CreateHotelPassDto.yaml
+  responses:
+    '200':
+      description: Pass created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadHotelPassDto.yaml
+    '400':
+      description: Invalid dates or no spots available
+    '401':
+      description: Unauthorized
+    '404':
+      description: User, Hotel, or Parking Lot not found
+    '409':
+      description: User not authorized or Pass overlaps
+    '500':
+      description: Unexpected internal server error
+patch:
+  tags:
+  - HotelPasses
+  summary: Updates a hotel pass for the logged-in hotelier.
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/PatchHotelPassDto.yaml
+      text/json:
+        schema:
+          $ref: ../../components/schemas/PatchHotelPassDto.yaml
+      application/*+json:
+        schema:
+          $ref: ../../components/schemas/PatchHotelPassDto.yaml
+  responses:
+    '200':
+      description: Pass updated
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadHotelPassDto.yaml
+    '400':
+      description: Invalid dates or no spots
+    '401':
+      description: Unauthorized
+    '403':
+      description: Forbidden (Pass belongs to another lot)
+    '404':
+      description: Pass not found
+    '409':
+      description: User not authorized or Overlap detected
+    '500':
+      description: Unexpected internal server error

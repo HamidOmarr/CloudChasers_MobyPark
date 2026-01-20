@@ -1,0 +1,23 @@
+required:
+- amount
+- bank
+- issuer
+- method
+type: object
+properties:
+  id:
+    type: string
+    format: uuid
+  amount:
+    type: number
+    format: double
+  method:
+    minLength: 1
+    type: string
+  issuer:
+    minLength: 1
+    type: string
+  bank:
+    minLength: 1
+    type: string
+additionalProperties: false

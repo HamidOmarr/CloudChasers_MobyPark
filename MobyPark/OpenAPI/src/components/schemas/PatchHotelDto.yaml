@@ -1,0 +1,27 @@
+required:
+- id
+type: object
+properties:
+  id:
+    type: integer
+    description: The unique identifier of the hotel
+    format: int64
+  name:
+    type: string
+    description: The new name (optional)
+    nullable: true
+  address:
+    type: string
+    description: The new address (optional)
+    nullable: true
+  iban:
+    type: string
+    description: The new IBAN (optional)
+    nullable: true
+  hotelParkingLotId:
+    type: integer
+    description: The new parking lot ID (optional)
+    format: int64
+    nullable: true
+additionalProperties: false
+description: Data for updating a Hotel.

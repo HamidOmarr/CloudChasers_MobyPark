@@ -2,6 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 
+using MobyPark.DTOs.Business;
 using MobyPark.Models;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
@@ -19,7 +20,6 @@ public class BusinessService : IBusinessService
         _businessRepo = businessRepo;
     }
 
-    //Create business
     public async Task<ServiceResult<ReadBusinessDto>> CreateBusinessAsync(CreateBusinessDto business)
     {
         try
@@ -57,7 +57,6 @@ public class BusinessService : IBusinessService
         }
     }
 
-    //Patch business
     public async Task<ServiceResult<ReadBusinessDto>> PatchBusinessAsync(long id, PatchBusinessDto businessPatch)
     {
         try
@@ -98,7 +97,6 @@ public class BusinessService : IBusinessService
 
     }
 
-    //Delete business
     public async Task<ServiceResult<bool>> DeleteBusinessByIdAsync(long id)
     {
         try
@@ -115,7 +113,6 @@ public class BusinessService : IBusinessService
         }
     }
 
-    //GetAllBusinesses
     public async Task<ServiceResult<List<ReadBusinessDto>>> GetAllAsync()
     {
         try
@@ -136,7 +133,7 @@ public class BusinessService : IBusinessService
             return ServiceResult<List<ReadBusinessDto>>.Exception("Unexpected error occurred.");
         }
     }
-    //GetBusinessById
+
     public async Task<ServiceResult<ReadBusinessDto>> GetBusinessByIdAsync(long id)
     {
         try
@@ -157,7 +154,6 @@ public class BusinessService : IBusinessService
         }
     }
 
-    //GetBusinessByAddress
     public async Task<ServiceResult<ReadBusinessDto>> GetBusinessByAddressAsync(string address)
     {
         try

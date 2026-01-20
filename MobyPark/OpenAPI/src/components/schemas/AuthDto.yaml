@@ -1,0 +1,24 @@
+type: object
+properties:
+  userId:
+    type: integer
+    description: The unique identifier of the authenticated user.
+    format: int64
+  username:
+    type: string
+    description: The username of the authenticated user.
+    nullable: true
+  email:
+    type: string
+    description: The email of the authenticated user.
+    nullable: true
+  token:
+    type: string
+    description: The JWT Access Token
+    nullable: true
+  refreshToken:
+    type: string
+    description: The JWT Refresh Token
+    nullable: true
+additionalProperties: false
+description: Authentication success response containing the JWT.

@@ -1,0 +1,13 @@
+get:
+  tags:
+  - Users
+  summary: Logs out the current user (client-side action mainly).
+  responses:
+    '204':
+      description: Logout successful
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '500':
+      description: Unexpected internal server error

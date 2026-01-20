@@ -1,0 +1,21 @@
+type: object
+properties:
+  firstName:
+    maxLength: 100
+    minLength: 1
+    type: string
+    description: The new first name for the user (optional).
+    nullable: true
+  lastName:
+    maxLength: 100
+    minLength: 1
+    type: string
+    description: The new last name for the user (optional).
+    nullable: true
+  birthday:
+    type: string
+    description: The new birthday for the user (optional).
+    format: date-time
+    nullable: true
+additionalProperties: false
+description: Admin-only data for updating user identity.

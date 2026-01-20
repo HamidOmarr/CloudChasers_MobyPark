@@ -1,0 +1,22 @@
+required:
+- cardToken
+- licensePlate
+type: object
+properties:
+  licensePlate:
+    minLength: 1
+    type: string
+    description: The license plate number to park
+  cardToken:
+    minLength: 1
+    type: string
+    description: The token representing the payment card
+  estimatedAmount:
+    type: number
+    description: The amount to pre-authorize on the card
+    format: double
+  simulateInsufficientFunds:
+    type: boolean
+    description: 'For testing: Simulate a card decline'
+additionalProperties: false
+description: Data required to start a parking session.

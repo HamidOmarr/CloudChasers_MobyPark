@@ -1,0 +1,25 @@
+get:
+  tags:
+  - Payments
+  summary: Retrieves a payment by its unique ID.
+  parameters:
+  - name: paymentId
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: Payment found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/PaymentModel.yaml
+    '400':
+      description: Invalid ID format
+    '401':
+      description: Unauthorized
+    '404':
+      description: Payment not found
+    '500':
+      description: Unexpected internal server error

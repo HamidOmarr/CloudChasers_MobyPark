@@ -1,0 +1,25 @@
+required:
+- id
+type: object
+properties:
+  id:
+    type: integer
+    description: Unique pass ID
+    format: int64
+  licensePlate:
+    type: string
+    nullable: true
+  start:
+    type: string
+    format: date-time
+    nullable: true
+  end:
+    type: string
+    format: date-time
+    nullable: true
+  extraTime:
+    type: string
+    format: date-span
+    nullable: true
+additionalProperties: false
+description: Data to update a hotel pass.

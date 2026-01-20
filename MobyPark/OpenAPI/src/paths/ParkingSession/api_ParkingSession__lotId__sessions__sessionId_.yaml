@@ -1,0 +1,62 @@
+delete:
+  tags:
+  - ParkingSession
+  summary: Deletes a parking session record (Admin only).
+  parameters:
+  - name: lotId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  - name: sessionId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Deleted successfully
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Session not found
+    '500':
+      description: Unexpected internal server error
+get:
+  tags:
+  - ParkingSession
+  summary: Retrieves a specific parking session.
+  parameters:
+  - name: lotId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  - name: sessionId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Session found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ParkingSessionModel.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '403':
+      description: Not authorized to view this session
+    '404':
+      description: Session not found
+    '500':
+      description: Unexpected internal server error

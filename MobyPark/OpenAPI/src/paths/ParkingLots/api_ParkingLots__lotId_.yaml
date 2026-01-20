@@ -1,0 +1,26 @@
+get:
+  tags:
+  - ParkingLots
+  summary: Retrieves a parking lot by its ID.
+  parameters:
+  - name: lotId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  responses:
+    '200':
+      description: Parking lot found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadParkingLotDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Parking lot not found
+    '500':
+      description: Unexpected internal server error

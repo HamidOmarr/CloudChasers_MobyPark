@@ -1,0 +1,10 @@
+type: object
+properties:
+  roleId:
+    maximum: 6
+    minimum: 1
+    type: integer
+    description: The new role ID to assign to the user.
+    format: int64
+additionalProperties: false
+description: Data for changing a user's role.

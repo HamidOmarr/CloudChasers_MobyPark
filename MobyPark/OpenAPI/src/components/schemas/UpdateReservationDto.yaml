@@ -1,0 +1,16 @@
+type: object
+properties:
+  startTime:
+    type: string
+    description: The new start time (cannot be changed if already started).
+    format: date-time
+    nullable: true
+  endTime:
+    type: string
+    description: The new end time.
+    format: date-time
+    nullable: true
+  status:
+    $ref: ../../components/schemas/ReservationStatus.yaml
+additionalProperties: false
+description: Data required to update an existing reservation.

@@ -1,0 +1,25 @@
+get:
+  tags:
+  - Business
+  summary: Retrieves a business by its address.
+  parameters:
+  - name: address
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: Found business
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadBusinessDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: Not found
+    '500':
+      description: Unexpected internal server error

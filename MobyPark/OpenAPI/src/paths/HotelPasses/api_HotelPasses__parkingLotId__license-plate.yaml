@@ -1,0 +1,30 @@
+get:
+  tags:
+  - HotelPasses
+  summary: Retrieves the currently ACTIVE pass for a specific lot and plate.
+  parameters:
+  - name: parkingLotId
+    in: path
+    required: true
+    schema:
+      type: integer
+      format: int64
+  - name: plate
+    in: query
+    schema:
+      type: string
+  responses:
+    '200':
+      description: Pass found
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReadHotelPassDto.yaml
+    '400':
+      description: Invalid data supplied
+    '401':
+      description: Unauthorized
+    '404':
+      description: No active pass found
+    '500':
+      description: Unexpected internal server error

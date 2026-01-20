@@ -1,0 +1,10 @@
+type: object
+properties:
+  status:
+    type: string
+    description: The outcome status of the operation (e.g., 'Success', 'Created').
+    nullable: true
+  payment:
+    $ref: ../../components/schemas/PaymentModel.yaml
+additionalProperties: false
+description: Wraps the payment model with a status message.

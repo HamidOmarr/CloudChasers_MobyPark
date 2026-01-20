@@ -1,0 +1,16 @@
+type: object
+properties:
+  licensePlate:
+    type: string
+    description: The license plate number
+    nullable: true
+  userId:
+    type: integer
+    description: The ID of the user who owns this plate
+    format: int64
+  status:
+    type: string
+    description: Optional status report relating to the method this plate was retrieved
+    nullable: true
+additionalProperties: false
+description: Details of a registered license plate.
