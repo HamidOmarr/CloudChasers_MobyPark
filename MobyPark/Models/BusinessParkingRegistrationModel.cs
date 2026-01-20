@@ -14,5 +14,5 @@ public class BusinessParkingRegistrationModel : IHasLongId
 
     public string LicensePlateNumber { get; set; } = string.Empty;
     public bool Active { get; set; } = true;
-    public DateTimeOffset LastSinceActive { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset LastSinceActive { get; set; } = DateTimeOffset.UtcNow;
 }

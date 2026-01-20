@@ -19,6 +19,6 @@ public interface IParkingLotService
 
     Task<ServiceResult<int>> GetAvailableSpotsForPeriodAsync(
         long lotId,
-        DateTime start,
-        DateTime end);
+        DateTimeOffset start,
+        DateTimeOffset end);
 }
