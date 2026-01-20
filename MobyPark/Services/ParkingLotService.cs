@@ -340,8 +340,8 @@ public class ParkingLotService : IParkingLotService
 
     public async Task<ServiceResult<int>> GetAvailableSpotsForPeriodAsync(
         long lotId,
-        DateTime start,
-        DateTime end)
+        DateTimeOffset start,
+        DateTimeOffset end)
     {
         var lot = await _parkingRepo.FindByIdAsync(lotId);
         if (lot is null)

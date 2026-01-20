@@ -13,11 +13,11 @@ public class CreateHotelPassDto
 
     [Required]
     [SwaggerSchema("Start time of the reservation (UTC)")]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
 
     [Required]
     [SwaggerSchema("End time of the reservation (UTC)")]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
 
     [SwaggerSchema("Grace period added to the end time (Default: 30 mins)")]
     public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
@@ -36,11 +36,11 @@ public class AdminCreateHotelPassDto
 
     [Required]
     [SwaggerSchema("Start time of the reservation (UTC)")]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
 
     [Required]
     [SwaggerSchema("End time of the reservation (UTC)")]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
 
     [SwaggerSchema("Grace period (Default: 30 mins)")]
     public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
@@ -59,9 +59,9 @@ public class ReadHotelPassDto
     [Required]
     public long ParkingLotId { get; set; }
     [Required]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
     [Required]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
     [Required]
     public TimeSpan ExtraTime { get; set; }
 }
@@ -73,7 +73,7 @@ public class PatchHotelPassDto
     [SwaggerSchema("Unique pass ID")]
     public long Id { get; set; }
     public string? LicensePlate { get; set; }
-    public DateTime? Start { get; set; }
-    public DateTime? End { get; set; }
+    public DateTimeOffset? Start { get; set; }
+    public DateTimeOffset? End { get; set; }
     public TimeSpan? ExtraTime { get; set; }
 }

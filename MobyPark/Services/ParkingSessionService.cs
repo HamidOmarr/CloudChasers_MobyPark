@@ -446,7 +446,6 @@ public class ParkingSessionService : IParkingSessionService
 
     public async Task<StopSessionResult> StopSession(long id, StopParkingSessionDto sessionDto)
     {
-
         var activeSessionResult = await GetParkingSessionById(id);
         if (activeSessionResult is not GetSessionResult.Success sActive)
             return new StopSessionResult.Error("Active session not found.");
@@ -479,7 +478,6 @@ public class ParkingSessionService : IParkingSessionService
 
 
         var anyHotelPasses = await _passService.GetHotelPassesByLicensePlateAndLotIdAsync(parkingLot.Id, activeSession.LicensePlateNumber);
-        ReadHotelPassDto? overlapPass = null;
         if (anyHotelPasses.Status == ServiceStatus.Success)
         {
             if (anyHotelPasses.Data is not null && anyHotelPasses.Data.Any())
@@ -487,7 +485,7 @@ public class ParkingSessionService : IParkingSessionService
                 var overlappingPass = anyHotelPasses.Data.FirstOrDefault(x =>
                     x.End + x.ExtraTime >= activeSession.Started && x.Start <= end);
                 if (overlappingPass is not null)
-                    overlapPass = overlappingPass;
+                    activeSession.HotelPassId = overlappingPass.Id;
             }
         }
         if (activeSession.HotelPassId.HasValue)
@@ -496,28 +494,50 @@ public class ParkingSessionService : IParkingSessionService
             if (pass.Status != ServiceStatus.Success)
                 return new StopSessionResult.Error("Failed to retrieve hotel pass from database.");
 
-            var endOfFree = pass.Data!.End + pass.Data.ExtraTime;
+            var passData = pass.Data!;
+            var endOfFree = passData.End + passData.ExtraTime;
 
-            if (end <= endOfFree)
+            decimal total = 0m;
+
+            var beforeTo = end < passData.Start ? end : passData.Start;
+            if (activeSession.Started < beforeTo)
             {
-                totalAmount = 0m;
+                var totalToPayBefore = _pricing.CalculateParkingCost(parkingLot, activeSession.Started, beforeTo);
 
-                priceResult = new CalculatePriceResult.Success(
-                Price: 0m,
-                BillableHours: 0,
-                BillableDays: 0);
+                if (totalToPayBefore is CalculatePriceResult.Success priceBefore)
+                {
+                    total += priceBefore.Price;
+                    priceResult = priceBefore;
+                }
+                else if (totalToPayBefore is CalculatePriceResult.Error error)
+                    return new StopSessionResult.Error(error.Message);
             }
-            else
+
+            if (end > endOfFree)
             {
-                chargeFrom = activeSession.Started > endOfFree
-                    ? activeSession.Started
-                    : endOfFree;
+                var chargeAfterPassFrom = activeSession.Started > endOfFree ? activeSession.Started : endOfFree;
 
-                priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
-                if (priceResult is not CalculatePriceResult.Success sPrice)
-                    return new StopSessionResult.Error("Failed to calculate parking cost.");
+                if (chargeAfterPassFrom < end)
+                {
+                    var totalToPayAfter = _pricing.CalculateParkingCost(parkingLot, chargeAfterPassFrom, end);
 
-                totalAmount = sPrice.Price;
+                    if (totalToPayAfter is CalculatePriceResult.Success priceAfter)
+                    {
+                        total += priceAfter.Price;
+                        priceResult = priceAfter;
+                    }
+                    else if (totalToPayAfter is CalculatePriceResult.Error error)
+                        return new StopSessionResult.Error(error.Message);
+                }
+            }
+
+            totalAmount = total;
+            if (priceResult is not CalculatePriceResult.Success)
+            {
+                priceResult = new CalculatePriceResult.Success(
+                    Price: totalAmount,
+                    BillableHours: 0,
+                    BillableDays: 0);
             }
         }
         else if (activeSession.BusinessParkingRegistrationId.HasValue)
@@ -540,30 +560,6 @@ public class ParkingSessionService : IParkingSessionService
             totalAmount = sPrice.Price;
 
             activeSession.PaymentStatus = ParkingSessionStatus.PendingInvoice;
-        }
-        else if (overlapPass is not null)
-        {
-            decimal total = 0m;
-            if (activeSession.Started < overlapPass.Start)
-            {
-                var totalToPayBefore = _pricing.CalculateParkingCost(parkingLot, activeSession.Started,
-                    overlapPass.Start);
-                if (totalToPayBefore is CalculatePriceResult.Success priceBefore)
-                    total += priceBefore.Price;
-                else if (totalToPayBefore is CalculatePriceResult.Error error)
-                    return new StopSessionResult.Error(error.Message);
-            }
-
-            if (overlapPass.End + overlapPass.ExtraTime < end)
-            {
-                var totalToPayAfter = _pricing.CalculateParkingCost(parkingLot,
-                    overlapPass.End + overlapPass.ExtraTime, end);
-                if (totalToPayAfter is CalculatePriceResult.Success priceAfter) total += priceAfter.Price;
-                else if (totalToPayAfter is CalculatePriceResult.Error error)
-                    return new StopSessionResult.Error(error.Message);
-            }
-
-            totalAmount = total;
         }
         else
         {
