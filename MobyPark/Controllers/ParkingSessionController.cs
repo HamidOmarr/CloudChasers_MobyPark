@@ -11,7 +11,7 @@ using MobyPark.Services.Results.ParkingSession;
 namespace MobyPark.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/[controller]/{lotId:long}/sessions")]
 public class ParkingSessionController : BaseController
 {
     private readonly IParkingSessionService _parkingSessions;
@@ -66,9 +66,12 @@ public class ParkingSessionController : BaseController
     //     };
     // }
 
-    [HttpPost("{lotId}/sessions/start")]
-    public async Task<IActionResult> StartSession(CreateParkingSessionDto sessionDto)
+    [HttpPost("start")]
+    public async Task<IActionResult> StartSession(long lotId, [FromBody] CreateParkingSessionDto sessionDto)
     {
+        if (lotId != sessionDto.ParkingLotId)
+            return BadRequest(new { error = "Parking lot ID in the URL does not match the ID in the request body." });
+
         var result = await _parkingSessions.StartSession(sessionDto);
         return result switch
         {
@@ -86,12 +89,15 @@ public class ParkingSessionController : BaseController
             StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
             StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
             StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
-            StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
-            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+            StartSessionResult.PaymentRequired p => StatusCode(
+                StatusCodes.Status402PaymentRequired, new { error = p.Reason, code = "PAYMENT_REQUIRED" }),
+            StartSessionResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
         };
     }
-    [HttpPost("{lotId}/sessions/startpaid")]
-    public async Task<IActionResult> StartPaidSession(string licensePlate, long lotId, CreateCardInfoDto cardInfo)
+
+    [HttpPost("startPaid")]
+    public async Task<IActionResult> StartPaidSession(string licensePlate, long lotId, [FromBody] CreateCardInfoDto cardInfo)
     {
         var result = await _parkingSessions.StartPaidSession(licensePlate, lotId, cardInfo);
         return result switch
@@ -115,12 +121,12 @@ public class ParkingSessionController : BaseController
         };
     }
 
-    [HttpPost("{lotId}/sessions/stop")]
-    public async Task<IActionResult> StopSession(int SessionId, [FromBody] StopParkingSessionDto request)
+    [HttpPost("stop")]
+    public async Task<IActionResult> StopSession(long sessionId, long lotId, [FromBody] StopParkingSessionDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _parkingSessions.StopSession(SessionId, request);
+        var result = await _parkingSessions.StopSession(sessionId, request);
 
         return result switch
         {
@@ -154,8 +160,8 @@ public class ParkingSessionController : BaseController
     }
 
     [Authorize(Policy = "CanManageParkingSessions")]
-    [HttpDelete("{lotId}/sessions/{sessionId}")]
-    public async Task<IActionResult> DeleteSession(int lotId, int sessionId)
+    [HttpDelete("{sessionId}")]
+    public async Task<IActionResult> DeleteSession(long lotId, long sessionId)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -175,8 +181,8 @@ public class ParkingSessionController : BaseController
     }
 
     [Authorize]
-    [HttpGet("{lotId}/sessions")]
-    public async Task<IActionResult> GetSessions(int lotId)
+    [HttpGet("")]
+    public async Task<IActionResult> GetSessions(long lotId)
     {
         var user = await GetCurrentUserAsync();
 
@@ -188,8 +194,8 @@ public class ParkingSessionController : BaseController
     }
 
     [Authorize]
-    [HttpGet("{lotId}/sessions/{sessionId}")]
-    public async Task<IActionResult> GetSession(int lotId, int sessionId)
+    [HttpGet("{sessionId:long}")]
+    public async Task<IActionResult> GetSession(long lotId, long sessionId)
     {
         var user = await GetCurrentUserAsync();
 

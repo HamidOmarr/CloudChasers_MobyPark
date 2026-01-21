@@ -9,6 +9,6 @@ public abstract record StartSessionResult
     public sealed record LotFull : StartSessionResult;
     public sealed record AlreadyActive : StartSessionResult;
     public sealed record PreAuthFailed(string Reason) : StartSessionResult;
-    public sealed record PaymentRequired(string Message) : StartSessionResult;
+    public sealed record PaymentRequired(string Reason) : StartSessionResult;
     public sealed record Error(string Message) : StartSessionResult;
 }
