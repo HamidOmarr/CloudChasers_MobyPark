@@ -503,37 +503,11 @@ public class ParkingSessionService : IParkingSessionService
         }
         else
         {
-            CreateCardInfoDto cardInfo = await GetCardFromTerminal(sessionDto);
-
-            // For now, we simulate that the card has sufficient funds
-            decimal funds = cardInfo.AvailableFunds ?? 1m;
-            bool sufficient = funds > 0m;
-
-            var preAuth = await _preAuth.PreauthorizeAsync(cardInfo.Token, sufficient);
-            if (!preAuth.Approved)
-                return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
-
-            session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
-
-            var transaction = new TransactionModel
-            {
-                Id = Guid.NewGuid(),
-                Amount = 0m,
-                Method = cardInfo.Method,
-                Token = cardInfo.Token,
-                Bank = cardInfo.Bank
-            };
-
-            var payment = new PaymentModel
-            {
-                PaymentId = Guid.NewGuid(),
-                Amount = transaction.Amount,
-                LicensePlateNumber = licensePlate,
-                CreatedAt = session.Started,
-                TransactionId = transaction.Id
-            };
-
-            session.Payment = payment;
+            // User must provide payment info.
+            // This will return to the controller (PaymentRequired not implemented in controller yet)
+            // This signal will tell the computer at the parking lot to ask for payment info.
+            // This in turn will initiate a new StartPaidSession controller call with payment info in the DTO.
+            return new StartSessionResult.PaymentRequired();
         }
 
         session.ParkingLotId = sessionDto.ParkingLotId;
@@ -546,7 +520,6 @@ public class ParkingSessionService : IParkingSessionService
             var persistResult = await PersistSession(session, parkingLot);
             if (persistResult is not PersistSessionResult.Success sPersist)
                 throw new InvalidOperationException("Failed to persist session");
-
 
             session = sPersist.Session;
             if (!await OpenSessionGate(session, licensePlate))
@@ -562,9 +535,71 @@ public class ParkingSessionService : IParkingSessionService
             await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
             return new StartSessionResult.Error("Failed to start session: " + e.Message);
         }
-
     }
 
+    //         CreateCardInfoDto cardInfo = await GetCardFromTerminal(sessionDto);
+    //
+    //         // For now, we simulate that the card has sufficient funds
+    //         decimal funds = cardInfo.AvailableFunds ?? 1m;
+    //         bool sufficient = funds > 0m;
+    //
+    //         var preAuth = await _preAuth.PreauthorizeAsync(cardInfo.Token, sufficient);
+    //         if (!preAuth.Approved)
+    //             return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+    //
+    //         session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+    //
+    //         var transaction = new TransactionModel
+    //         {
+    //             Id = Guid.NewGuid(),
+    //             Amount = 0m,
+    //             Method = cardInfo.Method,
+    //             Token = cardInfo.Token,
+    //             Bank = cardInfo.Bank
+    //         };
+    //
+    //         var payment = new PaymentModel
+    //         {
+    //             PaymentId = Guid.NewGuid(),
+    //             Amount = transaction.Amount,
+    //             LicensePlateNumber = licensePlate,
+    //             CreatedAt = session.Started,
+    //             TransactionId = transaction.Id
+    //         };
+    //
+    //         session.Payment = payment;
+    //     }
+    //
+    //     session.ParkingLotId = sessionDto.ParkingLotId;
+    //     session.LicensePlateNumber = licensePlate;
+    //     session.Started = DateTimeOffset.UtcNow;
+    //     session.Stopped = null;
+    //
+    //     try
+    //     {
+    //         var persistResult = await PersistSession(session, parkingLot);
+    //         if (persistResult is not PersistSessionResult.Success sPersist)
+    //             throw new InvalidOperationException("Failed to persist session");
+    //
+    //
+    //         session = sPersist.Session;
+    //         if (!await OpenSessionGate(session, licensePlate))
+    //             throw new InvalidOperationException("Failed to open gate");
+    //         return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         if (session.Id > 0)
+    //             await DeleteParkingSession(session.Id);
+    //         int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
+    //         var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
+    //         await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
+    //         return new StartSessionResult.Error("Failed to start session: " + e.Message);
+    //     }
+    //
+    // }
+
+    // Old method, kept for reference
     public async Task<CreateCardInfoDto> GetCardFromTerminal(CreateParkingSessionDto dto)
     {
         await Task.Delay(500); // Simulate a delay for terminal interaction
