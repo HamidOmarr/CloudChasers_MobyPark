@@ -1781,7 +1781,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(s => s.GetById<ParkingSessionModel>(It.IsAny<long>()))
             .ReturnsAsync((ParkingSessionModel?)null);
 
-        var result = await _sessionService.StopSession(1, dto);
+        var result = await _sessionService.StopSession(1);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Active session not found");
@@ -1805,7 +1805,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
             .ReturnsAsync(activeSession);
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.AlreadyStopped));
     }
@@ -1833,7 +1833,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(p => p.GetParkingLotByIdAsync(99))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound("Parking lot not found"));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve parking lot");
@@ -1892,7 +1892,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(p => p.GetPaymentByIdAsync(activeSession.PaymentId.Value))
             .ReturnsAsync(new GetPaymentResult.NotFound());
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
     }
@@ -1964,7 +1964,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(t => t.GetTransactionById(transactionId))
             .ReturnsAsync(new GetTransactionResult.NotFound());
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(
@@ -2018,7 +2018,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "No paymentId");
@@ -2103,7 +2103,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(r => r.SaveChangesAsync())
             .ThrowsAsync(new Exception("Database connection failed"));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to update parking session");
@@ -2208,7 +2208,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
             .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         _mockSessionsRepo.Verify(r => r.Update(It.IsAny<ParkingSessionModel>()), Times.Once);
@@ -2308,7 +2308,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(r => r.SaveChangesAsync())
             .ReturnsAsync(1);
 
-        var result = await _sessionService.StopSession(sessionId, stopDto);
+        var result = await _sessionService.StopSession(sessionId);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         var error = (StopSessionResult.Error)result;
@@ -2402,7 +2402,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
             .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
 
-        var result = await _sessionService.StopSession(sessionId, dto);
+        var result = await _sessionService.StopSession(sessionId);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
 
@@ -2462,7 +2462,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(s => s.GetHotelPassByIdAsync(42))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("not found"));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve hotel pass from database");
@@ -2562,7 +2562,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(pmt => pmt.GetPaymentByIdAsync(It.IsAny<Guid>()))
             .Throws(new Exception("Payment should not be requested for BusinessParking stop"));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         var success = (StopSessionResult.Success)result;
@@ -2620,7 +2620,7 @@ public sealed class ParkingSessionServiceTests
             .Setup(r => r.GetBusinessRegistrationByIdAsync(regId))
             .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No registration"));
 
-        var result = await _sessionService.StopSession(activeSession.Id, dto);
+        var result = await _sessionService.StopSession(activeSession.Id);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve business registration");

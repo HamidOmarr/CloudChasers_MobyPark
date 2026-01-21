@@ -23,7 +23,7 @@ public interface IParkingSessionService
     string GenerateTransactionValidationHash();
     Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto);
     Task<StartSessionResult> StartPaidSession(string licensePlate, long lotId, CreateCardInfoDto cardInfo);
-    Task<StopSessionResult> StopSession(long id, StopParkingSessionDto dto);
+    Task<StopSessionResult> StopSession(long id);
     Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, long lotId, bool canManageSessions);
     Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, long lotId, long sessionId, bool canManageSessions);
 }

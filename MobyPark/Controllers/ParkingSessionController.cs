@@ -79,11 +79,11 @@ public class ParkingSessionController : BaseController
     }
 
     [HttpPost("stop")]
-    public async Task<IActionResult> StopSession(long sessionId, long lotId, [FromBody] StopParkingSessionDto request)
+    public async Task<IActionResult> StopSession(long sessionId, long lotId)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var result = await _parkingSessions.StopSession(sessionId, request);
+        var result = await _parkingSessions.StopSession(sessionId);
 
         return result switch
         {

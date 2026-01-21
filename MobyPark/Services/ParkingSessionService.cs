@@ -369,10 +369,15 @@ public class ParkingSessionService : IParkingSessionService
     public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto)
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
+        
         var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
 
         if (lot.Status is not ServiceStatus.Success)
             return new StartSessionResult.LotNotFound();
+        
+        var exists = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
+        if (exists is not null)
+            return new StartSessionResult.AlreadyActive();
 
         ParkingLotModel parkingLot = new()
         {
@@ -447,6 +452,10 @@ public class ParkingSessionService : IParkingSessionService
 
         if (lot.Status is not ServiceStatus.Success)
             return new StartSessionResult.LotNotFound();
+        
+        var exists = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
+        if (exists is not null)
+            return new StartSessionResult.AlreadyActive();
 
         ParkingLotModel parkingLot = new()
         {
@@ -520,7 +529,7 @@ public class ParkingSessionService : IParkingSessionService
         }
     }
 
-    public async Task<StopSessionResult> StopSession(long id, StopParkingSessionDto sessionDto)
+    public async Task<StopSessionResult> StopSession(long id)
     {
         var activeSessionResult = await GetParkingSessionById(id);
         if (activeSessionResult is not GetSessionResult.Success sActive)
