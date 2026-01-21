@@ -14,7 +14,15 @@ namespace MobyPark.Configuration;
 
 public static class DiContainer
 {
-    public static void AddMobyParkServices(this IServiceCollection services, IConfiguration configuration)
+    public static void AddDependencyInjection(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddDatabase(configuration);
+        services.AddRepositories();
+        services.AddServices();
+        services.AddUtilities();
+    }
+
+    private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration
             .GetConnectionString("DefaultConnection");
@@ -25,10 +33,10 @@ public static class DiContainer
 
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 
-        dataSourceBuilder.MapEnum<ParkingLotStatus>();
-        dataSourceBuilder.MapEnum<ReservationStatus>();
-        dataSourceBuilder.MapEnum<ParkingSessionStatus>();
-        dataSourceBuilder.MapEnum<InvoiceStatus>("invoice_status");
+        dataSourceBuilder.MapEnum<ParkingLotStatus>()
+            .MapEnum<ReservationStatus>()
+            .MapEnum<ParkingSessionStatus>()
+            .MapEnum<InvoiceStatus>("invoice_status");
 
         var dataSource = dataSourceBuilder.Build();
 
@@ -36,11 +44,13 @@ public static class DiContainer
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(dataSource));
+    }
 
-        // Repository: Scoped. New instance per HTTP request.
-        services.AddScoped(typeof(IRepository<>), typeof(Repository<>)); // toegevoegd door mij
+    private static void AddRepositories(this IServiceCollection services)
+    {
+        services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
         services.AddScoped<ILicensePlateRepository, LicensePlateRepository>();
-        services.AddScoped<IParkingLotService, ParkingLotService>();
         services.AddScoped<IParkingSessionRepository, ParkingSessionRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
@@ -50,22 +60,18 @@ public static class DiContainer
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IUserPlateRepository, UserPlateRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+    }
+
+    private static void AddServices(this IServiceCollection services)
+    {
+        services.AddScoped<IParkingLotService, ParkingLotService>();
         services.AddScoped<IGateService, GateService>();
         services.AddScoped<IPreAuthService, PreAuthService>();
         services.AddScoped<IHotelPassService, HotelPassService>();
         services.AddScoped<IBusinessService, BusinessService>();
         services.AddScoped<IBusinessParkingRegistrationService, BusinessParkingRegistrationService>();
-
-        // JWT Token Generator: Normally Singleton, but Scoped as it depends on IRepository.
-        services.AddScoped<ITokenService, TokenService>();
-
-        // Password Hasher: Must be Singleton as it is stateless and resource-intensive.
-        // services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
-        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHashingService>();
-
-        // Business Logic Services: Scoped to manage state per request.
         services.AddScoped<ILicensePlateService, LicensePlateService>();
-        services.AddScoped<ParkingLotService>();
         services.AddScoped<IParkingSessionService, ParkingSessionService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IPermissionService, PermissionService>();
@@ -76,7 +82,12 @@ public static class DiContainer
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserPlateService, UserPlateService>();
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IAutomatedInvoiceService, AutomatedInvoiceService>();
+    }
+
+    private static void AddUtilities(this IServiceCollection services)
+    {
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddSingleton<IPasswordHasher<UserModel>, PasswordHashingService>();
     }
 }

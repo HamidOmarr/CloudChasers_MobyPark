@@ -14,9 +14,9 @@ public static class SwaggerServiceExtensions
 
             swaggerGenOptions.SwaggerDoc("v1", new OpenApiInfo
             {
-                // Title: "MobyPark API",
-                // Version: "v1"
-                // Description: "Parking management API for MobyPark."
+                Title = "MobyPark API",
+                Version = "v1",
+                Description = "Parking management API for MobyPark."
             });
 
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";

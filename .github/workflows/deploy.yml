@@ -20,10 +20,39 @@ jobs:
 
       - name: Deploy Application
         shell: bash
+        env:
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
         run: |
           echo "Starting deployment..."
           cd ~/CloudChasers_MobyPark
+
+          if [ ! -d certs ]; then
+            mkdir -p certs
+          fi
+
+          echo "Generating Self-Signed Certificate if it doesn't exist..."
+          if [ ! -f certs/selfsigned.pfx ]; then
+            echo "Certificate not found. Generating Self-Signed Certificate..."
+
+            openssl req -x509 -newkey rsa:4096 \
+               -keyout certs/key.pem \
+               -out certs/cert.pem \
+               -days 3650 \
+               -nodes \
+               -subj "/CN=MobyPark-SelfSigned"
+
+            openssl pkcs12 -export \
+                 -out certs/selfsigned.pfx \
+                 -inkey certs/key.pem \
+                 -in certs/cert.pem \
+                 -password pass:$CERT_PASSWORD
           
+            rm certs/key.pem certs/cert.pem
+            echo "Certificate generated successfully."
+          else
+            echo "Certificate already exists. Skipping generation."
+          fi
+
           echo "Creating database backup..."
           chmod +x generate_dump.sh
           ./generate_dump.sh
@@ -35,7 +64,7 @@ jobs:
           docker compose down
           
           echo "Building and starting containers..."
-          docker compose up -d --build
+          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d --build
           
           echo "Waiting for containers to start..."
           sleep 5
@@ -45,3 +74,13 @@ jobs:
           
           echo "API logs (last 20 lines):"
           docker logs --tail 20 mobypark_api || echo "API not yet running"
+
+      - name: Generate Swagger Docs
+        shell: bash
+        run: |
+            echo "Generating Swagger Documentation..."
+            SCRIPT_PATH="~/CloudChasers_MobyPark/ci/generate-swagger-docs.sh"
+
+            chmod +x $SCRIPT_PATH
+
+            $SCRIPT_PATH

@@ -4,7 +4,7 @@ namespace MobyPark.Configuration;
 
 public static class MiddlewareExtensions
 {
-    public static WebApplication ConfigureRequestPipeline(this WebApplication app)
+    public static WebApplication ConfigureMiddleware(this WebApplication app)
     {
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
