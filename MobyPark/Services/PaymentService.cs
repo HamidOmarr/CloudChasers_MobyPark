@@ -76,7 +76,7 @@ public class PaymentService : IPaymentService
 
         return new GetPaymentResult.Success(payment);
     }
-    
+
     public async Task<GetPaymentResult> GetPaymentByIdAsync(Guid pId)
     {
         var payment = await _payments.FindByIdAsync(pId);

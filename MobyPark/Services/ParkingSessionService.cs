@@ -366,115 +366,6 @@ public class ParkingSessionService : IParkingSessionService
     private async Task<bool> OpenSessionGate(ParkingSessionModel session, string licensePlate)
         => await _gate.OpenGateAsync(session.ParkingLotId, licensePlate);
 
-    // public async Task<StartSessionResult> StartSession(
-    //     CreateParkingSessionDto sessionDto,
-    //     string cardToken,
-    //     decimal estimatedAmount,
-    //     string? username,
-    //     bool simulateInsufficientFunds = false)
-    // {
-    //     var licensePlate = sessionDto.LicensePlate.Upper();
-    //
-    //     var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
-    //     if (lot.Status is ServiceStatus.NotFound or ServiceStatus.Fail)
-    //         return new StartSessionResult.LotNotFound();
-    //
-    //     if (lot.Status != ServiceStatus.Success)
-    //     {
-    //         if (lot.Error is null)
-    //             throw new InvalidOperationException("ServiceResult error is null for non-success status");
-    //         return new StartSessionResult.Error(lot.Error);
-    //     }
-    //
-    //     var parkingLot = new ParkingLotModel
-    //     {
-    //         Id = lot.Data!.Id,
-    //         Name = lot.Data.Name,
-    //         Location = lot.Data.Location,
-    //         Address = lot.Data.Address,
-    //         Reserved = lot.Data.Reserved,
-    //         Capacity = lot.Data.Capacity,
-    //         Tariff = lot.Data.Tariff,
-    //         DayTariff = lot.Data.DayTariff
-    //
-    //     };
-    //
-    //     if (parkingLot.Capacity - parkingLot.Reserved <= 0)
-    //         return new StartSessionResult.LotFull();
-    //
-    //     var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
-    //     if (activeSessionResult is GetSessionResult.Success)
-    //         return new StartSessionResult.AlreadyActive();
-    //
-    //     var hasHotelPass =
-    //         await _passService.GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
-    //     var hasActiveBusinessRegistration = await _registrationService.GetActiveBusinessRegistrationByLicencePlateAsync(licensePlate);
-    //
-    //     ParkingSessionModel session = new ParkingSessionModel();
-    //     if (hasHotelPass.Status == ServiceStatus.Success)
-    //     {
-    //         session.ParkingLotId = sessionDto.ParkingLotId;
-    //         session.LicensePlateNumber = licensePlate;
-    //         session.Started = DateTimeOffset.UtcNow;
-    //         session.Stopped = null;
-    //         session.PaymentStatus = ParkingSessionStatus.HotelPass;
-    //         session.HotelPassId = hasHotelPass.Data!.Id;
-    //     }
-    //     else if (hasActiveBusinessRegistration.Status == ServiceStatus.Success)
-    //     {
-    //         session.ParkingLotId = sessionDto.ParkingLotId;
-    //         session.LicensePlateNumber = licensePlate;
-    //         session.Started = DateTimeOffset.UtcNow;
-    //         session.Stopped = null;
-    //         session.PaymentStatus = ParkingSessionStatus.BusinessParking;
-    //         session.BusinessParkingRegistrationId = hasActiveBusinessRegistration.Data!.Id;
-    //     }
-    //     else
-    //     {
-    //         var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount);
-    //         if (!preAuth.Approved)
-    //             return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
-    //
-    //         session.ParkingLotId = sessionDto.ParkingLotId;
-    //         session.LicensePlateNumber = licensePlate;
-    //         session.Started = DateTimeOffset.UtcNow;
-    //         session.Stopped = null;
-    //         session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
-    //     }
-    //
-    //
-    //     var persistResult = await PersistSession(session, parkingLot);
-    //     if (persistResult is not PersistSessionResult.Success sPersist)
-    //     {
-    //         return persistResult switch
-    //         {
-    //             PersistSessionResult.Error err => new StartSessionResult.Error(err.Message),
-    //             _ => new StartSessionResult.Error("Unknown error during session persistence.")
-    //         };
-    //     }
-    //
-    //     session = sPersist.Session;
-    //
-    //     try
-    //     {
-    //         if (!await OpenSessionGate(session, licensePlate))
-    //             throw new InvalidOperationException("Failed to open gate");
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         if (session.Id > 0)
-    //             await DeleteParkingSession(session.Id);
-    //
-    //         int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
-    //         var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
-    //         await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
-    //
-    //         return new StartSessionResult.Error("Failed to start session: " + ex.Message);
-    //     }
-    //
-    //     return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
-    // }
-
     public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto)
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
@@ -517,10 +408,6 @@ public class ParkingSessionService : IParkingSessionService
         }
         else
         {
-            // User must provide payment info.
-            // This will return to the controller (PaymentRequired not implemented in controller yet)
-            // This signal will tell the computer at the parking lot to ask for payment info.
-            // This in turn will initiate a new StartPaidSession controller call with payment info in the DTO.
             return new StartSessionResult.PaymentRequired("Please hold your payment card to the scanner");
         }
 
@@ -593,7 +480,10 @@ public class ParkingSessionService : IParkingSessionService
         {
             var transaction = new TransactionModel()
             {
-                Amount = 0, Method = cardInfo.Method, Token = cardInfo.Token, Bank = cardInfo.Bank
+                Amount = 0,
+                Method = cardInfo.Method,
+                Token = cardInfo.Token,
+                Bank = cardInfo.Bank
             };
             await _transactionRepo.SaveChangesAsync();
 
@@ -628,30 +518,6 @@ public class ParkingSessionService : IParkingSessionService
             await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
             return new StartSessionResult.Error("Failed to start session: " + e.Message);
         }
-    }
-
-
-    // Old method, kept for reference
-    public async Task<CreateCardInfoDto> GetCardFromTerminal(CreateParkingSessionDto dto)
-    {
-        await Task.Delay(500); // Simulate a delay for terminal interaction
-
-        // For demonstration, return a dummy card info
-        // Generate a random 8-character alphanumeric token. This is just for simulation,
-        // In a real scenario, this would come from the payment terminal.
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        var random = new Random();
-
-        var token = new string(Enumerable.Repeat(chars, 8)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
-
-        return new CreateCardInfoDto
-        {
-            Token = token,
-            Method = "CreditCard",
-            Bank = "DemoBank",
-            AvailableFunds = 100m // Simulate sufficient funds
-        };
     }
 
     public async Task<StopSessionResult> StopSession(long id, StopParkingSessionDto sessionDto)
@@ -788,9 +654,6 @@ public class ParkingSessionService : IParkingSessionService
         {
             if (!activeSession.BusinessParkingRegistrationId.HasValue && !activeSession.HotelPassId.HasValue)
             {
-                // var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
-                // if (!paymentResult.Approved)
-                //     return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
                 if (activeSession.PaymentId is not null)
                 {
                     var getPayment = await _payments.GetPaymentByIdAsync(activeSession.PaymentId.Value);

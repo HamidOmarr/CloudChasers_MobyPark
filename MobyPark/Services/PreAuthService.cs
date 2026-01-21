@@ -9,17 +9,7 @@ public class PreAuthService : IPreAuthService
     public Task<PreAuthDto> PreauthorizeAsync(string cardToken, bool isSufficientFunds)
     {
         if (!isSufficientFunds)
-            return Task.FromResult(new PreAuthDto{ Approved = false, Reason = "Insufficient funds" });
-        return Task.FromResult(new PreAuthDto { Approved = true, Reason = "Sufficient funds"});
+            return Task.FromResult(new PreAuthDto { Approved = false, Reason = "Insufficient funds" });
+        return Task.FromResult(new PreAuthDto { Approved = true, Reason = "Sufficient funds" });
     }
-    // {
-    //     if (simulateInsufficientFunds)
-    //         return Task.FromResult(new PreAuthDto { Approved = false, Reason = "Insufficient funds" });
-    //
-    //     return Task.FromResult(
-    //         estimatedAmount <= 0
-    //         ? new PreAuthDto { Approved = false, Reason = "Invalid amount" }
-    //         : new PreAuthDto { Approved = true }
-    //     );
-    // }
 }

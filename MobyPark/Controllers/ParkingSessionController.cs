@@ -23,49 +23,6 @@ public class ParkingSessionController : BaseController
         _authorizationService = authorizationService;
     }
 
-    // [HttpPost("{lotId}/sessions:start")] // start endpoint unified // Commented out as it is unclear why this was added.
-    // [HttpPost("{lotId}/sessions/start")]
-    // public async Task<IActionResult> StartSession(int lotId, [FromBody] StartParkingSessionDto request)
-    // {
-    //     if (!ModelState.IsValid) return BadRequest(ModelState);
-    //
-    //     var user = await GetCurrentUserAsync();
-    //
-    //     var sessionDto = new CreateParkingSessionDto
-    //     {
-    //         ParkingLotId = lotId,
-    //         LicensePlate = request.LicensePlate
-    //     };
-    //
-    //     var result = await _parkingSessions.StartSession(
-    //         sessionDto,
-    //         request.CardToken,
-    //         request.EstimatedAmount,
-    //         user.Username,
-    //         request.SimulateInsufficientFunds
-    //     );
-    //
-    //     return result switch
-    //     {
-    //         StartSessionResult.Success success => StatusCode(201, new
-    //         {
-    //             status = "Started",
-    //             sessionId = success.Session.Id,
-    //             licensePlate = success.Session.LicensePlateNumber,
-    //             parkingLotId = success.Session.ParkingLotId,
-    //             startedAt = success.Session.Started,
-    //             paymentStatus = success.Session.PaymentStatus,
-    //             availableSpots = success.AvailableSpots
-    //         }),
-    //         StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
-    //         StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
-    //         StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
-    //         StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
-    //         StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
-    //         _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
-    //     };
-    // }
-
     [HttpPost("start")]
     public async Task<IActionResult> StartSession(long lotId, [FromBody] CreateParkingSessionDto sessionDto)
     {
