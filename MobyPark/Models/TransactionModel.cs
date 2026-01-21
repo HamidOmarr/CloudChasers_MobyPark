@@ -16,7 +16,7 @@ public class TransactionModel : ICanBeEdited
     public string Method { get; set; } = string.Empty;
 
     [Required]
-    public string Issuer { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
 
     [Required]
     public string Bank { get; set; } = string.Empty;

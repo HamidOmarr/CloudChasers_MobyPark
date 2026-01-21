@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using MobyPark.DTOs.Cards;
 using MobyPark.DTOs.Hotel;
 using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingLot.Request;
@@ -351,7 +352,12 @@ public class ParkingSessionService : IParkingSessionService
     private async Task<bool> OpenSessionGate(ParkingSessionModel session, string licensePlate)
         => await _gate.OpenGateAsync(session.ParkingLotId, licensePlate);
 
-    public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false)
+    public async Task<StartSessionResult> StartSession(
+        CreateParkingSessionDto sessionDto,
+        string cardToken,
+        decimal estimatedAmount,
+        string? username,
+        bool simulateInsufficientFunds = false)
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
 
@@ -411,7 +417,7 @@ public class ParkingSessionService : IParkingSessionService
         }
         else
         {
-            var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount, simulateInsufficientFunds);
+            var preAuth = await _preAuth.PreauthorizeAsync(cardToken, estimatedAmount);
             if (!preAuth.Approved)
                 return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
 
@@ -453,6 +459,132 @@ public class ParkingSessionService : IParkingSessionService
         }
 
         return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
+    }
+
+    public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto)
+    {
+        var licensePlate = sessionDto.LicensePlate.Upper();
+        var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
+
+        if (lot.Status is not ServiceStatus.Success)
+            return new StartSessionResult.LotNotFound();
+
+        ParkingLotModel parkingLot = new()
+        {
+            Id = lot.Data!.Id,
+            Name = lot.Data.Name,
+            Location = lot.Data.Location,
+            Address = lot.Data.Address,
+            Reserved = lot.Data.Reserved,
+            Capacity = lot.Data.Capacity,
+            Tariff = lot.Data.Tariff,
+            DayTariff = lot.Data.DayTariff
+        };
+
+        if (parkingLot.Capacity - parkingLot.Reserved <= 0)
+            return new StartSessionResult.LotFull();
+
+        var hotelPass = await _passService
+            .GetActiveHotelPassByLicensePlateAndLotIdAsync(parkingLot.Id, licensePlate);
+        var activeBusinessRegistration = await _registrationService
+            .GetActiveBusinessRegistrationByLicencePlateAsync(licensePlate);
+
+        ParkingSessionModel session = new();
+
+        if (hotelPass.Status is ServiceStatus.Success)
+        {
+            session.PaymentStatus = ParkingSessionStatus.HotelPass;
+            session.HotelPassId = hotelPass.Data!.Id;
+        }
+        else if (activeBusinessRegistration.Status is ServiceStatus.Success)
+        {
+            session.PaymentStatus = ParkingSessionStatus.BusinessParking;
+            session.BusinessParkingRegistrationId = activeBusinessRegistration.Data!.Id;
+        }
+        else
+        {
+            CreateCardInfoDto cardInfo = await GetCardFromTerminal(sessionDto);
+
+            // For now, we simulate that the card has sufficient funds
+            decimal funds = cardInfo.AvailableFunds ?? 1m;
+            bool sufficient = funds > 0m;
+
+            var preAuth = await _preAuth.PreauthorizeAsync(cardInfo.Token, sufficient);
+            if (!preAuth.Approved)
+                return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
+
+            session.PaymentStatus = ParkingSessionStatus.PreAuthorized;
+
+            var transaction = new TransactionModel
+            {
+                Id = Guid.NewGuid(),
+                Amount = 0m,
+                Method = cardInfo.Method,
+                Token = cardInfo.Token,
+                Bank = cardInfo.Bank
+            };
+
+            var payment = new PaymentModel
+            {
+                PaymentId = Guid.NewGuid(),
+                Amount = transaction.Amount,
+                LicensePlateNumber = licensePlate,
+                CreatedAt = session.Started,
+                TransactionId = transaction.Id
+            };
+
+            session.Payment = payment;
+        }
+
+        session.ParkingLotId = sessionDto.ParkingLotId;
+        session.LicensePlateNumber = licensePlate;
+        session.Started = DateTimeOffset.UtcNow;
+        session.Stopped = null;
+
+        try
+        {
+            var persistResult = await PersistSession(session, parkingLot);
+            if (persistResult is not PersistSessionResult.Success sPersist)
+                throw new InvalidOperationException("Failed to persist session");
+
+
+            session = sPersist.Session;
+            if (!await OpenSessionGate(session, licensePlate))
+                throw new InvalidOperationException("Failed to open gate");
+            return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
+        }
+        catch (Exception e)
+        {
+            if (session.Id > 0)
+                await DeleteParkingSession(session.Id);
+            int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
+            var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
+            await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);
+            return new StartSessionResult.Error("Failed to start session: " + e.Message);
+        }
+
+    }
+
+    public async Task<CreateCardInfoDto> GetCardFromTerminal(CreateParkingSessionDto dto)
+    {
+        await Task.Delay(500); // Simulate a delay for terminal interaction
+
+        // For demonstration, return a dummy card info
+        // Generate a random 8-character alphanumeric token. This is just for simulation,
+        // In a real scenario, this would come from the payment terminal.
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new Random();
+
+        var token = new string(Enumerable.Repeat(chars, 8)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+
+        return new CreateCardInfoDto
+        {
+            Token = token,
+            Method = "CreditCard",
+            Bank = "DemoBank",
+            AvailableFunds = 100m // Simulate sufficient funds
+        };
     }
 
     public async Task<StopSessionResult> StopSession(long id, StopParkingSessionDto sessionDto)

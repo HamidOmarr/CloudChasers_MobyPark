@@ -1339,7 +1339,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
 
         _mockPreAuthService
-            .Setup(pra => pra.PreauthorizeAsync(token, m, false))
+            .Setup(pra => pra.PreauthorizeAsync(token, m))
             .ReturnsAsync(new PreAuthDto { Approved = false });
 
         var result = await _sessionService.StartSession(dto, token, m, user);
@@ -1387,7 +1387,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
+            .Setup(pr => pr.PreauthorizeAsync(token, m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
 
@@ -1443,7 +1443,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
+            .Setup(pr => pr.PreauthorizeAsync(token, m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockParkingLotService
@@ -1506,7 +1506,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("No active pass"));
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(token, m, false))
+            .Setup(pr => pr.PreauthorizeAsync(token, m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockParkingLotService
@@ -1616,7 +1616,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(true);
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>()))
             .Throws(new Exception("PreAuth should not be called when hotel pass exists"));
 
         // Act
@@ -1710,7 +1710,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(true);
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Setup(pr => pr.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>()))
             .Throws(new Exception("PreAuth should not be called when business registration exists"));
 
         // Act
@@ -1772,7 +1772,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No active business registration"));
 
         _mockPreAuthService
-            .Setup(pr => pr.PreauthorizeAsync(token, amount, false))
+            .Setup(pr => pr.PreauthorizeAsync(token, amount))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockParkingLotService
@@ -1794,7 +1794,7 @@ public sealed class ParkingSessionServiceTests
 
         Assert.IsInstanceOfType(result, typeof(StartSessionResult.Success));
 
-        _mockPreAuthService.Verify(pr => pr.PreauthorizeAsync(token, amount, false), Times.Once);
+        _mockPreAuthService.Verify(pr => pr.PreauthorizeAsync(token, amount), Times.Once);
     }
 
     #endregion
@@ -1909,7 +1909,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", 10m))
             .ReturnsAsync(new PreAuthDto { Approved = false, Reason = "Card declined" });
 
         var result = await _sessionService.StopSession(activeSession.Id, dto);
@@ -1962,7 +1962,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", 10m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
@@ -2025,7 +2025,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", It.IsAny<decimal>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
@@ -2112,7 +2112,7 @@ public sealed class ParkingSessionServiceTests
                 new CalculatePriceResult.Success(amount, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", amount, It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", amount))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockInvoiceRepository
@@ -2235,7 +2235,7 @@ public sealed class ParkingSessionServiceTests
         Assert.AreEqual(0m, success.TotalAmount);
         Assert.AreEqual(ParkingSessionStatus.HotelPass, success.Session.PaymentStatus);
 
-        _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+        _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
         _mockPricingService.Verify(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
         _mockGateService.Verify(g => g.OpenGateAsync((int)lotId, licensePlate), Times.Once);
     }
@@ -2386,7 +2386,7 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
 
         _mockPreAuthService
-            .Setup(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Setup(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>()))
             .Throws(new Exception("PreAuth should not be called for BusinessParking stop"));
 
         var result = await _sessionService.StopSession(activeSession.Id, dto);
@@ -2397,7 +2397,7 @@ public sealed class ParkingSessionServiceTests
         Assert.AreEqual(12m, success.TotalAmount);
         Assert.AreEqual(ParkingSessionStatus.PendingInvoice, success.Session.PaymentStatus);
 
-        _mockPreAuthService.Verify(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+        _mockPreAuthService.Verify(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>()), Times.Never);
     }
 
     [TestMethod]
@@ -2507,7 +2507,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", 10m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
@@ -2594,7 +2594,7 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(10m, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", 10m))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
         _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));

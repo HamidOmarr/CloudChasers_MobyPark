@@ -6,7 +6,13 @@ namespace MobyPark.Services;
 public class PreAuthService : IPreAuthService
 {
     // Placeholder: approve unless amount <= 0
-    public Task<PreAuthDto> PreauthorizeAsync(string cardToken, decimal estimatedAmount, bool simulateInsufficientFunds = false)
+    public PreAuthDto PreauthorizeAsync(string cardToken, bool isSufficientFunds)
+    {
+        if (!isSufficientFunds)
+            return new PreAuthDto { Approved = false, Reason = "Insufficient funds" };
+
+        return
+    }
     {
         if (simulateInsufficientFunds)
             return Task.FromResult(new PreAuthDto { Approved = false, Reason = "Insufficient funds" });

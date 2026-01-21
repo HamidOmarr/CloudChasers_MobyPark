@@ -280,7 +280,7 @@ public sealed class TransactionServiceTests
         var dto = new TransactionDataDto { Method = newMethod, Issuer = newIssuer, Bank = newBank };
 
         _mockTransactionsRepo.Setup(transactionRepo => transactionRepo.GetByTransactionId(transactionId))
-            .ReturnsAsync(() => new TransactionModel { Id = transactionId, Method = oldMethod, Issuer = oldIssuer, Bank = oldBank });
+            .ReturnsAsync(() => new TransactionModel { Id = transactionId, Method = oldMethod, Token = oldIssuer, Bank = oldBank });
 
         _mockTransactionsRepo.Setup(transactionRepo => transactionRepo.Update(
             It.Is<TransactionModel>(transaction => transaction.Id == transactionId), dto))
@@ -288,7 +288,7 @@ public sealed class TransactionServiceTests
             {
                 if (resultDto is not TransactionDataDto updateDto) return;
                 transaction.Method = updateDto.Method;
-                transaction.Issuer = updateDto.Issuer;
+                transaction.Token = updateDto.Issuer;
                 transaction.Bank = updateDto.Bank;
             }).ReturnsAsync(true);
 
@@ -299,7 +299,7 @@ public sealed class TransactionServiceTests
         Assert.IsInstanceOfType(result, typeof(UpdateTransactionResult.Success));
         var successResult = (UpdateTransactionResult.Success)result;
         Assert.AreEqual(newMethod, successResult.Transaction.Method);
-        Assert.AreEqual(newIssuer, successResult.Transaction.Issuer);
+        Assert.AreEqual(newIssuer, successResult.Transaction.Token);
         Assert.AreEqual(newBank, successResult.Transaction.Bank);
     }
 
@@ -310,7 +310,7 @@ public sealed class TransactionServiceTests
         // Arrange
         var transactionId = Guid.Parse(idString);
         var dto = new TransactionDataDto { Method = method, Issuer = issuer, Bank = bank };
-        var existingTransaction = new TransactionModel { Id = transactionId, Method = method, Issuer = issuer, Bank = bank };
+        var existingTransaction = new TransactionModel { Id = transactionId, Method = method, Token = issuer, Bank = bank };
 
         _mockTransactionsRepo.Setup(transactionRepo => transactionRepo.GetByTransactionId(transactionId)).ReturnsAsync(existingTransaction);
 

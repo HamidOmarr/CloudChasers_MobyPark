@@ -22,7 +22,7 @@ public sealed class PreAuthServiceTests
         var decAmount = (decimal)amount;
 
         // Act
-        var result = await _preAuthService.PreauthorizeAsync(token, decAmount);
+        var result = await _preAuthService.PreauthorizeAsync(token, TODO);
 
         // Assert
         Assert.IsTrue(result.Approved);
@@ -38,7 +38,7 @@ public sealed class PreAuthServiceTests
         var decAmount = (decimal)amount;
 
         // Act
-        var result = await _preAuthService.PreauthorizeAsync(token, decAmount);
+        var result = await _preAuthService.PreauthorizeAsync(token, TODO);
 
         // Assert
         Assert.IsFalse(result.Approved);
@@ -54,7 +54,7 @@ public sealed class PreAuthServiceTests
         var decAmount = (decimal)amount;
 
         // Act
-        var result = await _preAuthService.PreauthorizeAsync(token, decAmount, true);
+        var result = await _preAuthService.PreauthorizeAsync(token, TODO);
 
         // Assert
         Assert.IsFalse(result.Approved);
@@ -69,7 +69,7 @@ public sealed class PreAuthServiceTests
         var decAmount = (decimal)amount;
 
         // Act
-        var result = await _preAuthService.PreauthorizeAsync(token, decAmount, true);
+        var result = await _preAuthService.PreauthorizeAsync(token, TODO);
 
         // Assert
         Assert.IsFalse(result.Approved);

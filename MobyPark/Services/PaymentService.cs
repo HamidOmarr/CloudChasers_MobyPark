@@ -193,7 +193,7 @@ public class PaymentService : IPaymentService
 
         payment.CompletedAt = DateTime.UtcNow;
         transaction.Method = dto.Method;
-        transaction.Issuer = dto.Issuer;
+        transaction.Token = dto.Issuer;
         transaction.Bank = dto.Bank;
 
         // Transaction scope ensures both payment and transaction updates succeed or fail together, as they are 1:1 linked.
@@ -249,7 +249,7 @@ public class PaymentService : IPaymentService
             Id = Guid.NewGuid(),
             Amount = -Math.Abs(refundAmount),
             Method = "REFUND",
-            Issuer = "ADMIN",
+            Token = "ADMIN",
             Bank = adminUsername
         };
 

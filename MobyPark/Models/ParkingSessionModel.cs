@@ -60,4 +60,10 @@ public class ParkingSessionModel : IHasLongId, ICanBeEdited
 
     [Required]
     public ParkingSessionStatus PaymentStatus { get; set; } = ParkingSessionStatus.Pending;
+
+    // Nullable, as historic sessions have not been linked with a payment
+    public Guid? PaymentId { get; set; }
+
+    [ForeignKey(nameof(PaymentId))]
+    public PaymentModel? Payment { get; set; }
 }
