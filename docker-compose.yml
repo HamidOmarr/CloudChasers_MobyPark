@@ -55,6 +55,9 @@ services:
         Username=${POSTGRES_USER};
         Password=${POSTGRES_PASSWORD};
         Timezone=Europe/Amsterdam
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
     ports:
       - "8501:8501"
     depends_on:
