@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using MobyPark.DTOs.Cards;
+
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.DTOs.ParkingSession.Response;
 using MobyPark.DTOs.Shared;
@@ -13,7 +15,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace MobyPark.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/[controller]/{lotId:long}/sessions")]
 [Produces("application/json")]
 public class ParkingSessionController : BaseController
 {
@@ -30,31 +32,53 @@ public class ParkingSessionController : BaseController
         _authorizationService = authorizationService;
     }
 
-    [HttpPost("{lotId:long}/sessions/start")]
+    [HttpPost("start")]
     [SwaggerOperation(Summary = "Starts a new parking session.")]
     [SwaggerResponse(201, "Session started successfully", typeof(StartSessionResponseDto))]
     [SwaggerResponse(400, "Invalid request data")]
     [SwaggerResponse(402, "Payment pre-authorization failed")]
     [SwaggerResponse(404, "Parking lot not found")]
     [SwaggerResponse(409, "Parking lot full or session already active")]
-    public async Task<IActionResult> StartSession(long lotId, [FromBody] StartParkingSessionDto request)
+    public async Task<IActionResult> StartSession(long lotId, [FromBody] CreateParkingSessionDto sessionDto)
     {
-        var user = await GetCurrentUserAsync();
+        if (lotId != sessionDto.ParkingLotId)
+            return BadRequest(new { error = "Parking lot ID in the URL does not match the ID in the request body." });
 
-        var sessionDto = new CreateParkingSessionDto
+        var result = await _parkingSessions.StartSession(sessionDto);
+        return result switch
         {
-            ParkingLotId = lotId,
-            LicensePlate = request.LicensePlate
+            StartSessionResult.Success success => StatusCode(201, new
+            {
+                status = "Started",
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                paymentStatus = success.Session.PaymentStatus,
+                availableSpots = success.AvailableSpots
+            }),
+            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.PaymentRequired p => StatusCode(
+                StatusCodes.Status402PaymentRequired, new { error = p.Reason, code = "PAYMENT_REQUIRED" }),
+            StartSessionResult.Error e => StatusCode(500, new { error = e.Message }),
+            _ => StatusCode(500, new { error = "An unknown error occurred." })
         };
+    }
 
-        var result = await _parkingSessions.StartSession(
-            sessionDto,
-            request.CardToken,
-            request.EstimatedAmount,
-            user.Username,
-            request.SimulateInsufficientFunds
-        );
 
+    [HttpPost("startPaid")]
+    [SwaggerOperation(Summary = "Starts a new paid parking session with card information.")]
+    [SwaggerResponse(201, "Session started successfully", typeof(StartSessionResponseDto))]
+    [SwaggerResponse(400, "Invalid request data")]
+    [SwaggerResponse(402, "Payment pre-authorization failed")]
+    [SwaggerResponse(404, "Parking lot not found")]
+    [SwaggerResponse(409, "Parking lot full or session already active")]
+    public async Task<IActionResult> StartPaidSession(string licensePlate, long lotId, [FromBody] CreateCardInfoDto cardInfo)
+    {
+        var result = await _parkingSessions.StartPaidSession(licensePlate, lotId, cardInfo);
         return result switch
         {
             StartSessionResult.Success success => StatusCode(201, new StartSessionResponseDto
@@ -76,18 +100,15 @@ public class ParkingSessionController : BaseController
         };
     }
 
-    [HttpPost("{lotId:long}/sessions/stop")]
+    [HttpPost("stop")]
     [SwaggerOperation(Summary = "Stops an active parking session and processes payment.")]
     [SwaggerResponse(200, "Session stopped and invoice generated", typeof(StopSessionResponseDto))]
     [SwaggerResponse(400, "Validation failed or already stopped")]
     [SwaggerResponse(402, "Payment failed")]
     [SwaggerResponse(404, "Session or Lot not found")]
-    public async Task<IActionResult> StopSession(
-        [FromRoute] long lotId,
-        [FromQuery] long sessionId,
-        [FromBody] StopParkingSessionDto request)
+    public async Task<IActionResult> StopSession(long sessionId, long lotId)
     {
-        var result = await _parkingSessions.StopSession(sessionId, request);
+        var result = await _parkingSessions.StopSession(sessionId);
 
         return result switch
         {
@@ -120,7 +141,9 @@ public class ParkingSessionController : BaseController
         };
     }
 
-    [HttpDelete("{lotId:long}/sessions/{sessionId:long}")]
+
+
+    [HttpDelete("{sessionId}")]
     [Authorize(Policy = "CanManageParkingSessions")]
     [SwaggerOperation(Summary = "Deletes a parking session record (Admin only).")]
     [SwaggerResponse(200, "Deleted successfully")]
@@ -142,7 +165,8 @@ public class ParkingSessionController : BaseController
         };
     }
 
-    [HttpGet("{lotId:long}/sessions")]
+    [HttpGet]
+    [Authorize]
     [SwaggerOperation(Summary = "Retrieves sessions for a lot (Users see their own, Admins see all).")]
     [SwaggerResponse(200, "List retrieved", typeof(List<ParkingSessionModel>))]
     public async Task<IActionResult> GetSessions(long lotId)
@@ -158,7 +182,8 @@ public class ParkingSessionController : BaseController
         return Ok(sessions);
     }
 
-    [HttpGet("{lotId:long}/sessions/{sessionId:long}")]
+    [Authorize]
+    [HttpGet("{sessionId:long}")]
     [SwaggerOperation(Summary = "Retrieves a specific parking session.")]
     [SwaggerResponse(200, "Session found", typeof(ParkingSessionModel))]
     [SwaggerResponse(403, "Not authorized to view this session")]

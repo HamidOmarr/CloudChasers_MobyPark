@@ -46,6 +46,43 @@ jobs:
           /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \
           | tee test.log
     
+    - name: Test Results Summary
+      if: always()
+      run: |
+        echo "## Test Results" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        
+        # Parse test results from test.log
+        if [ -f test.log ]; then
+          # Extract test counts from dotnet test output
+          total=$(grep -oP 'Total:\s+\K\d+' test.log | tail -1)
+          passed=$(grep -oP 'Passed:\s+\K\d+' test.log | tail -1)
+          failed=$(grep -oP 'Failed:\s+\K\d+' test.log | tail -1)
+          skipped=$(grep -oP 'Skipped:\s+\K\d+' test.log | tail -1)
+          
+          # Default to 0 if not found
+          total=${total:-0}
+          passed=${passed:-0}
+          failed=${failed:-0}
+          skipped=${skipped:-0}
+          
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Total** | $total |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ✅ Passed | $passed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ❌ Failed | $failed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ⏭️ Skipped | $skipped |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          
+          if [ "$failed" -gt 0 ]; then
+            echo "❌ $failed test(s) failed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "✅ All tests passed!" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        else
+          echo "⚠️ test.log not found" >> "$GITHUB_STEP_SUMMARY"
+        fi
+    
     - name: Install ReportGenerator
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
@@ -76,6 +113,57 @@ jobs:
           exit 1
         else
           echo "✅ Code coverage ($coverage%) meets the threshold ($MIN_BRANCH_COVERAGE%)" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Coverage Delta
+      if: github.event_name == 'pull_request'
+      run: |
+        git config --global --add safe.directory $GITHUB_WORKSPACE
+        
+        current_coverage=$(grep "Line coverage:" CoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
+        echo "Current coverage: $current_coverage%"
+        
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+        
+        dotnet test \
+          --verbosity minimal \
+          /p:CollectCoverage=true \
+          /p:CoverletOutput=TestResults/BaselineCoverage/ \
+          /p:CoverletOutputFormat=cobertura \
+          /p:Include="[MobyPark]MobyPark.Services.*" \
+          /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \
+          > /dev/null 2>&1 || true
+        
+        reportgenerator \
+          -reports:"**/BaselineCoverage/coverage.cobertura.xml" \
+          -targetdir:"BaselineCoverageReport" \
+          -reporttypes:"TextSummary"
+        
+        baseline_coverage=$(grep "Line coverage:" BaselineCoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
+        echo "Baseline coverage (main): $baseline_coverage%"
+        
+        git checkout - > /dev/null 2>&1
+        
+        delta=$(awk "BEGIN {print $current_coverage - $baseline_coverage}")
+        
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "## Coverage Delta" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Baseline (main) | ${baseline_coverage}% |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Current (PR) | ${current_coverage}% |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| **Delta** | **${delta}%** |" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        
+        if (( $(awk "BEGIN {print ($delta < 0)}") )); then
+          echo "❌ **Coverage decreased!** Coverage dropped by ${delta}% in this commit." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        elif (( $(awk "BEGIN {print ($delta > 0)}") )); then
+          echo "✅ **Coverage improved!** Coverage increased by +${delta}%." >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "➡️ Coverage unchanged." >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Collect Resource Usage Metrics

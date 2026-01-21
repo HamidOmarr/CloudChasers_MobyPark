@@ -77,6 +77,15 @@ public class PaymentService : IPaymentService
         return new GetPaymentResult.Success(payment);
     }
 
+    public async Task<GetPaymentResult> GetPaymentByIdAsync(Guid pId)
+    {
+        var payment = await _payments.FindByIdAsync(pId);
+        if (payment is null)
+            return new GetPaymentResult.NotFound();
+
+        return new GetPaymentResult.Success(payment);
+    }
+
     public async Task<DeletePaymentResult> DeletePayment(string paymentId, long requestingUserId)
     {
         if (!Guid.TryParse(paymentId, out Guid pid))
@@ -193,7 +202,7 @@ public class PaymentService : IPaymentService
 
         payment.CompletedAt = DateTime.UtcNow;
         transaction.Method = dto.Method;
-        transaction.Issuer = dto.Issuer;
+        transaction.Token = dto.Issuer;
         transaction.Bank = dto.Bank;
 
         // Transaction scope ensures both payment and transaction updates succeed or fail together, as they are 1:1 linked.
@@ -249,7 +258,7 @@ public class PaymentService : IPaymentService
             Id = Guid.NewGuid(),
             Amount = -Math.Abs(refundAmount),
             Method = "REFUND",
-            Issuer = "ADMIN",
+            Token = "ADMIN",
             Bank = adminUsername
         };
 

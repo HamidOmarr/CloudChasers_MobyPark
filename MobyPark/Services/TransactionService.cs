@@ -97,7 +97,7 @@ public class TransactionService : ITransactionService
         var existingTransaction = success.Transaction;
 
         bool changed = dto.Method != existingTransaction.Method
-                       || dto.Issuer != existingTransaction.Issuer
+                       || dto.Issuer != existingTransaction.Token
                        || dto.Bank != existingTransaction.Bank;
 
         if (!changed)
