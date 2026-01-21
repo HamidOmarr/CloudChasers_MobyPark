@@ -1,3 +1,4 @@
+using MobyPark.DTOs.Cards;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
 using MobyPark.Services.Results.ParkingSession;
@@ -18,11 +19,11 @@ public interface IParkingSessionService
     Task<int> CountParkingSessions();
     Task<UpdateSessionResult> UpdateParkingSession(long id, UpdateParkingSessionDto dto);
     Task<DeleteSessionResult> DeleteParkingSession(long id);
-    // (decimal Price, int Hours, int Days) CalculatePrice(ParkingLotModel parkingLot, ParkingSessionModel session);
     string GeneratePaymentHash(string sessionId, string licensePlate);
     string GenerateTransactionValidationHash();
-    Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto, string cardToken, decimal estimatedAmount, string? username, bool simulateInsufficientFunds = false);
-    Task<StopSessionResult> StopSession(long id, StopParkingSessionDto dto);
-    Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, int lotId, bool canManageSessions);
-    Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, int lotId, int sessionId, bool canManageSessions);
+    Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto);
+    Task<StartSessionResult> StartPaidSession(string licensePlate, long lotId, CreateCardInfoDto cardInfo);
+    Task<StopSessionResult> StopSession(long id);
+    Task<List<ParkingSessionModel>> GetAuthorizedSessionsAsync(long userId, long lotId, bool canManageSessions);
+    Task<GetSessionResult> GetAuthorizedSessionAsync(long userId, long lotId, long sessionId, bool canManageSessions);
 }
