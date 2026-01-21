@@ -13,7 +13,9 @@ using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 using MobyPark.Services.Results.Invoice;
 using MobyPark.Services.Results.ParkingSession;
+using MobyPark.Services.Results.Payment;
 using MobyPark.Services.Results.Price;
+using MobyPark.Services.Results.Transaction;
 using MobyPark.Services.Results.UserPlate;
 using MobyPark.Validation;
 
@@ -22,11 +24,15 @@ namespace MobyPark.Services;
 public class ParkingSessionService : IParkingSessionService
 {
     private readonly IParkingSessionRepository _sessions;
+    private readonly IPaymentRepository _paymentRepo;
+    private readonly ITransactionRepository _transactionRepo;
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly IParkingLotService _parkingLots;
     private readonly IUserPlateService _userPlates;
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
+    private readonly IPaymentService _payments;
+    private readonly ITransactionService _transactions;
     private readonly IPreAuthService _preAuth;
     private readonly IHotelPassService _passService;
     private readonly IAutomatedInvoiceService _invoiceService;
@@ -34,10 +40,14 @@ public class ParkingSessionService : IParkingSessionService
 
     public ParkingSessionService(
         IParkingSessionRepository parkingSessions,
+        IPaymentRepository paymentRepo,
+    ITransactionRepository transactionRepo,
         IParkingLotService parkingLots,
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
+        IPaymentService payments,
+        ITransactionService transactions,
         IPreAuthService preAuth,
         IHotelPassService passService,
         IAutomatedInvoiceService invoiceService,
@@ -47,10 +57,14 @@ public class ParkingSessionService : IParkingSessionService
         )
     {
         _sessions = parkingSessions;
+        _paymentRepo = paymentRepo;
+        _transactionRepo = transactionRepo;
         _parkingLots = parkingLots;
         _userPlates = userPlates;
         _pricing = pricing;
         _gate = gate;
+        _payments = payments;
+        _transactions = transactions;
         _preAuth = preAuth;
         _passService = passService;
         _invoiceService = invoiceService;
@@ -567,7 +581,7 @@ public class ParkingSessionService : IParkingSessionService
         if (!preAuth.Approved)
             return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
         
-        ParkingSessionModel session = new ParkingSessionModel
+        ParkingSessionModel session = new()
         {
             ParkingLotId = lotId,
             PaymentStatus = ParkingSessionStatus.PreAuthorized,
@@ -578,6 +592,21 @@ public class ParkingSessionService : IParkingSessionService
         
         try
         {
+            var transaction = new TransactionModel()
+            {
+                Amount = 0, Method = cardInfo.Method, Token = cardInfo.Token, Bank = cardInfo.Bank
+            };
+
+            var payment = new PaymentModel()
+            {
+                Amount = 0,
+                LicensePlateNumber = licensePlate,
+                CreatedAt = DateTimeOffset.UtcNow,
+                TransactionId = transaction.Id
+            };
+
+            session.PaymentId = payment.PaymentId;
+            
             var persistResult = await PersistSession(session, parkingLot);
             if (persistResult is not PersistSessionResult.Success sPersist)
                 throw new InvalidOperationException("Failed to persist session");
@@ -759,9 +788,30 @@ public class ParkingSessionService : IParkingSessionService
                 // var paymentResult = await _preAuth.PreauthorizeAsync(sessionDto.CardToken, totalAmount);
                 // if (!paymentResult.Approved)
                 //     return new StopSessionResult.PaymentFailed(paymentResult.Reason ?? "Payment declined");
-
-                paymentPerformed = true;
-                activeSession.PaymentStatus = ParkingSessionStatus.Paid;
+                if (activeSession.PaymentId is not null)
+                {
+                    var getPayment = await _payments.GetPaymentByIdAsync(activeSession.PaymentId.Value);
+                    if (getPayment is GetPaymentResult.Success pay)
+                    {
+                        var payment = pay.Payment;
+                        payment.Amount = totalAmount;
+                        var getTransaction = await _transactions.GetTransactionById(payment.TransactionId);
+                        if (getTransaction is GetTransactionResult.Success transact)
+                        {
+                            var transaction = transact.Transaction;
+                            transaction.Amount = totalAmount;
+                            payment.CompletedAt = DateTimeOffset.UtcNow;
+                            activeSession.PaymentStatus = ParkingSessionStatus.Paid;
+                            _paymentRepo.Update(payment);
+                            await _paymentRepo.SaveChangesAsync();
+                            _transactionRepo.Update(transaction);
+                            await _transactionRepo.SaveChangesAsync();
+                        }
+                        else return new StopSessionResult.Error("Couldn't get transaction");
+                    }
+                    else return new StopSessionResult.Error("Payment not found");
+                }
+                else return new StopSessionResult.Error("No paymentId");
             }
         }
         else
@@ -799,7 +849,7 @@ public class ParkingSessionService : IParkingSessionService
         };
 
         try
-        {
+        { 
             _sessions.Update(activeSession);
             await _sessions.SaveChangesAsync();
         }

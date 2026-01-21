@@ -76,6 +76,15 @@ public class PaymentService : IPaymentService
 
         return new GetPaymentResult.Success(payment);
     }
+    
+    public async Task<GetPaymentResult> GetPaymentByIdAsync(Guid pId)
+    {
+        var payment = await _payments.FindByIdAsync(pId);
+        if (payment is null)
+            return new GetPaymentResult.NotFound();
+
+        return new GetPaymentResult.Success(payment);
+    }
 
     public async Task<DeletePaymentResult> DeletePayment(string paymentId, long requestingUserId)
     {

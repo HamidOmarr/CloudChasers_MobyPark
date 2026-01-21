@@ -8,6 +8,7 @@ public interface IPaymentService
 {
     Task<CreatePaymentResult> CreatePaymentAndTransaction(CreatePaymentDto request);
     Task<GetPaymentResult> GetPaymentById(string paymentId, long requestingUserId);
+    Task<GetPaymentResult> GetPaymentByIdAsync(Guid pId);
     Task<GetPaymentResult> GetPaymentByTransactionId(string transactionId, long requestingUserId);
     Task<GetPaymentListResult> GetPaymentsByLicensePlate(string licensePlate, long requestingUserId);
     Task<GetPaymentListResult> GetAllPayments();
