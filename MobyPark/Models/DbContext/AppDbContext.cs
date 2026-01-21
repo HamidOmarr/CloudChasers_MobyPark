@@ -91,7 +91,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(parkingSession => parkingSession.LicensePlate)
             .WithMany()
             .HasForeignKey(parkingSession => parkingSession.LicensePlateNumber);
-        
+
         modelBuilder.Entity<ParkingSessionModel>()
             .HasOne(ps => ps.Payment)
             .WithMany()
@@ -142,10 +142,5 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .WithMany()
             .HasForeignKey(r => r.BusinessId)
             .OnDelete(DeleteBehavior.Cascade);
-        
-        modelBuilder.Entity<TransactionModel>()
-            .Property(x => x.Token)
-            .HasColumnName("Issuer");
-
     }
 }
