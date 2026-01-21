@@ -48,8 +48,8 @@ services:
       dockerfile: MobyPark/Dockerfile
     container_name: mobypark_api
     environment:
-      ConnectionStrings__PostgresConnection: >
-        Host=mobypark-db;
+      ConnectionStrings__DefaultConnection: >
+        Host=${DB_HOST};
         Port=5432;
         Database=${POSTGRES_DB};
         Username=${POSTGRES_USER};
