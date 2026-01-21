@@ -82,8 +82,7 @@ jobs:
         else
           echo "⚠️ test.log not found" >> "$GITHUB_STEP_SUMMARY"
         fi
-
-
+    
     - name: Install ReportGenerator
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
@@ -119,20 +118,14 @@ jobs:
     - name: Coverage Delta
       if: github.event_name == 'pull_request'
       run: |
-        # Configure git safe directory for container
         git config --global --add safe.directory $GITHUB_WORKSPACE
         
-        # Get current coverage
         current_coverage=$(grep "Line coverage:" CoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
         echo "Current coverage: $current_coverage%"
         
-        # Fetch base branch
         git fetch origin ${{ github.base_ref }}
-        
-        # Checkout base branch and get baseline coverage
         git checkout origin/${{ github.base_ref }}
         
-        # Run tests on base branch to get baseline coverage
         dotnet test \
           --verbosity minimal \
           /p:CollectCoverage=true \
@@ -142,20 +135,18 @@ jobs:
           /p:Exclude="[MobyPark]MobyPark.Services.Results.*" \
           > /dev/null 2>&1 || true
         
-        # Generate baseline coverage report
         reportgenerator \
           -reports:"**/BaselineCoverage/coverage.cobertura.xml" \
           -targetdir:"BaselineCoverageReport" \
           -reporttypes:"TextSummary"
         
-        # Get baseline coverage
         baseline_coverage=$(grep "Line coverage:" BaselineCoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
         echo "Baseline coverage (main): $baseline_coverage%"
         
-        # Calculate delta
-        delta=$(echo "$current_coverage - $baseline_coverage" | bc -l)
+        git checkout - > /dev/null 2>&1
         
-        # Report coverage delta
+        delta=$(awk "BEGIN {print $current_coverage - $baseline_coverage}")
+        
         echo "" >> "$GITHUB_STEP_SUMMARY"
         echo "## Coverage Delta" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -166,17 +157,14 @@ jobs:
         echo "| **Delta** | **${delta}%** |" >> "$GITHUB_STEP_SUMMARY"
         echo "" >> "$GITHUB_STEP_SUMMARY"
         
-        # Check if coverage decreased
-        if (( $(echo "$delta < 0" | bc -l) )); then
+        if (( $(awk "BEGIN {print ($delta < 0)}") )); then
           echo "❌ **Coverage decreased!** Coverage dropped by ${delta}% in this commit." >> "$GITHUB_STEP_SUMMARY"
           exit 1
-        elif (( $(echo "$delta > 0" | bc -l) )); then
+        elif (( $(awk "BEGIN {print ($delta > 0)}") )); then
           echo "✅ **Coverage improved!** Coverage increased by +${delta}%." >> "$GITHUB_STEP_SUMMARY"
         else
           echo "➡️ Coverage unchanged." >> "$GITHUB_STEP_SUMMARY"
         fi
-
-
 
     - name: Collect Resource Usage Metrics
       if: always()
