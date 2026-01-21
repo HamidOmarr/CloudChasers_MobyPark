@@ -837,7 +837,26 @@ public class ParkingSessionService : IParkingSessionService
 
         if (priceResult is not CalculatePriceResult.Success sPriceResult)
             return new StopSessionResult.Error("Failed to calculate parking cost for invoice generation.");
-        int duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+
+        int duration = 0;
+
+        // For hotel pass or business parking sessions, only count billable time
+        if (activeSession.HotelPassId.HasValue || activeSession.BusinessParkingRegistrationId.HasValue)
+        {
+            // If no cost, the entire session was covered by the pass
+            if (totalAmount == 0m)
+            {
+                duration = 0;
+            }
+            else
+            {
+                duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+            }
+        }
+        else
+        {
+            duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+        }
 
         var createInvoiceDto = new CreateInvoiceDto
         {
