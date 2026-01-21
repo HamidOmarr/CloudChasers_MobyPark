@@ -20,19 +20,19 @@ jobs:
       MIN_BRANCH_COVERAGE: 80
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - name: Restore dependencies
+      id: restore
+      run: dotnet restore  
 
     - name: Code format check
       id: format
       run: dotnet format --verify-no-changes
 
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build solution
+    - name: Build   
+      id: build
       run: dotnet build --no-restore -warnaserror
-      
+
     - name: Test with coverage
       id: test
       run: |
@@ -121,9 +121,6 @@ jobs:
         echo "" >> "$GITHUB_STEP_SUMMARY"
 
         echo "✅ Resource usage metrics collected successfully." >> "$GITHUB_STEP_SUMMARY"
-
-
-
 
     # Upload test log
     - name: Upload test log
