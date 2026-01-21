@@ -1,0 +1,47 @@
+name: Deploy on server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, mobypark]
+
+    steps:
+      - name: githubinfo
+        shell: bash
+        run: |
+          echo '------ Available environment variables ------'
+          env | sort
+          echo '------ Directory structure ------'
+          find .
+
+      - name: Deploy Application
+        shell: bash
+        run: |
+          echo "Starting deployment..."
+          cd ~/CloudChasers_MobyPark
+          
+          echo "Creating database backup..."
+          chmod +x generate_dump.sh
+          ./generate_dump.sh
+          
+          echo "Pulling latest code from GitHub..."
+          git pull origin main
+          
+          echo "Stopping existing containers..."
+          docker compose down
+          
+          echo "Building and starting containers..."
+          docker compose up -d --build
+          
+          echo "Waiting for containers to start..."
+          sleep 5
+          
+          echo "Deployment complete!  Checking status..."
+          docker ps -a | grep mobypark
+          
+          echo "API logs (last 20 lines):"
+          docker logs --tail 20 mobypark_api || echo "API not yet running"

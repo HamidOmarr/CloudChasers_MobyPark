@@ -37,7 +37,6 @@ public class HotelPassesController : BaseController
     }
 
     [HttpPost("self")]
-    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> CreateHotelPassAsHotel([FromBody] CreateHotelPassDto pass)
     {
         long currentUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -131,7 +130,6 @@ public class HotelPassesController : BaseController
     }
 
     [HttpPatch("self")]
-    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> PatchHotelPassAsHotel([FromBody] PatchHotelPassDto pass)
     {
         long currentUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -165,7 +163,6 @@ public class HotelPassesController : BaseController
     }
 
     [HttpDelete("self/{id:long}")]
-    [Authorize(Policy = "CanManageHotelPasses")]
     public async Task<IActionResult> DeleteHotelPassAsHotelById(long id)
     {
         long currentUserId = long.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

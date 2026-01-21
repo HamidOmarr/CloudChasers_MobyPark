@@ -1,5 +1,8 @@
+using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
+
 using MobyPark.DTOs.Business;
 using MobyPark.DTOs.Hotel;
+using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.DTOs.PreAuth.Response;
@@ -8,6 +11,7 @@ using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
+using MobyPark.Services.Results.Invoice;
 using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.UserPlate;
@@ -24,6 +28,8 @@ public sealed class ParkingSessionServiceTests
     private Mock<IParkingSessionRepository> _mockSessionsRepo = null!;
     private Mock<IUserPlateService> _mockUserPlateService = null!;
     private Mock<IPricingService> _mockPricingService = null!;
+    private Mock<IInvoiceRepository> _mockInvoiceRepository = null!;
+    private Mock<IAutomatedInvoiceService> _mockAutomatedInvoiceService = null!;
     private ParkingSessionService _sessionService = null!;
     private Mock<IGateService> _mockGateService = null!;
     private Mock<IPreAuthService> _mockPreAuthService = null!;
@@ -43,6 +49,8 @@ public sealed class ParkingSessionServiceTests
         _mockGateService = new Mock<IGateService>();
         _mockPreAuthService = new Mock<IPreAuthService>();
         _mockHotelPassService = new Mock<IHotelPassService>();
+        _mockInvoiceRepository = new Mock<IInvoiceRepository>();
+        _mockAutomatedInvoiceService = new Mock<IAutomatedInvoiceService>();
         _mockRegistrationService = new Mock<IBusinessParkingRegistrationService>();
 
 
@@ -54,6 +62,8 @@ public sealed class ParkingSessionServiceTests
             _mockGateService.Object,
             _mockPreAuthService.Object,
             _mockHotelPassService.Object,
+            _mockAutomatedInvoiceService.Object,
+            _mockInvoiceRepository.Object,
             _mockRegistrationService.Object
         );
     }
@@ -1209,7 +1219,7 @@ public sealed class ParkingSessionServiceTests
     [TestMethod]
     [DataRow(99, "AB-12-CD", "token", 10, "user")]
     [DataRow(404, "WX-99YZ", "token2", 15.5, "user2")]
-    public async Task StartSession_LotNotFound_ReturnsError(
+    public async Task StartSession_LotNotFound_ReturnsLotNotFound(
         long lotId, string plate, string token, double amount, string user)
     {
         var dto = new CreateParkingSessionDto { ParkingLotId = lotId, LicensePlate = plate };
@@ -1220,10 +1230,7 @@ public sealed class ParkingSessionServiceTests
 
         var result = await _sessionService.StartSession(dto, token, (decimal)amount, user);
 
-        Assert.IsInstanceOfType(result, typeof(StartSessionResult.Error));
-
-        var err = (StartSessionResult.Error)result;
-        Assert.AreEqual("Parking lot not found", err.Message);
+        Assert.IsInstanceOfType(result, typeof(StartSessionResult.LotNotFound));
     }
 
     [TestMethod]
@@ -1797,15 +1804,19 @@ public sealed class ParkingSessionServiceTests
     [TestMethod]
     [DataRow("AB-12-CD")]
     [DataRow("WX-99-YZ")]
-    public async Task StopSession_LicensePlateNotFound_ReturnsLicensePlateNotFound(string plate)
+    public async Task StopSession_SessionNotFound_ReturnsError(string plate)
     {
         var dto = new StopParkingSessionDto { LicensePlate = plate };
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
-            .ReturnsAsync((ParkingSessionModel?)null);
+        _mockSessionsRepo
+        .Setup(s => s.GetById<ParkingSessionModel>(It.IsAny<long>()))
+        .ReturnsAsync((ParkingSessionModel?)null);
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(1, dto);
 
-        Assert.IsInstanceOfType(result, typeof(StopSessionResult.LicensePlateNotFound));
+        Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
+        StringAssert.Contains(
+            ((StopSessionResult.Error)result).Message,
+            "Active session not found");
     }
 
     [TestMethod]
@@ -1820,10 +1831,10 @@ public sealed class ParkingSessionServiceTests
             LicensePlateNumber = plate.ToUpper(),
             Stopped = DateTime.UtcNow
         };
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
-            .ReturnsAsync(activeSession);
-
-        var result = await _sessionService.StopSession(dto);
+        _mockSessionsRepo
+        .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
+        .ReturnsAsync(activeSession);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.AlreadyStopped));
     }
@@ -1842,13 +1853,14 @@ public sealed class ParkingSessionServiceTests
             Started = DateTime.UtcNow.AddHours(-1)
         };
 
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
-            .ReturnsAsync(activeSession);
+        _mockSessionsRepo
+        .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
+        .ReturnsAsync(activeSession);
 
         _mockParkingLotService.Setup(p => p.GetParkingLotByIdAsync(99))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.NotFound("Parking lot not found"));
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve parking lot");
@@ -1880,24 +1892,32 @@ public sealed class ParkingSessionServiceTests
             DayTariff = 0m
         };
 
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
             .ReturnsAsync(activeSession);
 
-        _mockParkingLotService.Setup(p => p.GetParkingLotByIdAsync(1))
+        _mockParkingLotService
+            .Setup(p => p.GetParkingLotByIdAsync(1))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
-        _mockPricingService.Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync(1, activeSession.LicensePlateNumber))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", 10m, false))
+            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = false, Reason = "Card declined" });
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.PaymentFailed));
         StringAssert.Contains(((StopSessionResult.PaymentFailed)result).Reason, "Card declined");
     }
+
 
     [TestMethod]
     [DataRow("AB-12-CD")]
@@ -1925,26 +1945,37 @@ public sealed class ParkingSessionServiceTests
             DayTariff = 0m
         };
 
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
             .ReturnsAsync(activeSession);
 
-        _mockParkingLotService.Setup(p => p.GetParkingLotByIdAsync(1))
+        _mockParkingLotService
+            .Setup(p => p.GetParkingLotByIdAsync(1))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
-        _mockPricingService.Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync(1, activeSession.LicensePlateNumber))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
             .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockSessionsRepo.Setup(r => r.Update(activeSession, It.IsAny<UpdateParkingSessionDto>()))
-            .ReturnsAsync(false);
+        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
 
-        var result = await _sessionService.StopSession(dto);
+        _mockSessionsRepo
+            .Setup(r => r.SaveChangesAsync())
+            .ThrowsAsync(new Exception("Database connection failed"));
+
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
-        StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to update session after payment");
+        var errorResult = (StopSessionResult.Error)result;
+        StringAssert.Contains(errorResult.Message, "Failed to update parking session");
     }
 
     [TestMethod]
@@ -1953,9 +1984,9 @@ public sealed class ParkingSessionServiceTests
     public async Task StopSession_Success_ReturnsSuccess(string plate)
     {
         var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
-        var lotId = 1;
+        const int lotId = 1;
 
-        var dbSession = new ParkingSessionModel
+        var activeSession = new ParkingSessionModel
         {
             Id = 1,
             LicensePlateNumber = plate.ToUpper(),
@@ -1977,132 +2008,137 @@ public sealed class ParkingSessionServiceTests
             DayTariff = 0m
         };
 
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
-            .ReturnsAsync(new ParkingSessionModel
-            {
-                Id = dbSession.Id,
-                LicensePlateNumber = dbSession.LicensePlateNumber,
-                ParkingLotId = dbSession.ParkingLotId,
-                Started = dbSession.Started,
-                PaymentStatus = dbSession.PaymentStatus,
-                Stopped = null
-            });
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
+            .ReturnsAsync(activeSession);
 
-        _mockParkingLotService.Setup(p => p.GetParkingLotByIdAsync(lotId))
+        _mockParkingLotService
+            .Setup(p => p.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
-        _mockPricingService.Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync(lotId, activeSession.LicensePlateNumber))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
             .Returns(new CalculatePriceResult.Success(10m, 1, 0));
 
         _mockPreAuthService
             .Setup(p => p.PreauthorizeAsync("token", It.IsAny<decimal>(), It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockSessionsRepo.Setup(r => r.GetById<ParkingSessionModel>(dbSession.Id))
-            .ReturnsAsync(new ParkingSessionModel
-            {
-                Id = dbSession.Id,
-                LicensePlateNumber = dbSession.LicensePlateNumber,
-                ParkingLotId = dbSession.ParkingLotId,
-                Started = dbSession.Started,
-                PaymentStatus = dbSession.PaymentStatus,
-                Stopped = null
-            });
+        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
+        _mockSessionsRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
 
-        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
+        _mockGateService
+            .Setup(g => g.OpenGateAsync(lotId, plate.ToUpper()))
             .ReturnsAsync(true);
 
-        _mockGateService.Setup(g => g.OpenGateAsync(lotId, plate.ToUpper()))
-            .ReturnsAsync(true);
+        var invoice = new InvoiceModel
+        {
+            Id = 1,
+            LicensePlateId = activeSession.LicensePlateNumber,
+            ParkingSessionId = activeSession.Id,
+            SessionDuration = 1,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Status = InvoiceStatus.Paid,
+            Cost = 10m,
+            InvoiceSummary = new List<string>()
+        };
 
-        var result = await _sessionService.StopSession(dto);
+        _mockAutomatedInvoiceService
+            .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
+            .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
+
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
-        var success = (StopSessionResult.Success)result;
-        Assert.AreEqual(dbSession.Id, success.Session.Id);
-        Assert.AreEqual(10m, success.totalAmount);
-
-        _mockSessionsRepo.Verify(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()), Times.Once);
+        _mockSessionsRepo.Verify(r => r.Update(It.IsAny<ParkingSessionModel>()), Times.Once);
+        _mockSessionsRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
+
 
     [TestMethod]
     [DataRow("AB-12-CD")]
     [DataRow("WX-99-YZ")]
     public async Task StopSession_GateFails_RollsBack_ReturnsError(string plate)
     {
-        var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
-        var lotId = 1;
+        long sessionId = 123;
+        long lotId = 1;
+        decimal amount = 10m;
 
-        var session = new ParkingSessionModel
+        var stopDto = new StopParkingSessionDto
         {
-            Id = 1,
-            LicensePlateNumber = plate.ToUpper(),
+            CardToken = "token"
+        };
+
+        var activeSession = new ParkingSessionModel
+        {
+            Id = sessionId,
+            LicensePlateNumber = plate,
             ParkingLotId = lotId,
-            Started = DateTime.UtcNow.AddHours(-1),
-            Stopped = null,
+            Started = DateTimeOffset.UtcNow.AddHours(-2),
             PaymentStatus = ParkingSessionStatus.PreAuthorized
         };
 
         var lotDto = new ReadParkingLotDto
         {
-            Id = lotId,
+            Id = (int)lotId,
             Name = "Test lot",
             Location = "Somewhere",
             Address = "Teststreet 1",
+            Capacity = 100,
             Reserved = 0,
-            Capacity = 0,
-            Tariff = 0m,
-            DayTariff = 0m
+            Tariff = 5m,
+            DayTariff = 20m
         };
 
-        _mockParkingLotService.Setup(p => p.GetParkingLotByIdAsync(lotId))
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
+            .ReturnsAsync(activeSession);
+
+        _mockParkingLotService
+            .Setup(s => s.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
-        _mockPricingService.Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
-            .Returns(new CalculatePriceResult.Success(10m, 1, 0));
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync((int)lotId, activeSession.LicensePlateNumber))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+            .Returns((ParkingLotModel lot, DateTimeOffset from, DateTimeOffset to) =>
+                new CalculatePriceResult.Success(amount, 2, 0));
 
         _mockPreAuthService
-            .Setup(p => p.PreauthorizeAsync("token", It.IsAny<decimal>(), It.IsAny<bool>()))
+            .Setup(p => p.PreauthorizeAsync("token", amount, It.IsAny<bool>()))
             .ReturnsAsync(new PreAuthDto { Approved = true });
 
-        _mockSessionsRepo.Setup(r => r.GetById<ParkingSessionModel>(session.Id))
-            .ReturnsAsync(() => new ParkingSessionModel
-            {
-                Id = session.Id,
-                LicensePlateNumber = session.LicensePlateNumber,
-                ParkingLotId = session.ParkingLotId,
-                Started = session.Started,
-                Stopped = session.Stopped,
-                PaymentStatus = session.PaymentStatus
-            });
+        _mockInvoiceRepository
+            .Setup(r => r.GetInvoiceModelByLicensePlate(plate))
+            .ReturnsAsync((InvoiceModel?)null);
 
-        _mockSessionsRepo.Setup(r => r.GetActiveSessionByLicensePlate(plate.ToUpper()))
-            .ReturnsAsync(() => new ParkingSessionModel
-            {
-                Id = session.Id,
-                LicensePlateNumber = session.LicensePlateNumber,
-                ParkingLotId = session.ParkingLotId,
-                Started = session.Started,
-                Stopped = session.Stopped,
-                PaymentStatus = session.PaymentStatus
-            });
-
-        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
-            .Callback<ParkingSessionModel, UpdateParkingSessionDto>((updatedModel, _) =>
-            {
-                session.PaymentStatus = updatedModel.PaymentStatus;
-                session.Stopped = updatedModel.Stopped;
-            })
-            .ReturnsAsync(true);
-
-        _mockGateService.Setup(g => g.OpenGateAsync(It.IsAny<long>(), It.IsAny<string>()))
+        _mockGateService
+            .Setup(g => g.OpenGateAsync((int)lotId, plate))
             .ReturnsAsync(false);
 
-        var result = await _sessionService.StopSession(dto);
+        _mockSessionsRepo
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
+
+        _mockSessionsRepo
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
+            .ReturnsAsync(true);
+
+        _mockSessionsRepo
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
+
+        var result = await _sessionService.StopSession(sessionId, stopDto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
-        StringAssert.Contains(((StopSessionResult.Error)result).Message, "Payment successful but gate error");
-        _mockSessionsRepo.Verify(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()), Times.Exactly(2));
+        var error = result as StopSessionResult.Error;
+        StringAssert.Contains(error!.Message, "Payment successful but gate error");
     }
 
     [TestMethod]
@@ -2113,12 +2149,12 @@ public sealed class ParkingSessionServiceTests
         var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
         var lotId = 1L;
         var sessionId = 1L;
-        var p = plate.ToUpper();
+        var licensePlate = plate.ToUpper();
 
         var activeSession = new ParkingSessionModel
         {
             Id = sessionId,
-            LicensePlateNumber = p,
+            LicensePlateNumber = licensePlate,
             ParkingLotId = lotId,
             Started = DateTime.UtcNow.AddHours(-2),
             Stopped = null,
@@ -2128,7 +2164,7 @@ public sealed class ParkingSessionServiceTests
 
         var lotDto = new ReadParkingLotDto
         {
-            Id = lotId,
+            Id = (int)lotId,
             Name = "Test lot",
             Location = "Somewhere",
             Address = "Teststreet 1",
@@ -2141,7 +2177,7 @@ public sealed class ParkingSessionServiceTests
         var hotelPassDto = new ReadHotelPassDto
         {
             Id = 42,
-            LicensePlate = p,
+            LicensePlate = licensePlate,
             ParkingLotId = (int)lotId,
             Start = DateTime.UtcNow.AddDays(-1),
             End = DateTime.UtcNow.AddHours(1),
@@ -2149,7 +2185,7 @@ public sealed class ParkingSessionServiceTests
         };
 
         _mockSessionsRepo
-            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
             .ReturnsAsync(activeSession);
 
         _mockParkingLotService
@@ -2157,36 +2193,51 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync((int)lotId, licensePlate))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockHotelPassService
             .Setup(s => s.GetHotelPassByIdAsync(hotelPassDto.Id))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.Ok(hotelPassDto));
 
         _mockSessionsRepo
-            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
-            .ReturnsAsync(new ParkingSessionModel
-            {
-                Id = activeSession.Id,
-                LicensePlateNumber = activeSession.LicensePlateNumber,
-                ParkingLotId = activeSession.ParkingLotId,
-                Started = activeSession.Started,
-                PaymentStatus = activeSession.PaymentStatus,
-                Stopped = activeSession.Stopped
-            });
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
 
         _mockSessionsRepo
-            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
-            .ReturnsAsync(true);
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
 
         _mockGateService
-            .Setup(g => g.OpenGateAsync((int)lotId, p))
+            .Setup(g => g.OpenGateAsync((int)lotId, licensePlate))
             .ReturnsAsync(true);
 
-        var result = await _sessionService.StopSession(dto);
+        var invoice = new InvoiceModel
+        {
+            Id = 1,
+            LicensePlateId = activeSession.LicensePlateNumber,
+            ParkingSessionId = activeSession.Id,
+            SessionDuration = 0,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Status = InvoiceStatus.Paid,
+            Cost = 0m,
+            InvoiceSummary = new List<string>()
+        };
+
+        _mockAutomatedInvoiceService
+            .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
+            .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
+
+        var result = await _sessionService.StopSession(sessionId, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
+
         var success = (StopSessionResult.Success)result;
-        Assert.AreEqual(0m, success.totalAmount);
+        Assert.AreEqual(0m, success.TotalAmount);
         Assert.AreEqual(ParkingSessionStatus.HotelPass, success.Session.PaymentStatus);
-        _mockPreAuthService.Verify(preAuth => preAuth.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+
+        _mockPreAuthService.Verify(p => p.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
+        _mockPricingService.Verify(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()), Times.Never);
+        _mockGateService.Verify(g => g.OpenGateAsync((int)lotId, licensePlate), Times.Once);
     }
 
 
@@ -2212,7 +2263,7 @@ public sealed class ParkingSessionServiceTests
 
         var lotDto = new ReadParkingLotDto
         {
-            Id = lotId,
+            Id = (int)lotId,
             Name = "Test lot",
             Location = "Somewhere",
             Address = "Teststreet 1",
@@ -2223,7 +2274,7 @@ public sealed class ParkingSessionServiceTests
         };
 
         _mockSessionsRepo
-            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
             .ReturnsAsync(activeSession);
 
         _mockParkingLotService
@@ -2231,10 +2282,14 @@ public sealed class ParkingSessionServiceTests
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
         _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync((int)lotId, p))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockHotelPassService
             .Setup(s => s.GetHotelPassByIdAsync(42))
             .ReturnsAsync(ServiceResult<ReadHotelPassDto>.NotFound("not found"));
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve hotel pass from database");
@@ -2264,7 +2319,7 @@ public sealed class ParkingSessionServiceTests
 
         var lotDto = new ReadParkingLotDto
         {
-            Id = lotId,
+            Id = (int)lotId,
             Name = "Test lot",
             Location = "Somewhere",
             Address = "Teststreet 1",
@@ -2284,12 +2339,16 @@ public sealed class ParkingSessionServiceTests
         };
 
         _mockSessionsRepo
-            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
             .ReturnsAsync(activeSession);
 
         _mockParkingLotService
             .Setup(r => r.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync((int)lotId, p))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
 
         _mockRegistrationService
             .Setup(r => r.GetBusinessRegistrationByIdAsync(regId))
@@ -2300,41 +2359,45 @@ public sealed class ParkingSessionServiceTests
             .Returns(new CalculatePriceResult.Success(12m, 1, 0));
 
         _mockSessionsRepo
-            .Setup(r => r.GetById<ParkingSessionModel>(sessionId))
-            .ReturnsAsync(new ParkingSessionModel
-            {
-                Id = activeSession.Id,
-                LicensePlateNumber = activeSession.LicensePlateNumber,
-                ParkingLotId = activeSession.ParkingLotId,
-                Started = activeSession.Started,
-                PaymentStatus = activeSession.PaymentStatus,
-                Stopped = activeSession.Stopped,
-                BusinessParkingRegistrationId = regId
-            });
+            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
 
         _mockSessionsRepo
-            .Setup(r => r.Update(It.IsAny<ParkingSessionModel>(), It.IsAny<UpdateParkingSessionDto>()))
-            .ReturnsAsync(true);
+            .Setup(r => r.SaveChangesAsync())
+            .ReturnsAsync(1);
 
         _mockGateService
             .Setup(g => g.OpenGateAsync((int)lotId, p))
             .ReturnsAsync(true);
 
+        var invoice = new InvoiceModel
+        {
+            Id = 1,
+            LicensePlateId = activeSession.LicensePlateNumber,
+            ParkingSessionId = activeSession.Id,
+            SessionDuration = 1,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Status = InvoiceStatus.Pending,
+            Cost = 12m,
+            InvoiceSummary = new List<string>()
+        };
+
+        _mockAutomatedInvoiceService
+            .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
+            .ReturnsAsync(new CreateInvoiceResult.Success(invoice));
+
         _mockPreAuthService
             .Setup(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()))
             .Throws(new Exception("PreAuth should not be called for BusinessParking stop"));
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
         var success = (StopSessionResult.Success)result;
 
-        Assert.AreEqual(12m, success.totalAmount);
+        Assert.AreEqual(12m, success.TotalAmount);
         Assert.AreEqual(ParkingSessionStatus.PendingInvoice, success.Session.PaymentStatus);
 
-        _mockPreAuthService.Verify(pa =>
-            pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()),
-            Times.Never);
+        _mockPreAuthService.Verify(pa => pa.PreauthorizeAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<bool>()), Times.Never);
     }
 
     [TestMethod]
@@ -2360,7 +2423,7 @@ public sealed class ParkingSessionServiceTests
 
         var lotDto = new ReadParkingLotDto
         {
-            Id = lotId,
+            Id = (int)lotId,
             Name = "Test lot",
             Location = "Somewhere",
             Address = "Teststreet 1",
@@ -2371,22 +2434,193 @@ public sealed class ParkingSessionServiceTests
         };
 
         _mockSessionsRepo
-            .Setup(r => r.GetActiveSessionByLicensePlate(p))
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
             .ReturnsAsync(activeSession);
 
         _mockParkingLotService
             .Setup(r => r.GetParkingLotByIdAsync(lotId))
             .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
 
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync((int)lotId, p))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
         _mockRegistrationService
             .Setup(r => r.GetBusinessRegistrationByIdAsync(regId))
             .ReturnsAsync(ServiceResult<ReadBusinessRegDto>.NotFound("No registration"));
 
-        var result = await _sessionService.StopSession(dto);
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
 
         Assert.IsInstanceOfType(result, typeof(StopSessionResult.Error));
         StringAssert.Contains(((StopSessionResult.Error)result).Message, "Failed to retrieve business registration");
     }
+
+    #endregion
+
+    #region StopSession Invoice
+
+    [TestMethod]
+    [DataRow("AB-12-CD")]
+    [DataRow("WX-99-YZ")]
+    public async Task StopSession_WhenActiveSessionExists_AndInvoiceIsCreated_ReturnsSuccess(string plate)
+    {
+        var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
+        var p = plate.ToUpper();
+        const int lotId = 1;
+
+        var activeSession = new ParkingSessionModel
+        {
+            Id = 1,
+            LicensePlateNumber = p,
+            ParkingLotId = lotId,
+            Started = DateTimeOffset.UtcNow.AddHours(-2),
+            Stopped = null,
+            PaymentStatus = ParkingSessionStatus.PreAuthorized
+        };
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
+            .ReturnsAsync(activeSession);
+
+        _mockParkingLotService
+            .Setup(p => p.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync(lotId, p))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+            .Returns(new CalculatePriceResult.Success(10m, 2, 0));
+
+        _mockPreAuthService
+            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .ReturnsAsync(new PreAuthDto { Approved = true });
+
+        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
+        _mockSessionsRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        _mockGateService
+            .Setup(g => g.OpenGateAsync(lotId, p))
+            .ReturnsAsync(true);
+
+        var createdInvoice = new InvoiceModel
+        {
+            Id = 123,
+            LicensePlateId = p,
+            ParkingSessionId = activeSession.Id,
+            SessionDuration = 2,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Status = InvoiceStatus.Paid,
+            Cost = 10m,
+            InvoiceSummary = new List<string>()
+        };
+
+        _mockAutomatedInvoiceService
+            .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
+            .ReturnsAsync(new CreateInvoiceResult.Success(createdInvoice));
+
+        _mockInvoiceRepository
+            .Setup(r => r.GetInvoiceModelByLicensePlate(p))
+            .ReturnsAsync(createdInvoice);
+
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
+
+        Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
+        var success = (StopSessionResult.Success)result;
+        Assert.AreEqual(10m, success.TotalAmount);
+        Assert.AreEqual(InvoiceStatus.Paid, success.Invoice.Status);
+        Assert.AreEqual(123, success.Invoice.Id);
+    }
+
+    [TestMethod]
+    [DataRow("AB-12-CD")]
+    [DataRow("WX-99-YZ")]
+    public async Task StopSession_WhenInvoiceCreationFails_ReturnsError(string plate)
+    {
+        var dto = new StopParkingSessionDto { LicensePlate = plate, CardToken = "token" };
+        var p = plate.ToUpper();
+        const int lotId = 1;
+
+        var activeSession = new ParkingSessionModel
+        {
+            Id = 1,
+            LicensePlateNumber = p,
+            ParkingLotId = lotId,
+            Started = DateTimeOffset.UtcNow.AddHours(-2),
+            Stopped = null,
+            PaymentStatus = ParkingSessionStatus.PreAuthorized
+        };
+
+        var lotDto = new ReadParkingLotDto
+        {
+            Id = lotId,
+            Name = "Test lot",
+            Location = "Somewhere",
+            Address = "Teststreet 1",
+            Reserved = 0,
+            Capacity = 100,
+            Tariff = 5m,
+            DayTariff = 20m
+        };
+
+        _mockSessionsRepo
+            .Setup(r => r.GetById<ParkingSessionModel>(activeSession.Id))
+            .ReturnsAsync(activeSession);
+
+        _mockParkingLotService
+            .Setup(p => p.GetParkingLotByIdAsync(lotId))
+            .ReturnsAsync(ServiceResult<ReadParkingLotDto>.Ok(lotDto));
+
+        _mockHotelPassService
+            .Setup(s => s.GetHotelPassesByLicensePlateAndLotIdAsync(lotId, p))
+            .ReturnsAsync(ServiceResult<List<ReadHotelPassDto>>.Ok(new List<ReadHotelPassDto>()));
+
+        _mockPricingService
+            .Setup(p => p.CalculateParkingCost(It.IsAny<ParkingLotModel>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()))
+            .Returns(new CalculatePriceResult.Success(10m, 2, 0));
+
+        _mockPreAuthService
+            .Setup(p => p.PreauthorizeAsync("token", 10m, It.IsAny<bool>()))
+            .ReturnsAsync(new PreAuthDto { Approved = true });
+
+        _mockSessionsRepo.Setup(r => r.Update(It.IsAny<ParkingSessionModel>()));
+        _mockSessionsRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        _mockGateService
+            .Setup(g => g.OpenGateAsync(lotId, p))
+            .ReturnsAsync(true);
+
+        _mockAutomatedInvoiceService
+            .Setup(i => i.CreateInvoice(It.IsAny<CreateInvoiceDto>()))
+            .ReturnsAsync(new CreateInvoiceResult.Error("Invoice failed"));
+
+        _mockInvoiceRepository
+            .Setup(r => r.GetInvoiceModelByLicensePlate(p))
+            .ReturnsAsync((InvoiceModel?)null);
+
+        var result = await _sessionService.StopSession(activeSession.Id, dto);
+
+        Assert.IsInstanceOfType(result, typeof(StopSessionResult.Success));
+        var success = (StopSessionResult.Success)result;
+        Assert.IsNotNull(success.Invoice);
+        Assert.AreEqual(0, success.Invoice.Id);
+    }
+
+
 
     #endregion
 }

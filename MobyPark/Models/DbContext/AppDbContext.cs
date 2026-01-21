@@ -20,6 +20,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<HotelPassModel> HotelPasses => Set<HotelPassModel>();
     public DbSet<HotelModel> Hotels => Set<HotelModel>();
     public DbSet<BusinessModel> Businesses => Set<BusinessModel>();
+    public DbSet<InvoiceModel> Invoices => Set<InvoiceModel>();
     public DbSet<ApiLoggingModel> ApiLogs => Set<ApiLoggingModel>();
 
     public DbSet<BusinessParkingRegistrationModel> BusinessParkingRegistrations =>
@@ -47,6 +48,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .Property(session => session.PaymentStatus)
             .HasColumnType("payment_status");
 
+        modelBuilder.HasPostgresEnum<InvoiceStatus>();
+        modelBuilder.Entity<InvoiceModel>()
+        .Property(invoiceModel => invoiceModel.Status)
+        .HasColumnType("invoice_status");
+
         // RolePermission composite key
         modelBuilder.Entity<RolePermissionModel>()
             .HasKey(rolePermission => new { rolePermission.RoleId, rolePermission.PermissionId });
@@ -66,6 +72,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
             .HasOne(user => user.Role)
             .WithMany(role => role.Users)
             .HasForeignKey(user => user.RoleId);
+
+        modelBuilder.Entity<UserModel>()
+            .HasIndex(user => user.Email)
+            .IsUnique();
 
         modelBuilder.Entity<ReservationModel>()
             .HasOne(reservation => reservation.ParkingLot)

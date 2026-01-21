@@ -1,12 +1,16 @@
 using System.Security.Cryptography;
 using System.Text;
 
+using MobyPark.DTOs.Hotel;
+using MobyPark.DTOs.Invoice;
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.DTOs.ParkingSession.Request;
 using MobyPark.Models;
+using MobyPark.Models.Repositories;
 using MobyPark.Models.Repositories.Interfaces;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
+using MobyPark.Services.Results.Invoice;
 using MobyPark.Services.Results.ParkingSession;
 using MobyPark.Services.Results.Price;
 using MobyPark.Services.Results.UserPlate;
@@ -17,12 +21,14 @@ namespace MobyPark.Services;
 public class ParkingSessionService : IParkingSessionService
 {
     private readonly IParkingSessionRepository _sessions;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly IParkingLotService _parkingLots;
     private readonly IUserPlateService _userPlates;
     private readonly IPricingService _pricing;
     private readonly IGateService _gate;
     private readonly IPreAuthService _preAuth;
     private readonly IHotelPassService _passService;
+    private readonly IAutomatedInvoiceService _invoiceService;
     private readonly IBusinessParkingRegistrationService _registrationService;
 
     public ParkingSessionService(
@@ -31,7 +37,11 @@ public class ParkingSessionService : IParkingSessionService
         IUserPlateService userPlates,
         IPricingService pricing,
         IGateService gate,
-        IPreAuthService preAuth, IHotelPassService passService, IBusinessParkingRegistrationService registrationService
+        IPreAuthService preAuth,
+        IHotelPassService passService,
+        IAutomatedInvoiceService invoiceService,
+        IInvoiceRepository invoiceRepository,
+        IBusinessParkingRegistrationService registrationService
 
         )
     {
@@ -42,6 +52,8 @@ public class ParkingSessionService : IParkingSessionService
         _gate = gate;
         _preAuth = preAuth;
         _passService = passService;
+        _invoiceService = invoiceService;
+        _invoiceRepository = invoiceRepository;
         _registrationService = registrationService;
     }
 
@@ -344,6 +356,9 @@ public class ParkingSessionService : IParkingSessionService
         var licensePlate = sessionDto.LicensePlate.Upper();
 
         var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
+        if (lot.Status is ServiceStatus.NotFound or ServiceStatus.Fail)
+            return new StartSessionResult.LotNotFound();
+
         if (lot.Status != ServiceStatus.Success)
         {
             if (lot.Error is null)
@@ -440,13 +455,11 @@ public class ParkingSessionService : IParkingSessionService
         return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
     }
 
-    public async Task<StopSessionResult> StopSession(StopParkingSessionDto sessionDto)
+    public async Task<StopSessionResult> StopSession(long id, StopParkingSessionDto sessionDto)
     {
-        var licensePlate = sessionDto.LicensePlate.ToUpper();
-
-        var activeSessionResult = await GetActiveParkingSessionByLicensePlate(licensePlate);
+        var activeSessionResult = await GetParkingSessionById(id);
         if (activeSessionResult is not GetSessionResult.Success sActive)
-            return new StopSessionResult.LicensePlateNotFound();
+            return new StopSessionResult.Error("Active session not found.");
 
         var activeSession = sActive.Session;
 
@@ -470,32 +483,74 @@ public class ParkingSessionService : IParkingSessionService
 
         DateTimeOffset chargeFrom;
         DateTimeOffset end = DateTime.UtcNow;
-        decimal totalAmount;
+        decimal totalAmount = 0m;
         bool paymentPerformed = false;
+        CalculatePriceResult priceResult = new CalculatePriceResult.Error("Uninitialized");
 
+
+        var anyHotelPasses = await _passService.GetHotelPassesByLicensePlateAndLotIdAsync(parkingLot.Id, activeSession.LicensePlateNumber);
+        if (anyHotelPasses.Status == ServiceStatus.Success)
+        {
+            if (anyHotelPasses.Data is not null && anyHotelPasses.Data.Any())
+            {
+                var overlappingPass = anyHotelPasses.Data.FirstOrDefault(x =>
+                    x.End + x.ExtraTime >= activeSession.Started && x.Start <= end);
+                if (overlappingPass is not null)
+                {
+                    activeSession.HotelPassId = overlappingPass.Id;
+                }
+            }
+        }
         if (activeSession.HotelPassId.HasValue)
         {
             var pass = await _passService.GetHotelPassByIdAsync(activeSession.HotelPassId.Value);
             if (pass.Status != ServiceStatus.Success)
                 return new StopSessionResult.Error("Failed to retrieve hotel pass from database.");
 
-            var endOfFree = pass.Data!.End + pass.Data.ExtraTime;
+            var passData = pass.Data!;
+            var endOfFree = passData.End + passData.ExtraTime;
 
-            if (end <= endOfFree)
+            decimal total = 0m;
+
+            var beforeTo = end < passData.Start ? end : passData.Start;
+            if (activeSession.Started < beforeTo)
             {
-                totalAmount = 0m;
+                var totalToPayBefore = _pricing.CalculateParkingCost(parkingLot, activeSession.Started, beforeTo);
+
+                if (totalToPayBefore is CalculatePriceResult.Success priceBefore)
+                {
+                    total += priceBefore.Price;
+                    priceResult = priceBefore;
+                }
+                else if (totalToPayBefore is CalculatePriceResult.Error error)
+                    return new StopSessionResult.Error(error.Message);
             }
-            else
+
+            if (end > endOfFree)
             {
-                chargeFrom = activeSession.Started > endOfFree
-                    ? activeSession.Started
-                    : endOfFree;
+                var chargeAfterPassFrom = activeSession.Started > endOfFree ? activeSession.Started : endOfFree;
 
-                var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
-                if (priceResult is not CalculatePriceResult.Success sPrice)
-                    return new StopSessionResult.Error("Failed to calculate parking cost.");
+                if (chargeAfterPassFrom < end)
+                {
+                    var totalToPayAfter = _pricing.CalculateParkingCost(parkingLot, chargeAfterPassFrom, end);
 
-                totalAmount = sPrice.Price;
+                    if (totalToPayAfter is CalculatePriceResult.Success priceAfter)
+                    {
+                        total += priceAfter.Price;
+                        priceResult = priceAfter;
+                    }
+                    else if (totalToPayAfter is CalculatePriceResult.Error error)
+                        return new StopSessionResult.Error(error.Message);
+                }
+            }
+
+            totalAmount = total;
+            if (priceResult is not CalculatePriceResult.Success)
+            {
+                priceResult = new CalculatePriceResult.Success(
+                    Price: totalAmount,
+                    BillableHours: 0,
+                    BillableDays: 0);
             }
         }
         else if (activeSession.BusinessParkingRegistrationId.HasValue)
@@ -511,7 +566,7 @@ public class ParkingSessionService : IParkingSessionService
 
             chargeFrom = activeSession.Started;
 
-            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
             if (priceResult is not CalculatePriceResult.Success sPrice)
                 return new StopSessionResult.Error("Failed to calculate parking cost.");
 
@@ -523,7 +578,7 @@ public class ParkingSessionService : IParkingSessionService
         {
             chargeFrom = activeSession.Started;
 
-            var priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
+            priceResult = _pricing.CalculateParkingCost(parkingLot, chargeFrom, end);
             if (priceResult is not CalculatePriceResult.Success sPrice)
                 return new StopSessionResult.Error("Failed to calculate parking cost.");
 
@@ -555,27 +610,67 @@ public class ParkingSessionService : IParkingSessionService
         activeSession.Stopped = end;
         activeSession.Cost = totalAmount;
 
-        var updateDto = new UpdateParkingSessionDto
+        var invoiceStatus = activeSession.PaymentStatus switch
         {
-            Stopped = activeSession.Stopped,
-            PaymentStatus = activeSession.PaymentStatus,
-            Cost = activeSession.Cost
+            ParkingSessionStatus.Paid => InvoiceStatus.Paid,
+            ParkingSessionStatus.HotelPass => InvoiceStatus.Paid,
+            ParkingSessionStatus.PendingInvoice => InvoiceStatus.Pending,
+            _ => InvoiceStatus.Pending
         };
 
-        var updateResult = await UpdateParkingSession(activeSession.Id, updateDto);
-        if (updateResult is not UpdateSessionResult.Success sUpdate)
-            return new StopSessionResult.Error("Failed to update session after payment.");
-        activeSession = sUpdate.Session;
+        if (priceResult is not CalculatePriceResult.Success sPriceResult)
+            return new StopSessionResult.Error("Failed to calculate parking cost for invoice generation.");
+
+        int duration = 0;
+
+        // For hotel pass or business parking sessions, only count billable time
+        if (activeSession.HotelPassId.HasValue || activeSession.BusinessParkingRegistrationId.HasValue)
+        {
+            // If no cost, the entire session was covered by the pass
+            if (totalAmount == 0m)
+            {
+                duration = 0;
+            }
+            else
+            {
+                duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+            }
+        }
+        else
+        {
+            duration = sPriceResult.BillableDays > 0 ? sPriceResult.BillableDays : sPriceResult.BillableHours;
+        }
+
+        var createInvoiceDto = new CreateInvoiceDto
+        {
+            LicensePlateId = activeSession.LicensePlateNumber,
+            ParkingSessionId = activeSession.Id,
+            SessionDuration = duration,
+            Cost = activeSession.Cost.Value,
+            Status = invoiceStatus
+        };
 
         try
         {
-            if (!await OpenSessionGate(activeSession, licensePlate))
+            _sessions.Update(activeSession);
+            await _sessions.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            return new StopSessionResult.Error("Failed to update parking session: " + ex.Message);
+        }
+
+
+        try
+        {
+            if (!await OpenSessionGate(activeSession, activeSession.LicensePlateNumber))
                 throw new Exception("Failed to open gate");
         }
         catch (Exception ex)
         {
             if (paymentPerformed)
             {
+                // Rollback als betaling gelukt is
                 activeSession.Stopped = null;
                 activeSession.Cost = null;
                 activeSession.PaymentStatus = ParkingSessionStatus.PreAuthorized;
@@ -587,7 +682,8 @@ public class ParkingSessionService : IParkingSessionService
                     PaymentStatus = ParkingSessionStatus.PreAuthorized
                 };
 
-                await UpdateParkingSession(activeSession.Id, rollbackDto);
+                await _sessions.Update(activeSession, rollbackDto);
+                await _sessions.SaveChangesAsync();
 
                 return new StopSessionResult.Error($"Payment successful but gate error: {ex.Message}");
             }
@@ -595,7 +691,48 @@ public class ParkingSessionService : IParkingSessionService
             return new StopSessionResult.Error($"Gate error: {ex.Message}");
         }
 
-        return new StopSessionResult.Success(activeSession, totalAmount);
+        var invoiceCreateResult = await _invoiceService.CreateInvoice(createInvoiceDto);
+        InvoiceModel invoice;
+
+        if (invoiceCreateResult is CreateInvoiceResult.Success sInv)
+        {
+            invoice = sInv.Invoice;
+        }
+        else
+        {
+            var existingInvoice = await _invoiceRepository.GetInvoiceModelByLicensePlate(activeSession.LicensePlateNumber);
+            if (existingInvoice is not null)
+            {
+                invoice = new InvoiceModel
+                {
+                    Id = existingInvoice.Id,
+                    LicensePlateId = existingInvoice.LicensePlateId,
+                    ParkingSessionId = existingInvoice.ParkingSessionId,
+                    SessionDuration = duration,
+                    CreatedAt = existingInvoice.CreatedAt,
+                    Status = existingInvoice.Status,
+                    Cost = existingInvoice.Cost,
+                    InvoiceSummary = existingInvoice.InvoiceSummary
+                };
+            }
+            else
+            {
+                invoice = new InvoiceModel
+                {
+                    Id = 0,
+                    LicensePlateId = activeSession.LicensePlateNumber,
+                    ParkingSessionId = activeSession.Id,
+                    SessionDuration = duration,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    Status = InvoiceStatus.Paid,
+                    Cost = activeSession.Cost,
+                    InvoiceSummary = new List<string> { "Invoice generation failed." }
+                };
+            }
+
+
+        }
+        return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }
 
     private async Task<Dictionary<string, DateTimeOffset>> GetPlateOwnershipMapAsync(long userId)
