@@ -369,12 +369,12 @@ public class ParkingSessionService : IParkingSessionService
     public async Task<StartSessionResult> StartSession(CreateParkingSessionDto sessionDto)
     {
         var licensePlate = sessionDto.LicensePlate.Upper();
-        
+
         var lot = await _parkingLots.GetParkingLotByIdAsync(sessionDto.ParkingLotId);
 
         if (lot.Status is not ServiceStatus.Success)
             return new StartSessionResult.LotNotFound();
-        
+
         var exists = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
         if (exists is not null)
             return new StartSessionResult.AlreadyActive();
@@ -452,7 +452,7 @@ public class ParkingSessionService : IParkingSessionService
 
         if (lot.Status is not ServiceStatus.Success)
             return new StartSessionResult.LotNotFound();
-        
+
         var exists = await _sessions.GetActiveSessionByLicensePlate(licensePlate);
         if (exists is not null)
             return new StartSessionResult.AlreadyActive();
@@ -494,6 +494,7 @@ public class ParkingSessionService : IParkingSessionService
                 Token = cardInfo.Token,
                 Bank = cardInfo.Bank
             };
+            await _transactionRepo.Create(transaction);
             await _transactionRepo.SaveChangesAsync();
 
             var payment = new PaymentModel()
@@ -503,6 +504,7 @@ public class ParkingSessionService : IParkingSessionService
                 CreatedAt = DateTimeOffset.UtcNow,
                 TransactionId = transaction.Id
             };
+            await _paymentRepo.Create(payment);
             await _paymentRepo.SaveChangesAsync();
 
             session.PaymentId = payment.PaymentId;
@@ -528,6 +530,7 @@ public class ParkingSessionService : IParkingSessionService
             return new StartSessionResult.Error("Failed to start session: " + e.Message);
         }
     }
+
 
     public async Task<StopSessionResult> StopSession(long id)
     {
