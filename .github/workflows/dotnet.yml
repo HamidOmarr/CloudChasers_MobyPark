@@ -119,6 +119,9 @@ jobs:
     - name: Coverage Delta
       if: github.event_name == 'pull_request'
       run: |
+        # Configure git safe directory for container
+        git config --global --add safe.directory $GITHUB_WORKSPACE
+        
         # Get current coverage
         current_coverage=$(grep "Line coverage:" CoverageReport/Summary.txt | awk '{print $3}' | tr -d '%')
         echo "Current coverage: $current_coverage%"
