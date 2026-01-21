@@ -457,8 +457,8 @@ namespace MobyPark.Migrations
                     b.Property<string>("Bank")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("Issuer")
+                    
+                    b.Property<string>("Token").HasColumnName("Issuer")
                         .IsRequired()
                         .HasColumnType("text");
 
