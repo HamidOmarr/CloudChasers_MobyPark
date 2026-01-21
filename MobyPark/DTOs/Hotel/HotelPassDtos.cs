@@ -7,9 +7,9 @@ public class CreateHotelPassDto
     [Required]
     public string LicensePlate { get; set; } = string.Empty;
     [Required]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
     [Required]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
 
     public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
 }
@@ -21,9 +21,9 @@ public class AdminCreateHotelPassDto
     [Required]
     public long ParkingLotId { get; set; }
     [Required]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
     [Required]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
 
     public TimeSpan ExtraTime { get; set; } = new(0, 30, 0);
 }
@@ -37,9 +37,9 @@ public class ReadHotelPassDto
     [Required]
     public long ParkingLotId { get; set; }
     [Required]
-    public DateTime Start { get; set; }
+    public DateTimeOffset Start { get; set; }
     [Required]
-    public DateTime End { get; set; }
+    public DateTimeOffset End { get; set; }
     [Required]
     public TimeSpan ExtraTime { get; set; }
 }
@@ -49,7 +49,7 @@ public class PatchHotelPassDto
     [Required]
     public long Id { get; set; }
     public string? LicensePlate { get; set; }
-    public DateTime? Start { get; set; }
-    public DateTime? End { get; set; }
+    public DateTimeOffset? Start { get; set; }
+    public DateTimeOffset? End { get; set; }
     public TimeSpan? ExtraTime { get; set; }
 }

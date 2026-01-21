@@ -49,8 +49,8 @@ public sealed class ReservationCostEstimateTests
         _mockParkingLotsService
             .Setup(s => s.GetAvailableSpotsForPeriodAsync(
                 It.IsAny<long>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(100));
     }
 
@@ -78,8 +78,8 @@ public sealed class ReservationCostEstimateTests
 
         _mockParkingLotsService.Setup(s => s.GetAvailableSpotsForPeriodAsync(
                 LotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         // Act

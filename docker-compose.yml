@@ -4,19 +4,19 @@ services:
     container_name: mobypark_db
     restart: always
     environment:
-      POSTGRES_USER: MobyParkAdmin
-      POSTGRES_PASSWORD: MobyParkCloudChasers
-      POSTGRES_DB: mobypark
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "8500:8500"
+      - ${DB_PORT:-5432}:5432
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U MobyParkAdmin -d mobypark -p 8500" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       retries: 10
     volumes:
       - mobypark-data:/var/lib/postgresql/data
     mem_limit: 6g
-    cpus: 4
+    cpus: 2
     pids_limit: 2000
     networks:
       - mobypark-net
@@ -31,9 +31,9 @@ services:
       - ./mobypark.dump:/mobypark.dump:ro
       - ./restore.sh:/restore.sh:ro
     environment:
-      POSTGRES_USER: MobyParkAdmin
-      POSTGRES_PASSWORD: MobyParkCloudChasers
-      POSTGRES_DB: mobypark
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       DB_HOST: mobypark-db
     entrypoint: [ "/bin/sh", "/restore.sh" ]
     mem_limit: 64m
@@ -49,7 +49,15 @@ services:
     container_name: mobypark_api
     environment:
       ConnectionStrings__PostgresConnection: >
-        Host=mobypark-db; Port=8500; Database=mobypark; Username=MobyParkAdmin; Password=MobyParkCloudChasers; Timezone=Europe/Amsterdam
+        Host=mobypark-db;
+        Port=5432;
+        Database=${POSTGRES_DB};
+        Username=${POSTGRES_USER};
+        Password=${POSTGRES_PASSWORD};
+        Timezone=Europe/Amsterdam
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
     ports:
       - "8501:8501"
     depends_on:

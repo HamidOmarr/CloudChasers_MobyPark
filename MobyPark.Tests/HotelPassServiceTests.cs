@@ -381,8 +381,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 parkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(10));
 
         _mockPassRepo
@@ -533,8 +533,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 dto.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(10));
 
         _mockPassRepo
@@ -585,7 +585,7 @@ public class HotelPassServiceTests
         Assert.IsTrue(result.Error?.Contains("already a hotel pass") ?? false);
 
         _mockLotService.Verify(l => l.GetAvailableSpotsForPeriodAsync(
-                It.IsAny<long>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()),
+                It.IsAny<long>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()),
             Times.Never);
 
         _mockPassRepo.Verify(r => r.Add(It.IsAny<HotelPassModel>()), Times.Never);
@@ -610,8 +610,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 dto.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Fail("availability error"));
 
         var result = await _hotelService.CreateHotelPassAsync(dto);
@@ -640,8 +640,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 dto.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         var result = await _hotelService.CreateHotelPassAsync(dto);
@@ -672,7 +672,7 @@ public class HotelPassServiceTests
         _mockPassRepo.Verify(r => r.Add(It.IsAny<HotelPassModel>()), Times.Never);
         _mockPassRepo.Verify(r => r.SaveChangesAsync(), Times.Never);
         _mockLotService.Verify(l => l.GetAvailableSpotsForPeriodAsync(
-                It.IsAny<long>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()),
+                It.IsAny<long>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()),
             Times.Never);
     }
 
@@ -714,8 +714,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 parkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(5));
 
         _mockPassRepo
@@ -772,7 +772,7 @@ public class HotelPassServiceTests
         _mockPassRepo.Verify(r => r.Add(It.IsAny<HotelPassModel>()), Times.Never);
         _mockPassRepo.Verify(r => r.SaveChangesAsync(), Times.Never);
         _mockLotService.Verify(l => l.GetAvailableSpotsForPeriodAsync(
-                It.IsAny<long>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()),
+                It.IsAny<long>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()),
             Times.Never);
     }
 
@@ -828,7 +828,7 @@ public class HotelPassServiceTests
         Assert.IsTrue(result.Error?.Contains("already a hotel pass") ?? false);
 
         _mockLotService.Verify(l => l.GetAvailableSpotsForPeriodAsync(
-                It.IsAny<long>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()),
+                It.IsAny<long>(), It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset>()),
             Times.Never);
 
         _mockPassRepo.Verify(r => r.Add(It.IsAny<HotelPassModel>()), Times.Never);
@@ -871,8 +871,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 parkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Fail("availability error"));
 
         // Act
@@ -921,8 +921,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 parkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         // Act
@@ -1143,8 +1143,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 existing.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Fail("availability error"));
 
         // Act
@@ -1187,8 +1187,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 existing.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(0));
 
         // Act
@@ -1234,8 +1234,8 @@ public class HotelPassServiceTests
         _mockLotService
             .Setup(l => l.GetAvailableSpotsForPeriodAsync(
                 existing.ParkingLotId,
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()))
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>()))
             .ReturnsAsync(ServiceResult<int>.Ok(5));
 
         // Act

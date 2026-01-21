@@ -32,12 +32,13 @@ jobs:
 
     - name: Build solution
       run: dotnet build --no-restore -warnaserror
-
+      
     - name: Test with coverage
       id: test
       run: |
         dotnet test \
           --no-build \
+          --verbosity minimal \
           /p:CollectCoverage=true \
           /p:CoverletOutput=TestResults/Coverage/ \
           /p:CoverletOutputFormat=cobertura \
