@@ -576,7 +576,6 @@ public class ParkingSessionService : IParkingSessionService
         if (parkingLot.Capacity - parkingLot.Reserved <= 0)
             return new StartSessionResult.LotFull();
         
-        
         var preAuth = await _preAuth.PreauthorizeAsync(cardInfo.Token, moneyOnCard);
         if (!preAuth.Approved)
             return new StartSessionResult.PreAuthFailed(preAuth.Reason ?? "Card declined");
@@ -596,6 +595,7 @@ public class ParkingSessionService : IParkingSessionService
             {
                 Amount = 0, Method = cardInfo.Method, Token = cardInfo.Token, Bank = cardInfo.Bank
             };
+            await _transactionRepo.SaveChangesAsync();
 
             var payment = new PaymentModel()
             {
@@ -604,6 +604,7 @@ public class ParkingSessionService : IParkingSessionService
                 CreatedAt = DateTimeOffset.UtcNow,
                 TransactionId = transaction.Id
             };
+            await _paymentRepo.SaveChangesAsync();
 
             session.PaymentId = payment.PaymentId;
             
@@ -612,6 +613,7 @@ public class ParkingSessionService : IParkingSessionService
                 throw new InvalidOperationException("Failed to persist session");
 
             session = sPersist.Session;
+            await _sessions.SaveChangesAsync();
             if (!await OpenSessionGate(session, licensePlate))
                 throw new InvalidOperationException("Failed to open gate");
             return new StartSessionResult.Success(session, parkingLot.AvailableSpots);
@@ -620,6 +622,7 @@ public class ParkingSessionService : IParkingSessionService
         {
             if (session.Id > 0)
                 await DeleteParkingSession(session.Id);
+            await _sessions.SaveChangesAsync();
             int rolledBackReservedCount = Math.Max(0, parkingLot.Reserved - 1);
             var rollback = new PatchParkingLotDto { Reserved = rolledBackReservedCount };
             await _parkingLots.PatchParkingLotByIdAsync(parkingLot.Id, rollback);

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using MobyPark.DTOs.Cards;
 using MobyPark.DTOs.Invoice;
 
 using MobyPark.DTOs.ParkingSession.Request;
@@ -64,6 +65,55 @@ public class ParkingSessionController : BaseController
     //         _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
     //     };
     // }
+
+    [HttpPost("{lotId}/sessions/start")]
+    public async Task<IActionResult> StartSession(CreateParkingSessionDto sessionDto)
+    {
+        var result = await _parkingSessions.StartSession(sessionDto);
+        return result switch
+        {
+            StartSessionResult.Success success => StatusCode(201, new
+            {
+                status = "Started",
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                paymentStatus = success.Session.PaymentStatus,
+                availableSpots = success.AvailableSpots
+            }),
+            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
+    [HttpPost("{lotId}/sessions/startpaid")]
+    public async Task<IActionResult> StartPaidSession(string licensePlate, long lotId, CreateCardInfoDto cardInfo)
+    {
+        var result = await _parkingSessions.StartPaidSession(licensePlate, lotId, cardInfo);
+        return result switch
+        {
+            StartSessionResult.Success success => StatusCode(201, new
+            {
+                status = "Started",
+                sessionId = success.Session.Id,
+                licensePlate = success.Session.LicensePlateNumber,
+                parkingLotId = success.Session.ParkingLotId,
+                startedAt = success.Session.Started,
+                paymentStatus = success.Session.PaymentStatus,
+                availableSpots = success.AvailableSpots
+            }),
+            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.Error e => StatusCode(StatusCodes.Status500InternalServerError, new { error = e.Message }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { error = "An unknown error occurred." })
+        };
+    }
 
     [HttpPost("{lotId}/sessions/stop")]
     public async Task<IActionResult> StopSession(int SessionId, [FromBody] StopParkingSessionDto request)
