@@ -4,7 +4,7 @@ paths:
   /api/Business:
     post:
       tags:
-        - Business
+      - Business
       summary: Creates a new business.
       requestBody:
         content:
@@ -18,32 +18,32 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateBusinessDto'
       responses:
+        '400':
+          description: Invalid IBAN provided
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Business created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessDto'
-        '400':
-          description: Invalid IBAN provided
-        '401':
-          description: Unauthorized
         '409':
           description: Address already in use
-        '500':
-          description: Unexpected internal server error
-  '/api/Business/{id}':
+  /api/Business/{id}:
     patch:
       tags:
-        - Business
+      - Business
       summary: Updates an existing business.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -56,80 +56,86 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchBusinessDto'
       responses:
+        '400':
+          description: Invalid IBAN provided
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Business updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessDto'
-        '400':
-          description: Invalid IBAN provided
-        '401':
-          description: Unauthorized
         '404':
           description: Business not found
         '409':
           description: New address already taken
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - Business
+      - Business
       summary: Deletes a business by its ID.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Business deleted
           content:
             application/json:
               schema:
                 type: boolean
+        '404':
+          description: Business not found
+    get:
+      tags:
+      - Business
+      summary: Retrieves a business by its ID.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Business not found
         '500':
           description: Unexpected internal server error
-    get:
-      tags:
-        - Business
-      summary: Retrieves a business by its ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Found business
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessDto'
+        '404':
+          description: Not found
+  /api/Business/all:
+    get:
+      tags:
+      - Business
+      summary: Retrieves a list of all registered businesses.
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Not found
         '500':
           description: Unexpected internal server error
-  /api/Business/all:
-    get:
-      tags:
-        - Business
-      summary: Retrieves a list of all registered businesses.
-      responses:
         '200':
           description: List retrieved
           content:
@@ -138,42 +144,36 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadBusinessDto'
+  /api/Business/{address}:
+    get:
+      tags:
+      - Business
+      summary: Retrieves a business by its address.
+      parameters:
+      - name: address
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
         '500':
           description: Unexpected internal server error
-  '/api/Business/{address}':
-    get:
-      tags:
-        - Business
-      summary: Retrieves a business by its address.
-      parameters:
-        - name: address
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '200':
           description: Found business
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Not found
-        '500':
-          description: Unexpected internal server error
   /api/BusinessParking:
     post:
       tags:
-        - BusinessParkingRegistrations
+      - BusinessParkingRegistrations
       summary: Creates a new business registration (Admin only).
       requestBody:
         content:
@@ -187,25 +187,25 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateBusinessRegAdminDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Registration created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Business ID not found
         '409':
           description: License plate already registered or active
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - BusinessParkingRegistrations
+      - BusinessParkingRegistrations
       summary: Updates the active status of a registration (Admin only).
       requestBody:
         content:
@@ -219,24 +219,24 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchBusinessRegDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Status updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Registration not found
-        '500':
-          description: Unexpected internal server error
   /api/BusinessParking/self:
     post:
       tags:
-        - BusinessParkingRegistrations
+      - BusinessParkingRegistrations
       summary: Creates a registration for the currently logged-in user.
       requestBody:
         content:
@@ -250,25 +250,25 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateBusinessRegDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Registration created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: User or Business profile not found
         '409':
           description: User not authorized OR License plate already active
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - BusinessParkingRegistrations
+      - BusinessParkingRegistrations
       summary: Updates the active status of the user's own registration.
       requestBody:
         content:
@@ -282,88 +282,94 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchBusinessRegDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Status updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Registration not found
         '409':
           description: User not authorized to modify this registration
-        '500':
-          description: Unexpected internal server error
-  '/api/BusinessParking/{id}':
+  /api/BusinessParking/{id}:
     delete:
       tags:
-        - BusinessParkingRegistrations
+      - BusinessParkingRegistrations
       summary: Deletes a registration by ID (Admin only).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Deleted successfully
           content:
             application/json:
               schema:
                 type: boolean
+        '404':
+          description: Registration not found
+    get:
+      tags:
+      - BusinessParkingRegistrations
+      summary: Retrieves a registration by its ID.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Registration not found
         '500':
           description: Unexpected internal server error
-    get:
-      tags:
-        - BusinessParkingRegistrations
-      summary: Retrieves a registration by its ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Found registration
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
+        '404':
+          description: Not found
+  /api/BusinessParking/business/{id}:
+    get:
+      tags:
+      - BusinessParkingRegistrations
+      summary: Retrieves all registrations linked to a specific business ID.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Not found
         '500':
           description: Unexpected internal server error
-  '/api/BusinessParking/business/{id}':
-    get:
-      tags:
-        - BusinessParkingRegistrations
-      summary: Retrieves all registrations linked to a specific business ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: List retrieved
           content:
@@ -372,26 +378,26 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadBusinessRegDto'
+        '404':
+          description: No registrations found for this business
+  /api/BusinessParking/{licensePlate}:
+    get:
+      tags:
+      - BusinessParkingRegistrations
+      summary: Retrieves registrations matching a license plate.
+      parameters:
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: No registrations found for this business
         '500':
           description: Unexpected internal server error
-  '/api/BusinessParking/{licensePlate}':
-    get:
-      tags:
-        - BusinessParkingRegistrations
-      summary: Retrieves registrations matching a license plate.
-      parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '200':
           description: Found registrations
           content:
@@ -400,44 +406,38 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadBusinessRegDto'
+        '404':
+          description: Not found
+  /api/BusinessParking/active/{licensePlate}:
+    get:
+      tags:
+      - BusinessParkingRegistrations
+      summary: Retrieves only ACTIVE registrations for a license plate.
+      parameters:
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Not found
         '500':
           description: Unexpected internal server error
-  '/api/BusinessParking/active/{licensePlate}':
-    get:
-      tags:
-        - BusinessParkingRegistrations
-      summary: Retrieves only ACTIVE registrations for a license plate.
-      parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '200':
           description: Found active registration
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadBusinessRegDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: No active registration found
-        '500':
-          description: Unexpected internal server error
   /api/HotelPasses:
     post:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Creates a new hotel pass (Admin).
       requestBody:
         content:
@@ -451,23 +451,23 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminCreateHotelPassDto'
       responses:
+        '400':
+          description: Invalid dates or no spots available
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Pass created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid dates or no spots available
-        '401':
-          description: Unauthorized
         '409':
           description: Pass overlaps with existing reservation
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Updates a hotel pass (Admin).
       requestBody:
         content:
@@ -481,26 +481,26 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchHotelPassDto'
       responses:
+        '400':
+          description: Invalid dates or no spots available
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Pass updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid dates or no spots available
-        '401':
-          description: Unauthorized
         '404':
           description: Pass not found
         '409':
           description: New dates overlap with another reservation
-        '500':
-          description: Unexpected internal server error
   /api/HotelPasses/self:
     post:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Creates a hotel pass for the logged-in hotelier's lot.
       requestBody:
         content:
@@ -514,25 +514,25 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateHotelPassDto'
       responses:
+        '400':
+          description: Invalid dates or no spots available
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Pass created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid dates or no spots available
-        '401':
-          description: Unauthorized
         '404':
-          description: 'User, Hotel, or Parking Lot not found'
+          description: User, Hotel, or Parking Lot not found
         '409':
           description: User not authorized or Pass overlaps
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Updates a hotel pass for the logged-in hotelier.
       requestBody:
         content:
@@ -546,69 +546,75 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchHotelPassDto'
       responses:
+        '400':
+          description: Invalid dates or no spots
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Pass updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid dates or no spots
-        '401':
-          description: Unauthorized
         '403':
           description: Forbidden (Pass belongs to another lot)
         '404':
           description: Pass not found
         '409':
           description: User not authorized or Overlap detected
-        '500':
-          description: Unexpected internal server error
-  '/api/HotelPasses/{id}':
+  /api/HotelPasses/{id}:
     get:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Retrieves a hotel pass by ID.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Pass found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
+        '404':
+          description: Pass not found
+  /api/HotelPasses/parkinglot/{id}:
+    get:
+      tags:
+      - HotelPasses
+      summary: Retrieves all passes for a specific parking lot.
+      parameters:
+      - name: parkingLotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Pass not found
         '500':
           description: Unexpected internal server error
-  '/api/HotelPasses/parkinglot/{id}':
-    get:
-      tags:
-        - HotelPasses
-      summary: Retrieves all passes for a specific parking lot.
-      parameters:
-        - name: parkingLotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '200':
           description: List retrieved
           content:
@@ -617,25 +623,25 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot has no passes
-        '500':
-          description: Unexpected internal server error
   /api/HotelPasses/license-plate:
     get:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Retrieves all passes associated with a license plate.
       parameters:
-        - name: plate
-          in: query
-          schema:
-            type: string
+      - name: plate
+        in: query
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -644,107 +650,101 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadHotelPassDto'
+        '404':
+          description: No passes found for this plate
+  /api/HotelPasses/{parkingLotId}/license-plate:
+    get:
+      tags:
+      - HotelPasses
+      summary: Retrieves the currently ACTIVE pass for a specific lot and plate.
+      parameters:
+      - name: parkingLotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: plate
+        in: query
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: No passes found for this plate
         '500':
           description: Unexpected internal server error
-  '/api/HotelPasses/{parkingLotId}/license-plate':
-    get:
-      tags:
-        - HotelPasses
-      summary: Retrieves the currently ACTIVE pass for a specific lot and plate.
-      parameters:
-        - name: parkingLotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: plate
-          in: query
-          schema:
-            type: string
-      responses:
         '200':
           description: Pass found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelPassDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: No active pass found
-        '500':
-          description: Unexpected internal server error
-  '/api/HotelPasses/admin/{id}':
+  /api/HotelPasses/admin/{id}:
     delete:
       tags:
-        - HotelPasses
+      - HotelPasses
       summary: Deletes a hotel pass (Admin).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
-        '200':
-          description: Deleted successfully
-          content:
-            application/json:
-              schema:
-                type: boolean
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Pass not found
         '500':
           description: Unexpected internal server error
-  '/api/HotelPasses/self/{id}':
-    delete:
-      tags:
-        - HotelPasses
-      summary: Deletes a hotel pass created by the logged-in hotelier.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Deleted successfully
           content:
             application/json:
               schema:
                 type: boolean
+        '404':
+          description: Pass not found
+  /api/HotelPasses/self/{id}:
+    delete:
+      tags:
+      - HotelPasses
+      summary: Deletes a hotel pass created by the logged-in hotelier.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
+        '500':
+          description: Unexpected internal server error
+        '200':
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: boolean
         '403':
           description: Forbidden (Pass belongs to another lot)
         '404':
           description: Pass not found
         '409':
           description: User not authorized to manage passes
-        '500':
-          description: Unexpected internal server error
   /api/Hotels:
     post:
       tags:
-        - Hotels
+      - Hotels
       summary: Creates a new hotel.
       requestBody:
         content:
@@ -758,25 +758,25 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateHotelDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Hotel created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
         '409':
           description: Address or Parking Lot already taken
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - Hotels
+      - Hotels
       summary: Updates an existing hotel.
       requestBody:
         content:
@@ -790,27 +790,33 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchHotelDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Hotel updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PatchHotelDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Hotel not found
         '409':
           description: New address or parking lot already taken
-        '500':
-          description: Unexpected internal server error
     get:
       tags:
-        - Hotels
+      - Hotels
       summary: Retrieves a list of all hotels.
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -819,69 +825,63 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadHotelDto'
+  /api/Hotels/{id}:
+    delete:
+      tags:
+      - Hotels
+      summary: Deletes a hotel by ID.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
         '500':
           description: Unexpected internal server error
-  '/api/Hotels/{id}':
-    delete:
-      tags:
-        - Hotels
-      summary: Deletes a hotel by ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Deleted successfully
           content:
             application/json:
               schema:
                 type: boolean
+        '404':
+          description: Hotel not found
+    get:
+      tags:
+      - Hotels
+      summary: Retrieves a hotel by ID.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Hotel not found
         '500':
           description: Unexpected internal server error
-    get:
-      tags:
-        - Hotels
-      summary: Retrieves a hotel by ID.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Hotel found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadHotelDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Hotel not found
-        '500':
-          description: Unexpected internal server error
   /api/LicensePlate:
     post:
       tags:
-        - LicensePlate
+      - LicensePlate
       summary: Registers a new license plate for the current user.
       requestBody:
         content:
@@ -895,30 +895,36 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateLicensePlateDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '201':
           description: License plate created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadLicensePlateDto'
+        '409':
+          description: License plate already exists
+    get:
+      tags:
+      - LicensePlate
+      summary: Retrieves all license plates for a user.
+      parameters:
+      - name: username
+        in: query
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '409':
-          description: License plate already exists
         '500':
           description: Unexpected internal server error
-    get:
-      tags:
-        - LicensePlate
-      summary: Retrieves all license plates for a user.
-      parameters:
-        - name: username
-          in: query
-          schema:
-            type: string
-      responses:
         '200':
           description: List retrieved
           content:
@@ -927,60 +933,54 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadLicensePlateDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '403':
           description: Not authorized to view other users' plates
         '404':
           description: User not found
-        '500':
-          description: Unexpected internal server error
-  '/api/LicensePlate/{licensePlate}/entry':
+  /api/LicensePlate/{licensePlate}/entry:
     get:
       tags:
-        - LicensePlate
+      - LicensePlate
       summary: Checks if a license plate is allowed to enter a parking lot.
       parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: parkingLotId
-          in: query
-          schema:
-            type: integer
-            format: int64
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: parkingLotId
+        in: query
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Entry accepted
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadLicensePlateDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: License plate or Parking lot not found
         '409':
           description: No spots available
-        '500':
-          description: Unexpected internal server error
-  '/api/LicensePlate/{licensePlate}':
+  /api/LicensePlate/{licensePlate}:
     put:
       tags:
-        - LicensePlate
+      - LicensePlate
       summary: Updates an existing license plate number.
       parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -993,76 +993,76 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateLicensePlateRequest'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Update successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadLicensePlateDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Old license plate not found
         '409':
           description: New license plate already exists
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - LicensePlate
+      - LicensePlate
       summary: Deletes a license plate.
       parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Deleted successfully
           content:
             application/json:
               schema:
                 type: boolean
+        '404':
+          description: License plate not found
+    get:
+      tags:
+      - LicensePlate
+      summary: Retrieves details of a specific license plate.
+      parameters:
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: License plate not found
         '500':
           description: Unexpected internal server error
-    get:
-      tags:
-        - LicensePlate
-      summary: Retrieves details of a specific license plate.
-      parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '200':
           description: Found plate
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadLicensePlateDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Not found
-        '500':
-          description: Unexpected internal server error
   /api/ParkingLots:
     post:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Creates a new parking lot.
       requestBody:
         content:
@@ -1076,81 +1076,81 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateParkingLotDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Parking lot created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadParkingLotDto'
+        '409':
+          description: Parking lot address already taken
+  /api/ParkingLots/{lotId}:
+    get:
+      tags:
+      - ParkingLots
+      summary: Retrieves a parking lot by its ID.
+      parameters:
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '409':
-          description: Parking lot address already taken
         '500':
           description: Unexpected internal server error
-  '/api/ParkingLots/{lotId}':
-    get:
-      tags:
-        - ParkingLots
-      summary: Retrieves a parking lot by its ID.
-      parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '200':
           description: Parking lot found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadParkingLotDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
-        '500':
-          description: Unexpected internal server error
   /api/ParkingLots/by-address:
     get:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Retrieves a parking lot by its address.
       parameters:
-        - name: address
-          in: query
-          schema:
-            type: string
+      - name: address
+        in: query
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Parking lot found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadParkingLotDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
-        '500':
-          description: Unexpected internal server error
     patch:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Updates a parking lot by address.
       parameters:
-        - name: address
-          in: query
-          schema:
-            type: string
+      - name: address
+        in: query
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -1163,34 +1163,34 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchParkingLotDto'
       responses:
+        '400':
+          description: Invalid update data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Update successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadParkingLotDto'
-        '400':
-          description: Invalid update data
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
         '409':
           description: New address conflicts with existing lot
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingLots/by-id/{lotId}':
+  /api/ParkingLots/by-id/{lotId}:
     patch:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Updates a parking lot by ID.
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -1203,80 +1203,86 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchParkingLotDto'
       responses:
+        '400':
+          description: Invalid update data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Update successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadParkingLotDto'
-        '400':
-          description: Invalid update data
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
         '409':
           description: New address conflicts with existing lot
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Deletes a parking lot by ID.
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Deletion successful
           content:
             application/json:
               schema:
                 type: boolean
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingLots/by-address/{address}':
+  /api/ParkingLots/by-address/{address}:
     delete:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Deletes a parking lot by address.
       parameters:
-        - name: address
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: address
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Deletion successful
           content:
             application/json:
               schema:
                 type: boolean
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
-        '500':
-          description: Unexpected internal server error
   /api/ParkingLots/all:
     get:
       tags:
-        - ParkingLots
+      - ParkingLots
       summary: Retrieves all registered parking lots.
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -1285,24 +1291,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReadParkingLotDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingSession/{lotId}/sessions/start':
+  /api/ParkingSession/{lotId}/sessions/start:
     post:
       tags:
-        - ParkingSession
+      - ParkingSession
       summary: Starts a new parking session.
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -1315,41 +1315,41 @@ paths:
             schema:
               $ref: '#/components/schemas/StartParkingSessionDto'
       responses:
+        '400':
+          description: Invalid request data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '201':
           description: Session started successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StartSessionResponseDto'
-        '400':
-          description: Invalid request data
-        '401':
-          description: Unauthorized
         '402':
           description: Payment pre-authorization failed
         '404':
           description: Parking lot not found
         '409':
           description: Parking lot full or session already active
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingSession/{lotId}/sessions/stop':
+  /api/ParkingSession/{lotId}/sessions/stop:
     post:
       tags:
-        - ParkingSession
+      - ParkingSession
       summary: Stops an active parking session and processes payment.
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: sessionId
-          in: query
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: sessionId
+        in: query
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -1362,98 +1362,104 @@ paths:
             schema:
               $ref: '#/components/schemas/StopParkingSessionDto'
       responses:
+        '400':
+          description: Validation failed or already stopped
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Session stopped and invoice generated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StopSessionResponseDto'
-        '400':
-          description: Validation failed or already stopped
-        '401':
-          description: Unauthorized
         '402':
           description: Payment failed
         '404':
           description: Session or Lot not found
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingSession/{lotId}/sessions/{sessionId}':
+  /api/ParkingSession/{lotId}/sessions/{sessionId}:
     delete:
       tags:
-        - ParkingSession
+      - ParkingSession
       summary: Deletes a parking session record (Admin only).
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: sessionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
-        '200':
-          description: Deleted successfully
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Session not found
         '500':
           description: Unexpected internal server error
+        '200':
+          description: Deleted successfully
+        '404':
+          description: Session not found
     get:
       tags:
-        - ParkingSession
+      - ParkingSession
       summary: Retrieves a specific parking session.
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: sessionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Session found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ParkingSessionModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '403':
           description: Not authorized to view this session
         '404':
           description: Session not found
-        '500':
-          description: Unexpected internal server error
-  '/api/ParkingSession/{lotId}/sessions':
+  /api/ParkingSession/{lotId}/sessions:
     get:
       tags:
-        - ParkingSession
-      summary: 'Retrieves sessions for a lot (Users see their own, Admins see all).'
+      - ParkingSession
+      summary: Retrieves sessions for a lot (Users see their own, Admins see all).
       parameters:
-        - name: lotId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -1462,16 +1468,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ParkingSessionModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
-        '500':
-          description: Unexpected internal server error
   /api/Payments:
     post:
       tags:
-        - Payments
+      - Payments
       summary: Creates a pending payment and associated transaction.
       requestBody:
         content:
@@ -1485,22 +1485,22 @@ paths:
             schema:
               $ref: '#/components/schemas/CreatePaymentDto'
       responses:
-        '201':
-          description: Payment created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaymentResponseDto'
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
         '500':
           description: Internal processing error
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponseDto'
   /api/Payments/refund:
     post:
       tags:
-        - Payments
+      - Payments
       summary: Refunds an existing payment (Admin only).
       requestBody:
         content:
@@ -1514,31 +1514,31 @@ paths:
             schema:
               $ref: '#/components/schemas/PaymentRefundDto'
       responses:
+        '400':
+          description: Invalid input or missing amount
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '201':
           description: Refund processed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RefundResponseDto'
-        '400':
-          description: Invalid input or missing amount
-        '401':
-          description: Unauthorized
         '404':
           description: Original payment not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Payments/{paymentId}':
+  /api/Payments/{paymentId}:
     put:
       tags:
-        - Payments
+      - Payments
       summary: Validates and completes a payment.
       parameters:
-        - name: paymentId
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -1551,56 +1551,62 @@ paths:
             schema:
               $ref: '#/components/schemas/TransactionDataDto'
       responses:
+        '400':
+          description: Invalid ID or data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Payment validated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentResponseDto'
-        '400':
-          description: Invalid ID or data
-        '401':
-          description: Unauthorized
         '404':
           description: Payment not found
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - Payments
+      - Payments
       summary: Deletes a payment record.
       parameters:
-        - name: paymentId
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Deleted successfully
           content:
             application/json:
               schema: {}
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Payment not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Payments/{username}':
+  /api/Payments/{username}:
     get:
       tags:
-        - Payments
+      - Payments
       summary: Retrieves all payments for a specific user (Admin only).
       parameters:
-        - name: username
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -1609,78 +1615,78 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PaymentModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: User or payments not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Payments/id/{paymentId}':
+  /api/Payments/id/{paymentId}:
     get:
       tags:
-        - Payments
+      - Payments
       summary: Retrieves a payment by its unique ID.
       parameters:
-        - name: paymentId
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid ID format
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Payment found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentModel'
-        '400':
-          description: Invalid ID format
-        '401':
-          description: Unauthorized
         '404':
           description: Payment not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Payments/transaction/{transactionId}':
+  /api/Payments/transaction/{transactionId}:
     get:
       tags:
-        - Payments
+      - Payments
       summary: Retrieves a payment by its associated transaction ID.
       parameters:
-        - name: transactionId
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: transactionId
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid ID format
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Payment found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentModel'
-        '400':
-          description: Invalid ID format
-        '401':
-          description: Unauthorized
         '404':
           description: Payment not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Payments/plate/{licensePlate}':
+  /api/Payments/plate/{licensePlate}:
     get:
       tags:
-        - Payments
+      - Payments
       summary: Retrieves all payments associated with a license plate.
       parameters:
-        - name: licensePlate
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: licensePlate
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -1689,18 +1695,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PaymentModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: No payments found
-        '500':
-          description: Unexpected internal server error
   /api/Reservations:
     post:
       tags:
-        - Reservations
+      - Reservations
       summary: Creates a new parking reservation.
       requestBody:
         content:
@@ -1714,29 +1714,35 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateReservationDto'
       responses:
+        '400':
+          description: Invalid input or time window
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '201':
           description: Reservation created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationResponseDto'
-        '400':
-          description: Invalid input or time window
-        '401':
-          description: Unauthorized
         '403':
           description: Not authorized to reserve for this user
         '404':
-          description: 'Parking lot, license plate, or user not found'
+          description: Parking lot, license plate, or user not found
         '409':
           description: Parking lot is full or reservation overlap exists
-        '500':
-          description: Unexpected internal server error
     get:
       tags:
-        - Reservations
+      - Reservations
       summary: Retrieves all reservations (Admin only).
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: List retrieved
           content:
@@ -1745,24 +1751,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReservationModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
-        '500':
-          description: Unexpected internal server error
-  '/api/Reservations/{reservationId}':
+  /api/Reservations/{reservationId}:
     put:
       tags:
-        - Reservations
+      - Reservations
       summary: Updates an existing reservation.
       parameters:
-        - name: reservationId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -1775,72 +1775,72 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateReservationDto'
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Update successful
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Reservation not found
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - Reservations
+      - Reservations
       summary: Deletes (cancels) a reservation.
       parameters:
-        - name: reservationId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
-        '200':
-          description: Deleted successfully
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: Reservation not found
         '500':
           description: Unexpected internal server error
+        '200':
+          description: Deleted successfully
+        '404':
+          description: Reservation not found
     get:
       tags:
-        - Reservations
+      - Reservations
       summary: Retrieves a specific reservation.
       parameters:
-        - name: reservationId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Reservation found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationModel'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: Reservation not found
-        '500':
-          description: Unexpected internal server error
   /api/Reservations/estimate:
     post:
       tags:
-        - Reservations
+      - Reservations
       summary: Estimates the cost of a reservation without creating it.
       requestBody:
         content:
@@ -1854,24 +1854,24 @@ paths:
             schema:
               $ref: '#/components/schemas/ReservationCostEstimateRequest'
       responses:
+        '400':
+          description: Invalid time window or lot closed
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Estimate calculated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationCostEstimateResponseDto'
-        '400':
-          description: Invalid time window or lot closed
-        '401':
-          description: Unauthorized
         '404':
           description: Parking lot not found
-        '500':
-          description: Unexpected internal server error
   /api/Roles:
     post:
       tags:
-        - Roles
+      - Roles
       summary: Creates a new role.
       requestBody:
         content:
@@ -1895,18 +1895,18 @@ paths:
           description: Invalid role data
         '409':
           description: Role with this name already exists
-  '/api/Roles/{roleId}':
+  /api/Roles/{roleId}:
     get:
       tags:
-        - Roles
+      - Roles
       summary: Retrieves a role by its unique ID.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: Role found
@@ -1918,15 +1918,15 @@ paths:
           description: Role not found
     put:
       tags:
-        - Roles
+      - Roles
       summary: Updates an existing role.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -1951,33 +1951,33 @@ paths:
           description: Role not found
     delete:
       tags:
-        - Roles
+      - Roles
       summary: Deletes a role by ID.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: Deleted successfully
         '404':
           description: Role not found
         '409':
-          description: 'Cannot delete role (e.g., users assigned)'
-  '/api/Roles/name/{roleName}':
+          description: Cannot delete role (e.g., users assigned)
+  /api/Roles/name/{roleName}:
     get:
       tags:
-        - Roles
+      - Roles
       summary: Retrieves a role by its name.
       parameters:
-        - name: roleName
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: roleName
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Role found
@@ -1991,14 +1991,14 @@ paths:
           description: Role not found
     delete:
       tags:
-        - Roles
+      - Roles
       summary: Deletes a role by name.
       parameters:
-        - name: roleName
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: roleName
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Deleted successfully
@@ -2007,21 +2007,21 @@ paths:
         '404':
           description: Role not found
         '409':
-          description: 'Cannot delete role (e.g., users assigned)'
+          description: Cannot delete role (e.g., users assigned)
   /api/Roles/exists:
     get:
       tags:
-        - Roles
+      - Roles
       summary: Checks if a role exists.
       parameters:
-        - name: checkBy
-          in: query
-          schema:
-            type: string
-        - name: value
-          in: query
-          schema:
-            type: string
+      - name: checkBy
+        in: query
+        schema:
+          type: string
+      - name: value
+        in: query
+        schema:
+          type: string
       responses:
         '200':
           description: Check completed
@@ -2031,18 +2031,18 @@ paths:
                 $ref: '#/components/schemas/RoleExistsResponseDto'
         '400':
           description: Invalid search parameters
-  '/api/Roles/{roleId}/permissions':
+  /api/Roles/{roleId}/permissions:
     get:
       tags:
-        - Roles
+      - Roles
       summary: Gets all permissions assigned to a role.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: Permissions retrieved
@@ -2056,15 +2056,15 @@ paths:
           description: Role or permissions not found
     post:
       tags:
-        - Roles
+      - Roles
       summary: Assigns a permission to a role.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -2087,24 +2087,24 @@ paths:
           description: Role or permission not found
         '409':
           description: Permission already assigned
-  '/api/Roles/{roleId}/permissions/{permissionId}':
+  /api/Roles/{roleId}/permissions/{permissionId}:
     delete:
       tags:
-        - Roles
+      - Roles
       summary: Removes a permission from a role.
       parameters:
-        - name: roleId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: permissionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
         '200':
           description: Permission removed
@@ -2115,7 +2115,7 @@ paths:
   /api/Users/register:
     post:
       tags:
-        - Users
+      - Users
       summary: Registers a new user and returns an auth token.
       requestBody:
         content:
@@ -2129,24 +2129,24 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterDto'
       responses:
+        '400':
+          description: Invalid data provided
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
         '201':
           description: User registered successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthDto'
-        '400':
-          description: Invalid data provided
-        '401':
-          description: Unauthorized
         '409':
           description: Username already taken
-        '500':
-          description: Server error
   /api/Users/login:
     post:
       tags:
-        - Users
+      - Users
       summary: Authenticates a user and returns a JWT.
       requestBody:
         content:
@@ -2160,22 +2160,22 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginDto'
       responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthDto'
         '400':
           description: Invalid input
         '401':
           description: Invalid credentials
         '500':
           description: Unexpected internal server error
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthDto'
   /api/Users/profile:
     put:
       tags:
-        - Users
+      - Users
       summary: Updates the authenticated user's profile.
       requestBody:
         content:
@@ -2189,126 +2189,126 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateUserDto'
       responses:
+        '400':
+          description: Invalid data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Profile updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfileDto'
-        '400':
-          description: Invalid data
-        '401':
-          description: Unauthorized
         '404':
           description: User not found
         '409':
           description: Username or Email taken
-        '500':
-          description: Unexpected internal server error
     get:
       tags:
-        - Users
+      - Users
       summary: Retrieves the authenticated user's profile.
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Profile retrieved
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfileDto'
+  /api/Users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Retrieves public information of a specific user.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
         '500':
           description: Unexpected internal server error
-  '/api/Users/{id}':
-    get:
-      tags:
-        - Users
-      summary: Retrieves public information of a specific user.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int32
-      responses:
         '200':
           description: User found
           content:
             application/json:
               schema: {}
+        '404':
+          description: User not found
+  /api/Users/admin/users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Retrieves full user details (Admin).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: User not found
         '500':
           description: Unexpected internal server error
-  '/api/Users/admin/users/{id}':
-    get:
-      tags:
-        - Users
-      summary: Retrieves full user details (Admin).
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int32
-      responses:
         '200':
           description: User found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminUserProfileDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
         '404':
           description: User not found
-        '500':
-          description: Unexpected internal server error
     delete:
       tags:
-        - Users
+      - Users
       summary: Deletes a user account (Admin).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       responses:
-        '200':
-          description: User deleted
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
-        '404':
-          description: User not found
         '500':
           description: Unexpected internal server error
-  '/api/Users/admin/users/{id}/identity':
+        '200':
+          description: User deleted
+        '404':
+          description: User not found
+  /api/Users/admin/users/{id}/identity:
     put:
       tags:
-        - Users
+      - Users
       summary: Updates a user's identity info (Admin).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -2321,32 +2321,32 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateUserIdentityDto'
       responses:
+        '400':
+          description: Invalid data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Identity updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminUserProfileDto'
-        '400':
-          description: Invalid data
-        '401':
-          description: Unauthorized
         '404':
           description: User not found
-        '500':
-          description: Unexpected internal server error
-  '/api/Users/admin/users/{id}/role':
+  /api/Users/admin/users/{id}/role:
     put:
       tags:
-        - Users
+      - Users
       summary: Updates a user's assigned role (Admin).
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         content:
           application/json:
@@ -2359,26 +2359,32 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateUserRoleDto'
       responses:
+        '400':
+          description: Invalid role or user data
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Role updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminUserProfileDto'
-        '400':
-          description: Invalid role or user data
-        '401':
-          description: Unauthorized
         '404':
           description: User not found
-        '500':
-          description: Unexpected internal server error
   /api/Users/admin/users:
     get:
       tags:
-        - Users
+      - Users
       summary: Lists all users (Admin).
       responses:
+        '400':
+          description: Invalid data supplied
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected internal server error
         '200':
           description: Users retrieved
           content:
@@ -2387,31 +2393,25 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AdminUserProfileDto'
-        '400':
-          description: Invalid data supplied
-        '401':
-          description: Unauthorized
-        '500':
-          description: Unexpected internal server error
   /api/Users/logout:
     get:
       tags:
-        - Users
+      - Users
       summary: Logs out the current user (client-side action mainly).
       responses:
-        '204':
-          description: Logout successful
         '400':
           description: Invalid data supplied
         '401':
           description: Unauthorized
         '500':
           description: Unexpected internal server error
+        '204':
+          description: Logout successful
 components:
   schemas:
     AddPermissionToRoleDto:
       required:
-        - permissionId
+      - permissionId
       type: object
       properties:
         permissionId:
@@ -2423,10 +2423,10 @@ components:
       description: Data required to assign a permission to a role.
     AdminCreateHotelPassDto:
       required:
-        - end
-        - licensePlate
-        - parkingLotId
-        - start
+      - end
+      - licensePlate
+      - parkingLotId
+      - start
       type: object
       properties:
         licensePlate:
@@ -2555,9 +2555,9 @@ components:
       additionalProperties: false
     CreateBusinessDto:
       required:
-        - address
-        - iban
-        - name
+      - address
+      - iban
+      - name
       type: object
       properties:
         name:
@@ -2577,8 +2577,8 @@ components:
       description: Data Transfer Object for creating a new business
     CreateBusinessRegAdminDto:
       required:
-        - businessId
-        - licensePlateNumber
+      - businessId
+      - licensePlateNumber
       type: object
       properties:
         businessId:
@@ -2596,7 +2596,7 @@ components:
       description: Data for an admin to create a new registration.
     CreateBusinessRegDto:
       required:
-        - licensePlateNumber
+      - licensePlateNumber
       type: object
       properties:
         licensePlateNumber:
@@ -2610,10 +2610,10 @@ components:
       description: Data for a user to register their own vehicle.
     CreateHotelDto:
       required:
-        - address
-        - hotelParkingLotId
-        - iban
-        - name
+      - address
+      - hotelParkingLotId
+      - iban
+      - name
       type: object
       properties:
         name:
@@ -2636,9 +2636,9 @@ components:
       description: Data for creating a new Hotel.
     CreateHotelPassDto:
       required:
-        - end
-        - licensePlate
-        - start
+      - end
+      - licensePlate
+      - start
       type: object
       properties:
         licensePlate:
@@ -2661,22 +2661,22 @@ components:
       description: Data for a hotelier to create a pass (Lot ID inferred from user).
     CreateLicensePlateDto:
       required:
-        - licensePlate
+      - licensePlate
       type: object
       properties:
         licensePlate:
           minLength: 1
           type: string
-          description: 'The license plate number (e.g., AA-12-BB)'
+          description: The license plate number (e.g., AA-12-BB)
       additionalProperties: false
       description: Data required to register a new license plate.
     CreateParkingLotDto:
       required:
-        - address
-        - capacity
-        - location
-        - name
-        - tariff
+      - address
+      - capacity
+      - location
+      - name
+      - tariff
       type: object
       properties:
         name:
@@ -2712,8 +2712,8 @@ components:
       description: Data required to create a new parking lot.
     CreatePaymentDto:
       required:
-        - amount
-        - licensePlateNumber
+      - amount
+      - licensePlateNumber
       type: object
       properties:
         amount:
@@ -2728,10 +2728,10 @@ components:
       description: Data required to initiate a new payment.
     CreateReservationDto:
       required:
-        - endDate
-        - licensePlate
-        - parkingLotId
-        - startDate
+      - endDate
+      - licensePlate
+      - parkingLotId
+      - startDate
       type: object
       properties:
         parkingLotId:
@@ -2752,20 +2752,21 @@ components:
           format: date-time
         username:
           type: string
-          description: 'Optional: The username to create the reservation for (Admin only).'
+          description: 'Optional: The username to create the reservation for (Admin
+            only).'
           nullable: true
       additionalProperties: false
       description: Data required to create a reservation.
     CreateRoleDto:
       required:
-        - name
+      - name
       type: object
       properties:
         name:
           maxLength: 50
           minLength: 1
           type: string
-          description: 'The unique name of the role (e.g., ''Manager'').'
+          description: The unique name of the role (e.g., 'Manager').
         description:
           type: string
           description: A description of the role's purpose.
@@ -2821,7 +2822,7 @@ components:
       additionalProperties: false
     LicensePlateModel:
       required:
-        - licensePlateNumber
+      - licensePlateNumber
       type: object
       properties:
         licensePlateNumber:
@@ -2830,8 +2831,8 @@ components:
       additionalProperties: false
     LoginDto:
       required:
-        - identifier
-        - password
+      - identifier
+      - password
       type: object
       properties:
         identifier:
@@ -2846,15 +2847,15 @@ components:
       description: Credentials required to authenticate a user.
     ParkingLotModel:
       required:
-        - address
-        - capacity
-        - createdAt
-        - location
-        - name
-        - reservations
-        - reserved
-        - status
-        - tariff
+      - address
+      - capacity
+      - createdAt
+      - location
+      - name
+      - reservations
+      - reserved
+      - status
+      - tariff
       type: object
       properties:
         id:
@@ -2898,17 +2899,17 @@ components:
       additionalProperties: false
     ParkingLotStatus:
       enum:
-        - 0
-        - 1
-        - 2
+      - 0
+      - 1
+      - 2
       type: integer
       format: int32
     ParkingSessionModel:
       required:
-        - licensePlateNumber
-        - parkingLotId
-        - paymentStatus
-        - started
+      - licensePlateNumber
+      - parkingLotId
+      - paymentStatus
+      - started
       type: object
       properties:
         id:
@@ -2952,15 +2953,15 @@ components:
       additionalProperties: false
     ParkingSessionStatus:
       enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-        - 5
-        - 6
-        - 7
-        - 8
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
       type: integer
       format: int32
     PatchBusinessDto:
@@ -2982,7 +2983,7 @@ components:
       description: Data Transfer Object for updating existing business information
     PatchBusinessRegDto:
       required:
-        - id
+      - id
       type: object
       properties:
         id:
@@ -2996,7 +2997,7 @@ components:
       description: Data to update the status of an existing registration.
     PatchHotelDto:
       required:
-        - id
+      - id
       type: object
       properties:
         id:
@@ -3024,7 +3025,7 @@ components:
       description: Data for updating a Hotel.
     PatchHotelPassDto:
       required:
-        - id
+      - id
       type: object
       properties:
         id:
@@ -3093,10 +3094,10 @@ components:
       description: Data for updating specific fields of an existing parking lot.
     PaymentModel:
       required:
-        - amount
-        - createdAt
-        - licensePlateNumber
-        - transactionId
+      - amount
+      - createdAt
+      - licensePlateNumber
+      - transactionId
       type: object
       properties:
         paymentId:
@@ -3125,7 +3126,7 @@ components:
       additionalProperties: false
     PaymentRefundDto:
       required:
-        - paymentId
+      - paymentId
       type: object
       properties:
         paymentId:
@@ -3134,7 +3135,7 @@ components:
           description: The unique identifier of the payment to be refunded.
         amount:
           type: number
-          description: 'The amount to refund. If null, may default to full amount.'
+          description: The amount to refund. If null, may default to full amount.
           format: double
           nullable: true
       additionalProperties: false
@@ -3144,7 +3145,7 @@ components:
       properties:
         status:
           type: string
-          description: 'The outcome status of the operation (e.g., ''Success'', ''Created'').'
+          description: The outcome status of the operation (e.g., 'Success', 'Created').
           nullable: true
         payment:
           $ref: '#/components/schemas/PaymentModel'
@@ -3152,8 +3153,8 @@ components:
       description: Wraps the payment model with a status message.
     PermissionModel:
       required:
-        - action
-        - resource
+      - action
+      - resource
       type: object
       properties:
         id:
@@ -3241,12 +3242,12 @@ components:
       description: Details of a Hotel.
     ReadHotelPassDto:
       required:
-        - end
-        - extraTime
-        - id
-        - licensePlate
-        - parkingLotId
-        - start
+      - end
+      - extraTime
+      - id
+      - licensePlate
+      - parkingLotId
+      - start
       type: object
       properties:
         id:
@@ -3284,7 +3285,8 @@ components:
           format: int64
         status:
           type: string
-          description: Optional status report relating to the method this plate was retrieved
+          description: Optional status report relating to the method this plate was
+            retrieved
           nullable: true
       additionalProperties: false
       description: Details of a registered license plate.
@@ -3351,14 +3353,14 @@ components:
       description: Details regarding a processed refund.
     RegisterDto:
       required:
-        - birthday
-        - confirmPassword
-        - email
-        - firstName
-        - lastName
-        - password
-        - phone
-        - username
+      - birthday
+      - confirmPassword
+      - email
+      - firstName
+      - lastName
+      - password
+      - phone
+      - username
       type: object
       properties:
         email:
@@ -3373,7 +3375,7 @@ components:
         password:
           minLength: 8
           type: string
-          description: 'A strong password (min 8 chars, 1 uppercase, 1 number)'
+          description: A strong password (min 8 chars, 1 uppercase, 1 number)
           format: password
         confirmPassword:
           minLength: 1
@@ -3405,10 +3407,10 @@ components:
       description: Data required to register a new user account.
     ReservationCostEstimateRequest:
       required:
-        - endDate
-        - licensePlate
-        - parkingLotId
-        - startDate
+      - endDate
+      - licensePlate
+      - parkingLotId
+      - startDate
       type: object
       properties:
         parkingLotId:
@@ -3440,13 +3442,13 @@ components:
       description: The estimated cost for a proposed reservation time window.
     ReservationModel:
       required:
-        - cost
-        - createdAt
-        - endTime
-        - licensePlateNumber
-        - parkingLotId
-        - startTime
-        - status
+      - cost
+      - createdAt
+      - endTime
+      - licensePlateNumber
+      - parkingLotId
+      - startTime
+      - status
       type: object
       properties:
         id:
@@ -3490,11 +3492,11 @@ components:
       description: The result of a reservation creation request.
     ReservationStatus:
       enum:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
       type: integer
       format: int32
     RoleExistsResponseDto:
@@ -3502,12 +3504,12 @@ components:
       properties:
         exists:
           type: boolean
-          description: 'True if the role exists, false otherwise.'
+          description: True if the role exists, false otherwise.
       additionalProperties: false
       description: Result of a role existence check.
     RoleModel:
       required:
-        - name
+      - name
       type: object
       properties:
         id:
@@ -3578,8 +3580,8 @@ components:
       description: Invoice summary generated upon session stop.
     StartParkingSessionDto:
       required:
-        - cardToken
-        - licensePlate
+      - cardToken
+      - licensePlate
       type: object
       properties:
         licensePlate:
@@ -3634,8 +3636,8 @@ components:
       description: Response details when a session is successfully started.
     StopParkingSessionDto:
       required:
-        - cardToken
-        - licensePlate
+      - cardToken
+      - licensePlate
       type: object
       properties:
         licensePlate:
@@ -3665,7 +3667,8 @@ components:
           nullable: true
         parkingLotId:
           type: integer
-          description: The unique identifier of the parking lot where the session took place.
+          description: The unique identifier of the parking lot where the session
+            took place.
           format: int64
         startedAt:
           type: string
@@ -3686,31 +3689,32 @@ components:
       description: Response details when a session is stopped.
     TransactionDataDto:
       required:
-        - bank
-        - issuer
-        - method
+      - bank
+      - issuer
+      - method
       type: object
       properties:
         method:
           minLength: 1
           type: string
-          description: 'The payment method used (e.g., CreditCard, PayPal).'
+          description: The payment method used (e.g., CreditCard, PayPal).
         issuer:
           minLength: 1
           type: string
-          description: 'The issuer of the payment method (e.g., Visa, Mastercard).'
+          description: The issuer of the payment method (e.g., Visa, Mastercard).
         bank:
           minLength: 1
           type: string
           description: The bank or provider handling the transaction.
       additionalProperties: false
-      description: Details regarding the transaction method provided by the payment gateway.
+      description: Details regarding the transaction method provided by the payment
+        gateway.
     TransactionModel:
       required:
-        - amount
-        - bank
-        - issuer
-        - method
+      - amount
+      - bank
+      - issuer
+      - method
       type: object
       properties:
         id:
@@ -3731,8 +3735,8 @@ components:
       additionalProperties: false
     UpdateLicensePlateRequest:
       required:
-        - newLicensePlate
-        - oldLicensePlate
+      - newLicensePlate
+      - oldLicensePlate
       type: object
       properties:
         oldLicensePlate:
@@ -3764,7 +3768,7 @@ components:
       description: Data required to update an existing reservation.
     UpdateRoleDto:
       required:
-        - id
+      - id
       type: object
       properties:
         id:
@@ -3858,14 +3862,14 @@ components:
       description: Data for changing a user's role.
     UserModel:
       required:
-        - createdAt
-        - email
-        - firstName
-        - lastName
-        - passwordHash
-        - phone
-        - roleId
-        - username
+      - createdAt
+      - email
+      - firstName
+      - lastName
+      - passwordHash
+      - phone
+      - roleId
+      - username
       type: object
       properties:
         id:
@@ -3965,10 +3969,11 @@ components:
   securitySchemes:
     Bearer:
       type: http
-      description: |-
-        Please enter a valid token (e.g., 'Bearer eyJ...').
-        You can obtain a token by logging in or registering a new account via the endpoints.
+      description: 'Please enter a valid token (e.g., ''Bearer eyJ...'').
+
+        You can obtain a token by logging in or registering a new account via the
+        endpoints.'
       scheme: Bearer
       bearerFormat: JWT
 security:
-  - Bearer: []
+- Bearer: []

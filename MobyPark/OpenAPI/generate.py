@@ -1,8 +1,9 @@
-import yaml
+import json, yaml
 from pathlib import Path
 import re
 
-INPUT_FILE = 'openapi.yaml'
+INPUT_JSON = 'swagger.json'
+INTERMEDIATE_YAML = 'openapi.yaml'
 OUTPUT_DIR = 'src'
 
 
@@ -34,8 +35,16 @@ def update_refs_to_relative(data, depth=2):
 
 
 def main():
-    print(f"Reading {INPUT_FILE}...")
-    with open(INPUT_FILE, 'r') as f:
+    print(f"Reading {INPUT_JSON}...")
+    with open(INPUT_JSON, 'r') as f:
+        swagger_data = json.load(f)
+
+
+    print(f"Writing {INTERMEDIATE_YAML}...")
+    with open(INTERMEDIATE_YAML, 'w') as f:
+        yaml.safe_dump(swagger_data, f, sort_keys=False)
+
+    with open(INTERMEDIATE_YAML, 'r') as f:
         root_api = yaml.safe_load(f)
 
     base_path = Path(OUTPUT_DIR)
@@ -52,7 +61,7 @@ def main():
 
             schema_file = schemas_path / f"{name}.yaml"
             with open(schema_file, 'w') as f:
-                yaml.dump(content, f, sort_keys=False)
+                yaml.safe_dump(content, f, sort_keys=False)
 
             root_api['components']['schemas'][name] = {
                 '$ref': f"./components/schemas/{name}.yaml"
@@ -71,14 +80,14 @@ def main():
             update_refs_to_relative(content, depth=2)
 
             with open(file_path, 'w') as f:
-                yaml.dump(content, f, sort_keys=False)
+                yaml.safe_dump(content, f, sort_keys=False)
 
             root_api['paths'][url] = {
                 '$ref': f"./paths/{tag}/{filename}"
             }
 
     with open(base_path / 'openapi.yaml', 'w') as f:
-        yaml.dump(root_api, f, sort_keys=False)
+        yaml.safe_dump(root_api, f, sort_keys=False)
 
     print(f"Success! Your organized API is in the '{OUTPUT_DIR}' folder.")
 
