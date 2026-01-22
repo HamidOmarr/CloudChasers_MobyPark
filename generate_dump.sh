@@ -5,6 +5,7 @@ set -eu
 export $(grep -v '^#' .env | xargs)
 
 # Make sure DB container is running
+docker compose down
 docker compose up -d mobypark-db
 
 echo "Waiting for database to initialize..."
