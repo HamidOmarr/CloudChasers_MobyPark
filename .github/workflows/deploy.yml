@@ -48,6 +48,9 @@ jobs:
                  -password pass:$CERT_PASSWORD
           
             rm certs/key.pem certs/cert.pem
+          
+            chmod 644 certs/selfsigned.pfx
+          
             echo "Certificate generated successfully."
           else
             echo "Certificate already exists. Skipping generation."
