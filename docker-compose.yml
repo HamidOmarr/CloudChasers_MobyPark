@@ -15,7 +15,7 @@ services:
       retries: 10
     volumes:
       - mobypark-data:/var/lib/postgresql/data
-    mem_limit: 6g
+    mem_limit: 4g
     cpus: 2
     pids_limit: 2000
     networks:
@@ -47,9 +47,9 @@ services:
       context: .
       dockerfile: MobyPark/Dockerfile
     container_name: mobypark_api
+    restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: https://+:443
       Https__CertificatePath: /app/certs/selfsigned.pfx
       Https__CertificatePassword: ${CERT_PASSWORD}
       ConnectionStrings__DefaultConnection: >
@@ -63,12 +63,11 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
     ports:
-      - "8501:443"
-    depends_on:
-      mobypark-db-restore:
-        condition: service_completed_successfully
+      - "8501:8543"
     volumes:
+      - ./certs:/app/certs:ro
       - ./certs/selfsigned.pfx:/app/certs/selfsigned.pfx:ro
+      - ./dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     mem_limit: 1g
     cpus: 1
     pids_limit: 100
