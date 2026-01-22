@@ -1,0 +1,13 @@
+name: DB Backup Routine
+on:
+  schedule:
+    - cron: '0 */4 * * *' # Runs every 4 hours from 0:00
+
+jobs:
+  backup:
+    runs-on: [self-hosted, linux, x64, mobypark]
+    steps:
+      - run: |
+          cd ~/CloudChasers_MobyPark
+          chmod +x generate_dump.sh
+          ./generate_dump.sh

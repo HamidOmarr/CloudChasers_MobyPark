@@ -53,21 +53,12 @@ jobs:
             echo "Certificate already exists. Skipping generation."
           fi
 
-          echo "Creating database backup..."
-          chmod +x generate_dump.sh
-          ./generate_dump.sh
+          echo "Pulling latest code..."
+          git fetch --all
+          git reset --hard origin/${{ github.ref_name }}
 
-          echo "Pulling latest code from GitHub..."
-          git pull origin main
-
-          echo "Stopping existing API container if running..."
-          if [ "$(docker ps -q -f name=mobypark_api)" ]; then
-            docker stop mobypark_api
-            docker rm mobypark_api
-          fi
-
-          echo "Starting API container, whilst leaving the database intact..."
-          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d mobypark-api
+          echo "Rebuilding API container..."
+          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d --build --no-deps --force-recreate mobypark-api
           
           echo "Waiting for containers to start..."
           sleep 5
@@ -77,14 +68,3 @@ jobs:
 
           echo "API logs (last 20 lines):"
           docker logs --tail 20 mobypark_api || echo "API not yet running"
-
-      - name: Generate Swagger Docs
-        shell: bash
-        env:
-          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
-        run: |
-          echo "Generating Swagger Documentation..."
-
-          cd ~/CloudChasers_MobyPark/ci
-          chmod +x generate-swagger-docs.sh
-          ./generate-swagger-docs.sh
