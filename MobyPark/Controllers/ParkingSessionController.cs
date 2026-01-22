@@ -42,7 +42,7 @@ public class ParkingSessionController : BaseController
     public async Task<IActionResult> StartSession(long lotId, [FromBody] CreateParkingSessionDto sessionDto)
     {
         if (lotId != sessionDto.ParkingLotId)
-            return BadRequest(new { error = "Parking lot ID in the URL does not match the ID in the request body." });
+            return BadRequest(new ErrorResponseDto { Error = "Parking lot ID in the URL does not match the ID in the request body." });
 
         var result = await _parkingSessions.StartSession(sessionDto);
         return result switch
@@ -57,17 +57,16 @@ public class ParkingSessionController : BaseController
                 paymentStatus = success.Session.PaymentStatus,
                 availableSpots = success.AvailableSpots
             }),
-            StartSessionResult.LotNotFound => NotFound(new { error = "Parking lot not found" }),
-            StartSessionResult.LotFull => Conflict(new { error = "Parking lot is full", code = "LOT_FULL" }),
-            StartSessionResult.AlreadyActive => Conflict(new { error = "An active session already exists for this license plate", code = "ACTIVE_SESSION_EXISTS" }),
-            StartSessionResult.PreAuthFailed f => StatusCode(402, new { error = f.Reason, code = "PAYMENT_DECLINED" }),
+            StartSessionResult.LotNotFound => NotFound(new ErrorResponseDto { Error = "Parking lot not found" }),
+            StartSessionResult.LotFull => Conflict(new ErrorResponseDto { Error = "Parking lot is full", Data = "LOT_FULL" }),
+            StartSessionResult.AlreadyActive => Conflict(new ErrorResponseDto { Error = "An active session already exists for this license plate", Data = "ACTIVE_SESSION_EXISTS" }),
+            StartSessionResult.PreAuthFailed f => StatusCode(402, new ErrorResponseDto { Error = f.Reason, Data = "PAYMENT_DECLINED" }),
             StartSessionResult.PaymentRequired p => StatusCode(
-                StatusCodes.Status402PaymentRequired, new { error = p.Reason, code = "PAYMENT_REQUIRED" }),
-            StartSessionResult.Error e => StatusCode(500, new { error = e.Message }),
-            _ => StatusCode(500, new { error = "An unknown error occurred." })
+                StatusCodes.Status402PaymentRequired, new ErrorResponseDto { Error = p.Reason, Data = "PAYMENT_REQUIRED" }),
+            StartSessionResult.Error e => StatusCode(500, new ErrorResponseDto { Error = e.Message }),
+            _ => StatusCode(500, new ErrorResponseDto { Error = "An unknown error occurred." })
         };
     }
-
 
     [HttpPost("startPaid")]
     [SwaggerOperation(Summary = "Starts a new paid parking session with card information.")]
