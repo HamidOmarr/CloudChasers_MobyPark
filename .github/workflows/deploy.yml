@@ -77,6 +77,8 @@ jobs:
 
       - name: Generate Swagger Docs
         shell: bash
+        env:
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
         run: |
           echo "Generating Swagger Documentation..."
           
