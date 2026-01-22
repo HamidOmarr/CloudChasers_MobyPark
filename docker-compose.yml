@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - ${DB_PORT:-5432}:5432
+      - ${HOST_DB_PORT:-8500}:5432
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
@@ -34,7 +34,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      DB_HOST: mobypark-db
+      DB_HOST: ${DB_HOST}
     entrypoint: [ "/bin/sh", "/restore.sh" ]
     mem_limit: 64m
     cpus: 0.75
@@ -48,8 +48,12 @@ services:
       dockerfile: MobyPark/Dockerfile
     container_name: mobypark_api
     environment:
-      ConnectionStrings__PostgresConnection: >
-        Host=mobypark-db;
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: https://+:443
+      Https__CertificatePath: /app/certs/selfsigned.pfx
+      Https__CertificatePassword: ${CERT_PASSWORD}
+      ConnectionStrings__DefaultConnection: >
+        Host=${DB_HOST};
         Port=5432;
         Database=${POSTGRES_DB};
         Username=${POSTGRES_USER};
@@ -59,10 +63,12 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
     ports:
-      - "8501:8501"
+      - "8501:443"
     depends_on:
       mobypark-db-restore:
         condition: service_completed_successfully
+    volumes:
+      - ./certs/selfsigned.pfx:/app/certs/selfsigned.pfx:ro
     mem_limit: 1g
     cpus: 1
     pids_limit: 100

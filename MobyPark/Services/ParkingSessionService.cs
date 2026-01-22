@@ -167,9 +167,7 @@ public class ParkingSessionService : IParkingSessionService
             );
 
             if (costResult is CalculatePriceResult.Success priceSuccess)
-            {
                 existingSession.Cost = priceSuccess.Price;
-            }
             else if (costResult is CalculatePriceResult.Error e)
             {
                 var msg = string.IsNullOrWhiteSpace(e.Message)
@@ -327,17 +325,11 @@ public class ParkingSessionService : IParkingSessionService
     {
         int newReservedCount = Math.Clamp(lot.Reserved + 1, 0, lot.Capacity);
 
-        var lotUpdateDto = new PatchParkingLotDto
-        {
-            Reserved = newReservedCount
-        };
-
+        var lotUpdateDto = new PatchParkingLotDto { Reserved = newReservedCount };
         var lotUpdateResult = await _parkingLots.PatchParkingLotByIdAsync(lot.Id, lotUpdateDto);
 
         if (lotUpdateResult.Status is not ServiceStatus.Success)
-        {
             return new PersistSessionResult.Error(lotUpdateResult.Error!);
-        }
 
         lot.Reserved = newReservedCount;
 
@@ -573,9 +565,7 @@ public class ParkingSessionService : IParkingSessionService
                 var overlappingPass = anyHotelPasses.Data.FirstOrDefault(x =>
                     x.End + x.ExtraTime >= activeSession.Started && x.Start <= end);
                 if (overlappingPass is not null)
-                {
                     activeSession.HotelPassId = overlappingPass.Id;
-                }
             }
         }
         if (activeSession.HotelPassId.HasValue)
@@ -823,8 +813,6 @@ public class ParkingSessionService : IParkingSessionService
                     InvoiceSummary = new List<string> { "Invoice generation failed." }
                 };
             }
-
-
         }
         return new StopSessionResult.Success(activeSession, totalAmount, invoice);
     }

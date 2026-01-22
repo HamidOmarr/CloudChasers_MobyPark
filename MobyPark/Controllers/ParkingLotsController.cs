@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 
 using MobyPark.DTOs.ParkingLot.Request;
 using MobyPark.Services.Interfaces;
-using MobyPark.Services.Results;
+
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
+[Produces("application/json")]
 public class ParkingLotsController : BaseController
 {
     private readonly IParkingLotService _parkingService;
@@ -19,128 +21,91 @@ public class ParkingLotsController : BaseController
         _parkingService = parkingService;
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPost]
+    [Authorize(Policy = "CanManageParkingLots")]
+    [SwaggerOperation(Summary = "Creates a new parking lot.")]
+    [SwaggerResponse(200, "Parking lot created successfully", typeof(ReadParkingLotDto))]
+    [SwaggerResponse(409, "Parking lot address already taken")]
     public async Task<IActionResult> CreateParkingLot([FromBody] CreateParkingLotDto parkingLot)
     {
         var result = await _parkingService.CreateParkingLotAsync(parkingLot);
-        return result.Status switch
-        {
-            ServiceStatus.Success => CreatedAtAction(nameof(GetParkingLotById), new { id = result.Data!.Id }, result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
     [HttpGet("{lotId:long}")]
+    [SwaggerOperation(Summary = "Retrieves a parking lot by its ID.")]
+    [SwaggerResponse(200, "Parking lot found", typeof(ReadParkingLotDto))]
+    [SwaggerResponse(404, "Parking lot not found")]
     public async Task<IActionResult> GetParkingLotById(long lotId)
     {
         var result = await _parkingService.GetParkingLotByIdAsync(lotId);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
     [HttpGet("by-address")]
+    [SwaggerOperation(Summary = "Retrieves a parking lot by its address.")]
+    [SwaggerResponse(200, "Parking lot found", typeof(ReadParkingLotDto))]
+    [SwaggerResponse(404, "Parking lot not found")]
     public async Task<IActionResult> GetParkingLotByAddress([FromQuery] string address)
     {
         var result = await _parkingService.GetParkingLotByAddressAsync(address);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPatch("by-id/{lotId:long}")]
+    [Authorize(Policy = "CanManageParkingLots")]
+    [SwaggerOperation(Summary = "Updates a parking lot by ID.")]
+    [SwaggerResponse(200, "Update successful", typeof(ReadParkingLotDto))]
+    [SwaggerResponse(400, "Invalid update data")]
+    [SwaggerResponse(404, "Parking lot not found")]
+    [SwaggerResponse(409, "New address conflicts with existing lot")]
     public async Task<IActionResult> PatchParkingLotById(long lotId, [FromBody] PatchParkingLotDto lot)
     {
         var result = await _parkingService.PatchParkingLotByIdAsync(lotId, lot);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpPatch("by-address")]
+    [Authorize(Policy = "CanManageParkingLots")]
+    [SwaggerOperation(Summary = "Updates a parking lot by address.")]
+    [SwaggerResponse(200, "Update successful", typeof(ReadParkingLotDto))]
+    [SwaggerResponse(400, "Invalid update data")]
+    [SwaggerResponse(404, "Parking lot not found")]
+    [SwaggerResponse(409, "New address conflicts with existing lot")]
     public async Task<IActionResult> PatchParkingLotByAddress([FromQuery] string address, [FromBody] PatchParkingLotDto lot)
     {
         var result = await _parkingService.PatchParkingLotByAddressAsync(address, lot);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpDelete("by-id/{lotId:long}")]
+    [Authorize(Policy = "CanManageParkingLots")]
+    [SwaggerOperation(Summary = "Deletes a parking lot by ID.")]
+    [SwaggerResponse(200, "Deletion successful", typeof(bool))]
+    [SwaggerResponse(404, "Parking lot not found")]
     public async Task<IActionResult> DeleteParkingLotById(long lotId)
     {
         var result = await _parkingService.DeleteParkingLotByIdAsync(lotId);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
-    [Authorize(Policy = "CanManageParkingLot")]
     [HttpDelete("by-address/{address}")]
+    [Authorize(Policy = "CanManageParkingLots")]
+    [SwaggerOperation(Summary = "Deletes a parking lot by address.")]
+    [SwaggerResponse(200, "Deletion successful", typeof(bool))]
+    [SwaggerResponse(404, "Parking lot not found")]
     public async Task<IActionResult> DeleteByAddress(string address)
     {
         var result = await _parkingService.DeleteParkingLotByAddressAsync(address);
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 
     [HttpGet("all")]
+    [SwaggerOperation(Summary = "Retrieves all registered parking lots.")]
+    [SwaggerResponse(200, "List retrieved", typeof(List<ReadParkingLotDto>))]
     public async Task<IActionResult> GetAll()
     {
         var result = await _parkingService.GetAllParkingLotsAsync();
-        return result.Status switch
-        {
-            ServiceStatus.Success => Ok(result.Data),
-            ServiceStatus.NotFound => NotFound(result.Error),
-            ServiceStatus.BadRequest => BadRequest(result.Error),
-            ServiceStatus.Fail => Conflict(result.Error),
-            ServiceStatus.Exception => StatusCode(500, result.Error),
-            _ => BadRequest("Unknown error")
-        };
+        return FromServiceResult(result);
     }
 }

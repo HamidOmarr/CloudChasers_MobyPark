@@ -8,12 +8,28 @@ namespace MobyPark.Configuration;
 
 public static class ServiceExtensions
 {
-    public static IServiceCollection AddAppServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddAppServices(this IServiceCollection services, WebApplicationBuilder builder)
     {
-        var jwtSecretKey = configuration["Jwt:Key"]
+        var jwtSecretKey = builder.Configuration["Jwt:Key"]
                            ?? throw new InvalidOperationException("JWT Secret Key 'Jwt:Key' is missing in configuration. It must be set via secrets.");
-        var issuer = configuration["Jwt:Issuer"] ?? "MobyParkAPI";
-        var audience = configuration["Jwt:Audience"] ?? "MobyParkUsers";
+        var issuer = builder.Configuration["Jwt:Issuer"] ?? "MobyParkAPI";
+        var audience = builder.Configuration["Jwt:Audience"] ?? "MobyParkUsers";
+
+        var certPath = builder.Configuration["Https:CertificatePath"];
+        var certPassword = builder.Configuration["Https:CertificatePassword"];
+
+        if (!string.IsNullOrWhiteSpace(certPath) && !string.IsNullOrWhiteSpace(certPassword))
+        {
+            builder.WebHost.UseKestrel(options =>
+            {
+                options.ListenAnyIP(443, listenOptions =>
+                {
+                    listenOptions.UseHttps(certPath, certPassword);
+                });
+
+                options.ListenAnyIP(80);
+            });
+        }
 
         services.AddControllers()
             .ConfigureApiBehaviorOptions(options =>
@@ -88,9 +104,6 @@ public static class ServiceExtensions
             .AddPolicy("CanManageHotels", policy => { policy.RequireClaim("Permission", "HOTELS:MANAGE"); })
             .AddPolicy("CanManageHotelPasses", policy => { policy.RequireClaim("Permission", "HOTELPASSES:MANAGE"); })
             .AddPolicy("CanManageBusinesses", policy => { policy.RequireClaim("Permission", "BUSINESSES:MANAGE"); });
-
-        services.AddMobyParkServices(configuration);
-        services.AddSwaggerAuthorization();
 
         return services;
     }
