@@ -22,7 +22,7 @@ public class ParkingLotsController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageParkingLot")]
+    [Authorize(Policy = "CanManageParkingLots")]
     [SwaggerOperation(Summary = "Creates a new parking lot.")]
     [SwaggerResponse(200, "Parking lot created successfully", typeof(ReadParkingLotDto))]
     [SwaggerResponse(409, "Parking lot address already taken")]
@@ -53,7 +53,7 @@ public class ParkingLotsController : BaseController
     }
 
     [HttpPatch("by-id/{lotId:long}")]
-    [Authorize(Policy = "CanManageParkingLot")]
+    [Authorize(Policy = "CanManageParkingLots")]
     [SwaggerOperation(Summary = "Updates a parking lot by ID.")]
     [SwaggerResponse(200, "Update successful", typeof(ReadParkingLotDto))]
     [SwaggerResponse(400, "Invalid update data")]
@@ -66,7 +66,7 @@ public class ParkingLotsController : BaseController
     }
 
     [HttpPatch("by-address")]
-    [Authorize(Policy = "CanManageParkingLot")]
+    [Authorize(Policy = "CanManageParkingLots")]
     [SwaggerOperation(Summary = "Updates a parking lot by address.")]
     [SwaggerResponse(200, "Update successful", typeof(ReadParkingLotDto))]
     [SwaggerResponse(400, "Invalid update data")]
@@ -79,7 +79,7 @@ public class ParkingLotsController : BaseController
     }
 
     [HttpDelete("by-id/{lotId:long}")]
-    [Authorize(Policy = "CanManageParkingLot")]
+    [Authorize(Policy = "CanManageParkingLots")]
     [SwaggerOperation(Summary = "Deletes a parking lot by ID.")]
     [SwaggerResponse(200, "Deletion successful", typeof(bool))]
     [SwaggerResponse(404, "Parking lot not found")]
@@ -90,7 +90,7 @@ public class ParkingLotsController : BaseController
     }
 
     [HttpDelete("by-address/{address}")]
-    [Authorize(Policy = "CanManageParkingLot")]
+    [Authorize(Policy = "CanManageParkingLots")]
     [SwaggerOperation(Summary = "Deletes a parking lot by address.")]
     [SwaggerResponse(200, "Deletion successful", typeof(bool))]
     [SwaggerResponse(404, "Parking lot not found")]

@@ -1,12 +1,13 @@
 using System.Security.Claims;
 
 using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
 
 using MobyPark.Models;
 using MobyPark.Services.Interfaces;
 using MobyPark.Services.Results;
 using MobyPark.Services.Results.User;
+
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.Controllers;
 

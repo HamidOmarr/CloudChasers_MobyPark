@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.Annotations;
+
 using MobyPark.DTOs.Hotel;
 using MobyPark.Services;
 using MobyPark.Services.Interfaces;
+
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.Controllers;
 

@@ -1,4 +1,5 @@
 ﻿using MobyPark.Models;
+
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.DTOs.ParkingLot.Request;

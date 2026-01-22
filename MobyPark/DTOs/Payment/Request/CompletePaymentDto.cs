@@ -1,5 +1,6 @@
-using Swashbuckle.AspNetCore.Annotations;
 using MobyPark.Models.Repositories.Interfaces;
+
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.DTOs.Payment.Request;
 

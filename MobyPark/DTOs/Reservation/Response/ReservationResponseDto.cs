@@ -1,5 +1,6 @@
-using Swashbuckle.AspNetCore.Annotations;
 using MobyPark.Models;
+
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MobyPark.DTOs.Reservation.Response;
 
