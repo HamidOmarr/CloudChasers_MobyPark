@@ -78,9 +78,8 @@ jobs:
       - name: Generate Swagger Docs
         shell: bash
         run: |
-            echo "Generating Swagger Documentation..."
-            SCRIPT_PATH="~/CloudChasers_MobyPark/ci/generate-swagger-docs.sh"
-
-            chmod +x $SCRIPT_PATH
-
-            $SCRIPT_PATH
+          echo "Generating Swagger Documentation..."
+          
+          cd ~/CloudChasers_MobyPark/ci
+          chmod +x generate-swagger-docs.sh
+          ./generate-swagger-docs.sh
