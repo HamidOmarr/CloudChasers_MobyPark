@@ -56,22 +56,25 @@ jobs:
           echo "Creating database backup..."
           chmod +x generate_dump.sh
           ./generate_dump.sh
-          
+
           echo "Pulling latest code from GitHub..."
           git pull origin main
-          
-          echo "Stopping existing containers..."
-          docker compose down
-          
-          echo "Building and starting containers..."
-          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d --build
+
+          echo "Stopping existing API container if running..."
+          if [ "$(docker ps -q -f name=mobypark_api)" ]; then
+            docker stop mobypark_api
+            docker rm mobypark_api
+          fi
+
+          echo "Starting API container, whilst leaving the database intact..."
+          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d mobypark-api
           
           echo "Waiting for containers to start..."
           sleep 5
-          
+
           echo "Deployment complete!  Checking status..."
           docker ps -a | grep mobypark
-          
+
           echo "API logs (last 20 lines):"
           docker logs --tail 20 mobypark_api || echo "API not yet running"
 
@@ -81,7 +84,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
         run: |
           echo "Generating Swagger Documentation..."
-          
+
           cd ~/CloudChasers_MobyPark/ci
           chmod +x generate-swagger-docs.sh
           ./generate-swagger-docs.sh

@@ -37,7 +37,8 @@ export Https__CertificatePassword="$CERT_PASSWORD"
 export ASPNETCORE_URLS="https://localhost:8578"
 
 # Start the dotnet app in background
-dotnet run --project "$PROJECT_DIR/MobyPark.csproj" > /dev/null 2>&1 &
+LOG_FILE="$WORK_DIR/api_startup.log"
+dotnet run --project "$PROJECT_DIR/MobyPark.csproj" > "$LOG_FILE" 2>&1 &
 API_PID=$!
 
 echo "Waiting for API to start (PID: $API_PID)..."
@@ -49,9 +50,12 @@ for i in {1..30}; do
         break
     fi
     if ! kill -0 $API_PID 2>/dev/null; then
-        echo "API process died unexpectedly."
-        exit 1
-    fi
+            echo "API process died unexpectedly."
+            echo "---------------- API LOGS START ----------------"
+            cat "$LOG_FILE"
+            echo "---------------- API LOGS END ------------------"
+            rm "$LOG_FILE"
+            exit 1
     echo "Waiting..."
     sleep 2
 done
