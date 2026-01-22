@@ -8,15 +8,17 @@ WORK_DIR="$CI_DIR/../MobyPark/OpenAPI"
 echo "Changing working directory to $WORK_DIR"
 cd "$WORK_DIR"
 
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
-fi
+echo "Bootstrapping pip..."
+curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
-source venv/bin/activate
+# Install pip to local user directory
+python3 get-pip.py --user
 
 echo "Installing dependencies..."
-pip install pyyaml --quiet --disable-pip-version-check
+python3 -m pip install pyyaml --user --quiet --disable-pip-version-check
+
+# Clean up installer
+rm get-pip.py
 
 echo "Fetching Swagger JSON from API..."
 curl -k -f \
