@@ -2,6 +2,7 @@ name: DB Backup Routine
 on:
   schedule:
     - cron: '0 */4 * * *' # Runs every 4 hours from 0:00
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   backup:
