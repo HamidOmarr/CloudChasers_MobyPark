@@ -11,6 +11,13 @@ until pg_isready -h "$DB_HOST" -U "$DB_USER"; do
   sleep 2
 done
 
+echo "Terminating existing connections..."
+export PGPASSWORD="$DB_PASSWORD"
+psql -h "$DB_HOST" -U "$DB_USER" -d "postgres" -c "
+  SELECT pid, pg_terminate_backend(pid)
+  FROM pg_stat_activity
+  WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();" || true
+
 echo "Dropping database if exists..."
 PGPASSWORD="$DB_PASSWORD" dropdb -h "$DB_HOST" -U "$DB_USER" --if-exists "$DB_NAME"
 
