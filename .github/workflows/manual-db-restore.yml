@@ -1,0 +1,61 @@
+name: Manual DB Restore (Nuclear)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "RESTORE" to confirm database restore (this will erase all current data)!'
+        required: true
+        default: ''
+
+jobs:
+  restore:
+    name: Restore Database
+    runs-on: [self-hosted, linux, x64, mobypark]
+
+    steps:
+      - name: Safety Check
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirmation }}" != "RESTORE" ]; then
+            echo "Confirmation not provided or incorrect. Exiting."
+            exit 1
+          fi
+          echo "Confirmation received. Proceeding with database restore."
+
+      - name: Execute Restore
+        shell: bash
+        env:
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          cd ~/CloudChasers_MobyPark
+          
+          echo "Finding latest backup..."
+          LATEST_BACKUP=$(ls -t backups/*.dump 2>/dev/null | head -n1)
+          
+          if [ -z "$LATEST_BACKUP" ]; then
+            echo "No backup files found in the backups directory. Exiting."
+            exit 1
+          fi
+          
+          echo "Latest backup found: $LATEST_BACKUP"
+          
+          cp "$LATEST_BACKUP" ./mobypark.dump
+          
+          echo "Stopping services..."
+          docker compose stop mobypark-api
+          docker compose stop mobypark-db
+          
+          echo "Wiping existing database data..."
+          docker compose down -v
+          
+          echo "Starting fresh DB..."
+          docker compose up -d mobypark-db
+          sleep 10
+          
+          echo "Restoring database from backup..."
+          docker compose run --rm mobypark-db-restore
+          
+          echo "6. Restarting API..."
+          CERT_PASSWORD="$CERT_PASSWORD" docker compose up -d --build --no-deps mobypark-api
+
+          echo "Restore Complete! Application is back online with data from $LATEST_BACKUP"
